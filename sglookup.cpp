@@ -18,9 +18,16 @@ SGLookup::~SGLookup()
   
 }
 
-void SGLookup::init(size_t numSequences)
+void SGLookup::init(const vector<string>& sequenceNames)
 {
-  _mapVec = PosMapVec(numSequences);
+  _mapVec = PosMapVec(sequenceNames.size());
+
+  _seqIdToName = sequenceNames;
+  _seqNameToId.clear();
+  for (size_t i = 0; i < _seqNameToId.size(); ++i)
+  {
+    _seqNameToId.insert(pair<string, sg_int_t>(_seqIdToName[i], sg_int_t(i)));
+  }
 }
 
 void SGLookup::addInterveral(const SGPosition& inPos,

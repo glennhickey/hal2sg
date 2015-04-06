@@ -24,9 +24,9 @@ public:
    ~SGLookup();
 
    /** Set some basic dimensions properties, zapping any existing
-    * data.  (note would be nice to have sequence sizes here)
+    * data.
     */
-   void init(size_t numSequences);
+   void init(const std::vector<std::string>& sequenceNames);
 
    /** Add a mapping between a pair of intervals:
     * [inPos, inPos+length) -> [outPos, outPos+length) 
@@ -40,6 +40,16 @@ public:
    /** Find the position of a genome coordinate in the sequence 
     * graph */
    SGPosition mapPosition(const SGPosition& inPos) const;
+
+   /** Map sequence name (string) to sequence id (integer position in
+    * hals sequence list for this genome)
+    */
+   sg_int_t getSequenceId(const std::string& sequenceName) const;
+
+   /** Map sequence id  (integer position in hals sequence list for this 
+    * genome) to its name
+    */
+   std::string getSequenceName(sg_int_t sequenceId) const;
                  
 protected: 
 
@@ -52,9 +62,32 @@ protected:
    // over storing in single map and having id part of key.
    typedef std::vector<PosMap> PosMapVec;
 
+   // map a sequence name to id
+   typedef std::map<std::string, sg_int_t> SeqNameMap;
+   // and back
+   typedef std::vector<std::string> SeqIdMap;
+   
 protected:
+
    PosMapVec _mapVec;
+   SeqNameMap _seqNameToId;
+   SeqIdMap _seqIdToName;
 };
+
+inline sg_int_t SGLookup::getSequenceId(const std::string& sequenceName) const
+{
+  SeqNameMap::const_iterator i = _seqNameToId.find(sequenceName);
+  if (i != _seqNameToId.end())
+  {
+    return i->second;
+  }
+  return -1;
+}
+
+inline std::string SGLookup::getSequenceName(sg_int_t sequenceId) const
+{
+  return _seqIdToName.at(sequenceId);
+}
 
 inline SGPosition SGLookup::mapPosition(const SGPosition& inPos) const
 {
