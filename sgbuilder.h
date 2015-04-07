@@ -75,6 +75,8 @@ protected:
    GenomeLUMap _luMap;
    SGLookup* _lookup;
    SequenceMapBack _seqMapBack;
+   std::set<const hal::Genome*> _mapPath;
+   const hal::Genome* _mapMrca;
    
 };
 #endif

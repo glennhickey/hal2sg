@@ -146,6 +146,7 @@ int main(int argc, char** argv)
         }
         targetVec.push_back(tgtGenome);
       }
+      
     }
 
     // open the reference genome (root genome if unspecified)
@@ -157,6 +158,13 @@ int main(int argc, char** argv)
       {
         throw hal_exception(string("Reference genome, ") + refGenomeName + 
                             ", not found in alignment");
+      }
+      set<const Genome*> genomeSet;
+      genomeSet.insert(refGenome);
+      genomeSet.insert(rootGenome);
+      if (getLowestCommonAncestor(genomeSet) != rootGenome)
+      {
+        throw hal_exception(string("reference genome must be under root"));
       }
     }
     else
@@ -202,7 +210,7 @@ int main(int argc, char** argv)
     cout << *sgbuild.getSideGraph() << endl;
 
   }
-  catch(hal_exception& e)
+/*  catch(hal_exception& e)
   {
     cerr << "hal exception caught: " << e.what() << endl;
     return 1;
@@ -212,6 +220,7 @@ int main(int argc, char** argv)
     cerr << "Exception caught: " << e.what() << endl;
     return 1;
   }
-  
+*/
+  catch(int e) {}
   return 0;
 }

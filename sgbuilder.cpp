@@ -5,11 +5,12 @@
  */
 
 #include "sgbuilder.h"
+#include "halBlockMapper.h"
 
 using namespace std;
 using namespace hal;
 
-SGBuilder::SGBuilder() : _sg(0), _root(0), _lookup(0)
+SGBuilder::SGBuilder() : _sg(0), _root(0), _lookup(0), _mapMrca(0)
 {
 
 }
@@ -39,6 +40,8 @@ void SGBuilder::clear()
   _luMap.clear();
   _lookup = NULL;
   _seqMapBack.clear();
+  _mapPath.clear();
+  _mapMrca = NULL;
 }
 
 const SideGraph* SGBuilder::getSideGraph() const
@@ -99,6 +102,19 @@ void SGBuilder::addGenome(const Genome* genome,
 
   // Compute the target
   const Genome* target = getTarget(genome);
+  // Update the mapping structures.  Should verify with Joel what
+  // these new parameters mean. 
+  if (target != NULL)
+  {
+    set<const Genome*> inputSet;
+    inputSet.insert(genome);
+    inputSet.insert(target);
+    _mapMrca = getLowestCommonAncestor(inputSet);
+    inputSet.clear();
+    inputSet.insert(_root);
+    inputSet.insert(target);
+    getGenomesInSpanningTree(inputSet, _mapPath);
+  }
 
   // Convert sequence by sequence
   for (size_t i = 0; i < seqNames.size(); ++i)
@@ -158,12 +174,82 @@ void SGBuilder::mapSequence(const Sequence* sequence,
                             hal_index_t globalEnd,
                             const Genome* target)
 {
-  //easy case :first sequence added to graph
-  if (target == NULL)
+  //easy case: add sequences without any joins because we are doing root
+  //and everything is empty (same logic for empty sequence)
+  const Genome* genome = sequence->getGenome();
+  if ((target == NULL && genome == _root) || globalEnd == globalStart)
   {
     createSGSequence(sequence, globalStart - sequence->getStartPosition(),
                      globalEnd - globalStart + 1);
   }
-}
+  else
+  {
+    if (target == NULL)
+    {
+      // map to self
+      target = genome;
+      _mapMrca = genome; 
+    }
+    
+    // block mapping logic below largely taken from halBlockLiftover.cpp
+    SegmentIteratorConstPtr refSeg;
+    hal_index_t lastIndex;
+    if (genome->getNumTopSegments() > 0)
+    {
+      refSeg = genome->getTopSegmentIterator();
+      lastIndex = (hal_index_t)genome->getNumTopSegments();
+    }
+    else
+    {
+      refSeg = genome->getBottomSegmentIterator();
+      lastIndex = (hal_index_t)genome->getNumBottomSegments();      
+    }
+    
+    refSeg->toSite(globalStart, false);
+    hal_offset_t startOffset = globalStart - refSeg->getStartPosition();
+    hal_offset_t endOffset = 0;
+    if (globalEnd <= refSeg->getEndPosition())
+    {
+      endOffset = refSeg->getEndPosition() - globalEnd;
+    }
+    refSeg->slice(startOffset, endOffset);
+  
+    assert(refSeg->getStartPosition() ==  globalStart);
+    assert(refSeg->getEndPosition() <= globalEnd);
+    
+    set<MappedSegmentConstPtr> mappedSegments;
 
+    cout << "Mapping " << sequence->getFullName() << " to "
+         << target->getName()
+         << "; MRC = " << _mapMrca->getName()
+         << "; ROOT = " << _root->getName()
+         << "; PATH = ";
+    for (set<const Genome*>::iterator i = _mapPath.begin();
+         i != _mapPath.end(); ++i)
+    {
+       cout << (*i)->getName() << ", ";
+    }
+    cout << endl;
+    
+    while (refSeg->getArrayIndex() < lastIndex &&
+           refSeg->getStartPosition() <= globalEnd)  
+    {
+      refSeg->getMappedSegments(mappedSegments, target, &_mapPath,
+                                true, 0, _root, _mapMrca);
+      refSeg->toRight(globalEnd);
+    }
+
+    vector<MappedSegmentConstPtr> fragments;
+    BlockMapper::MSSet emptySet;
+    set<hal_index_t> queryCutSet;
+    set<hal_index_t> targetCutSet;
+
+    for (set<MappedSegmentConstPtr>::iterator i = mappedSegments.begin();
+         i != mappedSegments.end(); ++i)
+    {
+      BlockMapper::extractSegment(i, emptySet, fragments, &mappedSegments, 
+                                  targetCutSet, queryCutSet);
+    }
+  }
+}
 
