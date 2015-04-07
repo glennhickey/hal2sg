@@ -239,17 +239,74 @@ void SGBuilder::mapSequence(const Sequence* sequence,
       refSeg->toRight(globalEnd);
     }
 
+    Block block1;
+    Block block2;
+    Block* block = &block1;
+    Block* prevBlock = &block2;
+    
     vector<MappedSegmentConstPtr> fragments;
     BlockMapper::MSSet emptySet;
     set<hal_index_t> queryCutSet;
     set<hal_index_t> targetCutSet;
 
+    // iterate our mapped segments, adding joins as we go to the side graph
     for (set<MappedSegmentConstPtr>::iterator i = mappedSegments.begin();
          i != mappedSegments.end(); ++i)
     {
       BlockMapper::extractSegment(i, emptySet, fragments, &mappedSegments, 
                                   targetCutSet, queryCutSet);
+      fragmentsToBlock(fragments, *block);      
+      updateSegment(prevBlock,
+                    (i == mappedSegments.begin() ? NULL : prevBlock),
+                    mappedSegments, i, sequence,
+                    genome, globalStart, globalEnd, target);      
+      swap(block, prevBlock);
     }
   }
 }
 
+
+void SGBuilder::updateSegment(Block* prevBlock,
+                              Block* block,
+                              set<MappedSegmentConstPtr>& mappedSegments,
+                              set<MappedSegmentConstPtr>::iterator i,
+                              const Sequence* srcSequence,
+                              const Genome* srcGenome,
+                              hal_index_t globalStart, hal_index_t globalEnd,
+                              const Genome* tgtGenome)
+{
+
+
+  
+  
+}
+
+
+void SGBuilder::fragmentsToBlock(const vector<MappedSegmentConstPtr>& fragments,
+                                 Block& block) const
+{
+  block._tgtStart = min(min(fragments.front()->getStartPosition(), 
+                            fragments.front()->getEndPosition()),
+                        min(fragments.back()->getStartPosition(),
+                            fragments.back()->getEndPosition()));
+  block._tgtEnd = max(max(fragments.front()->getStartPosition(), 
+                          fragments.front()->getEndPosition()),
+                      max(fragments.back()->getStartPosition(),
+                          fragments.back()->getEndPosition()));
+  block._tgtSeq = fragments.front()->getSequence();
+
+  SlicedSegmentConstPtr srcFront = fragments.front()->getSource();
+  SlicedSegmentConstPtr srcBack = fragments.back()->getSource();
+
+  block._srcStart =  min(min(srcFront->getStartPosition(), 
+                             srcFront->getEndPosition()),
+                         min(srcBack->getStartPosition(),
+                             srcBack->getEndPosition()));
+  block._srcEnd = max(max(srcFront->getStartPosition(), 
+                          srcFront->getEndPosition()),
+                      max(srcBack->getStartPosition(),
+                          srcBack->getEndPosition()));
+  block._srcSeq = srcFront->getSequence();
+
+  block._reversed = srcFront->getReversed() != fragments.front()->getReversed();
+}

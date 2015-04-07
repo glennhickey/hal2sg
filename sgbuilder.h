@@ -42,11 +42,29 @@ public:
     * Get the Side Graph
     */
    const SideGraph* getSideGraph() const;
-             
+
+protected:
+   
+   typedef std::map<std::string, SGLookup*> GenomeLUMap;
+
+   typedef std::map<SGSequence*, std::pair<const hal::Sequence*,
+                                           hal_index_t> > SequenceMapBack;
+
+   /** convenience structure for alignment block.  note hall coordinates
+    * are in forward strand global (genome) level.  */
+   struct Block {
+      hal_index_t _srcStart;
+      hal_index_t _srcEnd;
+      hal_index_t _tgtStart;
+      hal_index_t _tgtEnd;
+      const hal::Sequence* _srcSeq;
+      const hal::Sequence* _tgtSeq;
+      bool _reversed;
+   }; 
+
 protected:
 
-   /** Find the nearest genome in the Side Graph to align to
-    */
+   /** Find the nearest genome in the Side Graph to align to */
    const hal::Genome* getTarget(const hal::Genome* genome);
 
    /** Map a Sequence onto the Side Graph by aligning to target
@@ -62,10 +80,27 @@ protected:
                                 hal_index_t startOffset,
                                 hal_index_t length);
 
-   typedef std::map<std::string, SGLookup*> GenomeLUMap;
+   /** Add interval (from blockmapper machinery) to the side graph.  
+    * The interval maps from the new SOURCE genome to a TARGET genome
+    * that is already in the side graph. 
+    */
+   void updateSegment(Block* prevBlock,
+                      Block* block,
+                      std::set<hal::MappedSegmentConstPtr>& mappedSegments,
+                      std::set<hal::MappedSegmentConstPtr>::iterator i,
+                      const hal::Sequence* srcSequence,
+                      const hal::Genome* srcGenome,
+                      hal_index_t globalStart, hal_index_t globalEnd,
+                      const hal::Genome* tgtGenome);
 
-   typedef std::map<SGSequence*, std::pair<const hal::Sequence*,
-                                           hal_index_t> > SequenceMapBack;
+   /**
+    * Don't want to deal with the mapped block fragments all the time. 
+    * code to read into struct here. 
+    */
+   void fragmentsToBlock(
+     const std::vector<hal::MappedSegmentConstPtr>& fragments,
+     Block& block) const;
+  
 
 protected:
    
