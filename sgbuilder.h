@@ -51,7 +51,7 @@ protected:
                                            hal_index_t> > SequenceMapBack;
 
    /** convenience structure for alignment block.  note hall coordinates
-    * are in forward strand global (genome) level.  */
+    * are in forward strand relative to Segment (not genome).  */
    struct Block {
       hal_index_t _srcStart;
       hal_index_t _srcEnd;
@@ -60,7 +60,10 @@ protected:
       const hal::Sequence* _srcSeq;
       const hal::Sequence* _tgtSeq;
       bool _reversed;
-   }; 
+   };
+   struct BlockPtrLess {
+      bool operator()(const Block* b1, const Block* b2) const;
+   };
 
 protected:
 
@@ -86,8 +89,7 @@ protected:
     */
    void updateSegment(Block* prevBlock,
                       Block* block,
-                      std::set<hal::MappedSegmentConstPtr>& mappedSegments,
-                      std::set<hal::MappedSegmentConstPtr>::iterator i,
+                      Block* nextBlock,
                       const hal::Sequence* srcSequence,
                       const hal::Genome* srcGenome,
                       hal_index_t globalStart, hal_index_t globalEnd,
@@ -100,7 +102,6 @@ protected:
    void fragmentsToBlock(
      const std::vector<hal::MappedSegmentConstPtr>& fragments,
      Block& block) const;
-  
 
 protected:
    
@@ -114,4 +115,38 @@ protected:
    const hal::Genome* _mapMrca;
    
 };
+
+inline bool SGBuilder::BlockPtrLess::operator()(const SGBuilder::Block* b1,
+                                                const SGBuilder::Block* b2)
+  const
+{
+  assert(b1->_srcSeq == b2->_srcSeq);
+  if (b1->_srcStart < b2->_srcStart)
+  {
+    return true;
+  }
+  else if (b1->_srcStart == b2->_srcStart)
+  {
+    if (b1->_srcEnd < b2->_srcEnd)
+    {
+      return true;
+    }
+    else if (b1->_srcEnd == b2->_srcEnd)
+    {
+      if (b1->_tgtStart < b2->_tgtStart)
+      {
+        return true;
+      }
+      else if (b1->_tgtStart == b2->_tgtStart)
+      {
+        if (b1->_tgtEnd < b2->_tgtEnd)
+        {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 #endif

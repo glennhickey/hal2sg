@@ -198,6 +198,14 @@ void SGBuilder::mapSequence(const Sequence* sequence,
     {
       refSeg = genome->getTopSegmentIterator();
       lastIndex = (hal_index_t)genome->getNumTopSegments();
+      for (size_t i = 0; i < lastIndex; ++i)
+      {
+        TopSegmentIteratorConstPtr ts = genome->getTopSegmentIterator(i);
+        if (ts->hasNextParalogy())
+        {
+          ts->print(cout); cout << endl;
+        }
+      }
     }
     else
     {
@@ -239,28 +247,45 @@ void SGBuilder::mapSequence(const Sequence* sequence,
       refSeg->toRight(globalEnd);
     }
 
-    Block block1;
-    Block block2;
-    Block* block = &block1;
-    Block* prevBlock = &block2;
-    
+    vector<Block*> blocks;
+    blocks.reserve(mappedSegments.size());
+
     vector<MappedSegmentConstPtr> fragments;
     BlockMapper::MSSet emptySet;
     set<hal_index_t> queryCutSet;
     set<hal_index_t> targetCutSet;
-
-    // iterate our mapped segments, adding joins as we go to the side graph
     for (set<MappedSegmentConstPtr>::iterator i = mappedSegments.begin();
          i != mappedSegments.end(); ++i)
     {
       BlockMapper::extractSegment(i, emptySet, fragments, &mappedSegments, 
                                   targetCutSet, queryCutSet);
-      fragmentsToBlock(fragments, *block);      
-      updateSegment(prevBlock,
-                    (i == mappedSegments.begin() ? NULL : prevBlock),
-                    mappedSegments, i, sequence,
-                    genome, globalStart, globalEnd, target);      
-      swap(block, prevBlock);
+      Block* block = new Block();
+      fragmentsToBlock(fragments, *block);
+      blocks.push_back(block);
+    }
+    // extractSegment() method above works in sorted order by target.
+    // we need sorted order by source (to detect insertions, for example).
+    sort(blocks.begin(), blocks.end(), BlockPtrLess());
+
+    if (blocks.empty() == true)
+    {
+      // case with zero mapped blocks.  entire segment will be insertion. 
+      updateSegment(NULL, NULL, NULL, sequence,
+                    genome, globalStart, globalEnd, target);
+    }
+    else
+    {
+      for (size_t j = 0; j < blocks.size(); ++j)
+      {
+        Block* prev = j == 0 ? NULL : blocks[j-1];
+        Block* next = j == blocks.size() - 1 ? NULL : blocks[j+1];
+        updateSegment(prev, blocks[j], next, sequence,
+                      genome, globalStart, globalEnd, target);
+      }
+    }
+    for (size_t j = 0; j < blocks.size(); ++j)
+    {
+      delete blocks[j];
     }
   }
 }
@@ -268,13 +293,22 @@ void SGBuilder::mapSequence(const Sequence* sequence,
 
 void SGBuilder::updateSegment(Block* prevBlock,
                               Block* block,
-                              set<MappedSegmentConstPtr>& mappedSegments,
-                              set<MappedSegmentConstPtr>::iterator i,
+                              Block* nextBlock,
                               const Sequence* srcSequence,
                               const Genome* srcGenome,
                               hal_index_t globalStart, hal_index_t globalEnd,
                               const Genome* tgtGenome)
 {
+  // handle insertion (source sequence not mapped to target)
+  hal_index_t prevSrcPos = prevBlock != NULL ? prevBlock->_srcEnd : 0;
+  hal_index_t srcPos = block != NULL ? block->_srcStart :
+     globalEnd - srcSequence->getEndPosition();
+  assert(srcPos >= prevSrcPos);
+  if (srcPos > prevSrcPos)
+  {
+    
+  }
+  
 
 
   
@@ -307,6 +341,12 @@ void SGBuilder::fragmentsToBlock(const vector<MappedSegmentConstPtr>& fragments,
                       max(srcBack->getStartPosition(),
                           srcBack->getEndPosition()));
   block._srcSeq = srcFront->getSequence();
+
+  // convert to segment level;
+  block._tgtStart -= block._tgtSeq->getStartPosition();
+  block._tgtEnd -= block._tgtSeq->getStartPosition();
+  block._srcStart -= block._srcSeq->getStartPosition();
+  block._srcEnd -= block._srcSeq->getStartPosition();
 
   block._reversed = srcFront->getReversed() != fragments.front()->getReversed();
 }
