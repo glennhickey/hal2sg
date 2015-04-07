@@ -4,6 +4,8 @@
  * Released under the MIT license, see LICENSE.txt
  */
 
+#include <sstream>
+
 #include "sgbuilder.h"
 #include "halBlockMapper.h"
 
@@ -158,7 +160,14 @@ SGSequence* SGBuilder::createSGSequence(const Sequence* sequence,
   // make a new Side Graph Sequence
   SGSequence* sgSeq = new SGSequence();
   sgSeq->_length = length;
-  sgSeq->_name = sequence->getName();
+  stringstream name;
+  name << sequence->getFullName();
+  if (length < sequence->getSequenceLength())
+  {
+    name << "_" << startOffset << ":" << length;
+  }
+  sgSeq->_name = name.str();
+
   // add to the Side Graph
   _sg->addSequence(sgSeq);
   // keep record of where it came from
@@ -198,14 +207,6 @@ void SGBuilder::mapSequence(const Sequence* sequence,
     {
       refSeg = genome->getTopSegmentIterator();
       lastIndex = (hal_index_t)genome->getNumTopSegments();
-      for (size_t i = 0; i < lastIndex; ++i)
-      {
-        TopSegmentIteratorConstPtr ts = genome->getTopSegmentIterator(i);
-        if (ts->hasNextParalogy())
-        {
-          ts->print(cout); cout << endl;
-        }
-      }
     }
     else
     {
@@ -303,10 +304,11 @@ void SGBuilder::updateSegment(Block* prevBlock,
   hal_index_t prevSrcPos = prevBlock != NULL ? prevBlock->_srcEnd : 0;
   hal_index_t srcPos = block != NULL ? block->_srcStart :
      globalEnd - srcSequence->getEndPosition();
-  assert(srcPos >= prevSrcPos);
   if (srcPos > prevSrcPos)
   {
-    
+    // insert new sequence
+    SGSequence* insertedSeq = createSGSequence(srcSequence, srcPos,
+                                              srcPos - prevSrcPos);
   }
   
 
