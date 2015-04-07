@@ -35,9 +35,13 @@ public:
     */
    void addGenome(const hal::Genome* genome,
                   const hal::Sequence* sequence = NULL,
-                  hal_index_t start = hal::NULL_INDEX,
-                  hal_index_t end = hal::NULL_INDEX);
+                  hal_index_t start = 0,
+                  hal_index_t length = 0);
 
+   /**
+    * Get the Side Graph
+    */
+   const SideGraph* getSideGraph() const;
              
 protected:
 
@@ -52,7 +56,16 @@ protected:
                     hal_index_t globalEnd,
                     const hal::Genome* target);
 
+   /** Add a sequence (or part thereof to the sidegraph) and update
+    * lookup structures (but not joins) */
+   SGSequence* createSGSequence(const hal::Sequence* sequence,
+                                hal_index_t startOffset,
+                                hal_index_t length);
+
    typedef std::map<std::string, SGLookup*> GenomeLUMap;
+
+   typedef std::map<SGSequence*, std::pair<const hal::Sequence*,
+                                           hal_index_t> > SequenceMapBack;
 
 protected:
    
@@ -60,6 +73,8 @@ protected:
    const hal::Genome* _root;
    hal::AlignmentConstPtr _alignment;
    GenomeLUMap _luMap;
+   SGLookup* _lookup;
+   SequenceMapBack _seqMapBack;
    
 };
 #endif

@@ -28,3 +28,19 @@ SideGraph::~SideGraph()
   }
 }
 
+ostream& operator<<(ostream& os, const SideGraph& sg)
+{
+  os << "SideGraph {\n";
+  sg_int_t i = 0;
+  for (; i < sg.getNumSequences(); ++i)
+  {
+    os << "Sequence " << i << ": " << *sg.getSequence(i) << "\n";
+  }
+  const SideGraph::JoinSet* js = sg.getJoinSet();
+  i = 0;
+  for (SideGraph::JoinSet::const_iterator j = js->begin(); j != js->end(); ++j)
+  {
+    os << "Join " << i++ << ": " << **j << "\n";
+  }
+  return os << "}" << endl;
+}

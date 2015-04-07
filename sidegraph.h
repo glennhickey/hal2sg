@@ -38,6 +38,10 @@ struct SGSequence
    std::string _name;
 };
 
+inline std::ostream& operator<<(std::ostream& os, const SGSequence& s) {
+  return os << "s(" << s._id << "," << s._length << "," << s._name << ")";
+}
+
 /**
  *  Position in the sidegraph
  */
@@ -153,7 +157,11 @@ public:
    /**
     * Fetch sequence using its ID
     */   
-   const SGSequence* getSGSequence(sg_seqid_t id) const;
+   const SGSequence* getSequence(sg_seqid_t id) const;
+
+   /**
+    * Fetch sequence using its Name */
+   const SGSequence* getSequenceByName(const std::string& name) const;
 
    /**
     * Get number of sequences
@@ -164,7 +172,7 @@ public:
     * Add a sequence into the graph.  SideGraph takes deletion resp 
     * ID field will be ignored and updated automatically
     */
-   sg_seqid_t addSGSequence(SGSequence* seq);
+   sg_seqid_t addSequence(SGSequence* seq);
    
 protected:
 
@@ -174,6 +182,12 @@ protected:
 private:
    SideGraph(const SideGraph& sg);
 };
+
+/** 
+ * Print the Side Graph
+ */
+std::ostream& operator<<(std::ostream& os, const SideGraph& sg);
+
 
 inline const Join* SideGraph::getJoin(const Join* join) const
 {
@@ -196,7 +210,7 @@ inline const SideGraph::JoinSet* SideGraph::getJoinSet() const
   return &_joinSet;
 }
 
-inline const SGSequence* SideGraph::getSGSequence(sg_seqid_t id)
+inline const SGSequence* SideGraph::getSequence(sg_seqid_t id)
   const
 {
   return _seqSet[id];
@@ -207,7 +221,7 @@ inline sg_int_t SideGraph::getNumSequences() const
   return _seqSet.size();
 }
 
-inline sg_seqid_t SideGraph::addSGSequence(SGSequence* seq)
+inline sg_seqid_t SideGraph::addSequence(SGSequence* seq)
 {
   seq->_id = _seqSet.size();
   _seqSet.push_back(seq);

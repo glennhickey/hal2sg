@@ -9,7 +9,7 @@
 #include <cassert>
 #include <fstream>
 
-#include "hal.h"
+#include "sgbuilder.h"
 
 using namespace std;
 using namespace hal;
@@ -98,24 +98,42 @@ int main(int argc, char** argv)
     {
       throw hal_exception("hal alignmenet is empty");
     }
-    
-    set<const Genome*> targetSet;
+
+    // root is specified either by the parameter or as the alignment root
+    // by default
     const Genome* rootGenome = NULL;
     if (rootGenomeName != "\"\"")
     {
       rootGenome = alignment->openGenome(rootGenomeName);
-      if (rootGenome == NULL)
-      {
-        throw hal_exception(string("Root genome, ") + rootGenomeName + 
-                            ", not found in alignment");
-      }
-      if (rootGenomeName != alignment->getRootName())
-      {
-        getGenomesInSubTree(rootGenome, targetSet);
-      }
+    }
+    else
+    {
+      rootGenome = alignment->openGenome(alignment->getRootName());
+    }
+    if (rootGenome == NULL)
+    {
+      throw hal_exception(string("Root genome, ") + rootGenomeName + 
+                          ", not found in alignment");
     }
 
-    if (targetGenomes != "\"\"")
+    // target genomes pulled from tree traversal (using optional root
+    // parameter)
+    vector<const Genome*> targetVec;
+    if (targetGenomes == "\"\"")
+    {
+      set<const Genome*> targetSet;
+      getGenomesInSubTree(rootGenome, targetSet);
+      for (set<const Genome*>::iterator i = targetSet.begin();
+           i != targetSet.end(); ++i)
+      {
+        if (noAncestors == false || (*i)->getNumChildren() == 0)
+        {
+          targetVec.push_back(*i);
+        }
+      }
+    }
+    // target genomes pulled from list.  
+    else
     {
       vector<string> targetNames = chopString(targetGenomes, ",");
       for (size_t i = 0; i < targetNames.size(); ++i)
@@ -126,10 +144,11 @@ int main(int argc, char** argv)
           throw hal_exception(string("Target genome, ") + targetNames[i] + 
                               ", not found in alignment");
         }
-        targetSet.insert(tgtGenome);
+        targetVec.push_back(tgtGenome);
       }
     }
 
+    // open the reference genome (root genome if unspecified)
     const Genome* refGenome = NULL;
     if (refGenomeName != "\"\"")
     {
@@ -142,24 +161,14 @@ int main(int argc, char** argv)
     }
     else
     {
-      refGenome = alignment->openGenome(alignment->getRootName());
+      refGenome = rootGenome;
     }
-    const SegmentedSequence* ref = refGenome;
 
-    if (noAncestors == true && refGenome->getNumChildren() != 0)
-    {
-      throw hal_exception(string("Since the reference genome to be used for the"
-                                 " MAF is ancestral (") + refGenome->getName() +
-                          "), the --noAncestors option is invalid.  The "
-                          "--refGenome option can be used to specify a "
-                          "different reference.");
-    }
-    
+    // optionally specify a sequence in the ref genome
     const Sequence* refSequence = NULL;
     if (refSequenceName != "\"\"")
     {
       refSequence = refGenome->getSequence(refSequenceName);
-      ref = refSequence;
       if (refSequence == NULL)
       {
         throw hal_exception(string("Reference sequence, ") + refSequenceName + 
@@ -167,6 +176,31 @@ int main(int argc, char** argv)
                             refGenome->getName());
       }
     }
+
+    // make sure refGenome not in target genomes
+    for (vector<const Genome*>::iterator i = targetVec.begin();
+         i != targetVec.end(); ++i)
+    {
+      if (*i == refGenome)
+      {
+        targetVec.erase(i);
+        break;
+      }
+    }
+
+    SGBuilder sgbuild;
+    sgbuild.init(alignment, rootGenome);
+    // add the reference genome
+    sgbuild.addGenome(refGenome, refSequence, start, length);
+
+    // add the other genomes
+    for (size_t i = 0; i < targetVec.size(); ++i)
+    {
+      sgbuild.addGenome(targetVec[i]);
+    }
+    
+    cout << *sgbuild.getSideGraph() << endl;
+
   }
   catch(hal_exception& e)
   {
