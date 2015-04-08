@@ -83,6 +83,10 @@ protected:
                                 hal_index_t startOffset,
                                 hal_index_t length);
 
+   /** Add a join to the side graph */
+   const SGJoin* createSGJoin(sg_seqid_t seqId1, sg_int_t pos1, bool forward1,
+                              sg_seqid_t seqId2, sg_int_t pos2, bool forward2);
+
    /** Add interval (from blockmapper machinery) to the side graph.  
     * The interval maps from the new SOURCE genome to a TARGET genome
     * that is already in the side graph. 
@@ -90,6 +94,7 @@ protected:
    void updateSegment(Block* prevBlock,
                       Block* block,
                       Block* nextBlock,
+                      SGPosition* prevHook,
                       const hal::Sequence* srcSequence,
                       const hal::Genome* srcGenome,
                       hal_index_t globalStart, hal_index_t globalEnd,

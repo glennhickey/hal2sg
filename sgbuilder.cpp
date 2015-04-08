@@ -178,6 +178,21 @@ SGSequence* SGBuilder::createSGSequence(const Sequence* sequence,
   return sgSeq;
 }
 
+const SGJoin* SGBuilder::createSGJoin(sg_seqid_t seqId1, sg_int_t pos1,
+                                      bool forward1,
+                                      sg_seqid_t seqId2, sg_int_t pos2,
+                                      bool forward2)
+{
+  SGJoin* join = new SGJoin();
+  join->_side1._base._seqid = seqId1;
+  join->_side1._base._pos = pos1;
+  join->_side1._forward = forward1;
+  join->_side2._base._seqid = seqId2;
+  join->_side2._base._pos = pos2;
+  join->_side2._forward = forward2;
+  return _sg->addJoin(join);
+}
+
 void SGBuilder::mapSequence(const Sequence* sequence,
                             hal_index_t globalStart,
                             hal_index_t globalEnd,
@@ -250,6 +265,7 @@ void SGBuilder::mapSequence(const Sequence* sequence,
 
     vector<Block*> blocks;
     blocks.reserve(mappedSegments.size());
+    SGPosition prevHook;
 
     vector<MappedSegmentConstPtr> fragments;
     BlockMapper::MSSet emptySet;
@@ -271,7 +287,7 @@ void SGBuilder::mapSequence(const Sequence* sequence,
     if (blocks.empty() == true)
     {
       // case with zero mapped blocks.  entire segment will be insertion. 
-      updateSegment(NULL, NULL, NULL, sequence,
+      updateSegment(NULL, NULL, NULL, NULL, sequence,
                     genome, globalStart, globalEnd, target);
     }
     else
@@ -280,7 +296,7 @@ void SGBuilder::mapSequence(const Sequence* sequence,
       {
         Block* prev = j == 0 ? NULL : blocks[j-1];
         Block* next = j == blocks.size() - 1 ? NULL : blocks[j+1];
-        updateSegment(prev, blocks[j], next, sequence,
+        updateSegment(prev, blocks[j], next, &prevHook, sequence,
                       genome, globalStart, globalEnd, target);
       }
     }
@@ -295,6 +311,7 @@ void SGBuilder::mapSequence(const Sequence* sequence,
 void SGBuilder::updateSegment(Block* prevBlock,
                               Block* block,
                               Block* nextBlock,
+                              SGPosition* prevHook,
                               const Sequence* srcSequence,
                               const Genome* srcGenome,
                               hal_index_t globalStart, hal_index_t globalEnd,
@@ -306,15 +323,47 @@ void SGBuilder::updateSegment(Block* prevBlock,
      globalEnd - srcSequence->getEndPosition();
   if (srcPos > prevSrcPos)
   {
-    // insert new sequence
-    SGSequence* insertedSeq = createSGSequence(srcSequence, srcPos,
+    // insert new sequence for gap between prevBock and block
+    SGSequence* insertSeq = createSGSequence(srcSequence, srcPos,
                                               srcPos - prevSrcPos);
+    // join it on end of last inserted side graph position
+    if (prevHook != NULL)
+    {
+      createSGJoin(prevHook->_seqid, prevHook->_pos, !prevBlock->_reversed,
+                   insertSeq->_id, 0, false);
+    }
+
+    // our new hook is the end of this new sequence
+    prevHook->_seqid = insertSeq->_id;
+    prevHook->_pos = insertSeq->_length - 1;
   }
-  
+  if (prevBlock != NULL)
+  {
+    assert(block != NULL);
+    // our hook-in point is the left tgt coordinate of the aligned block
+    // (or the right in the case of an inversion)
+    SGPosition halPosition;
+    // need to convert hal sequence to id. 
+    if (prevBlock->_tgtSeq == block->_tgtSeq)
+    {
+      halPosition._seqid = prevHook->_seqid;
+    }
+    else
+    {
+      halPosition._seqid = _lookup->getSequenceId(block->_tgtSeq->getName());
+    }
+    halPosition._pos = block->_reversed ? block->_srcEnd : block->_srcStart;
 
+    // transform HAL coordinate into Side Graph coordinate
+    SGPosition sgPosition = _lookup->mapPosition(halPosition);
 
-  
-  
+    // we now know enough to join to prevBlock
+    createSGJoin(prevHook->_seqid, prevHook->_pos, !prevBlock->_reversed,
+                 sgPosition._seqid, sgPosition._pos, !block->_reversed);
+    
+    // our new hook is the end of the last join
+    *prevHook = sgPosition;
+  }  
 }
 
 

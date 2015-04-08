@@ -95,28 +95,28 @@ inline std::ostream& operator<<(std::ostream& os, const SGSide& s) {
 /**
  * Join from one side to another
  */
-struct Join
+struct SGJoin
 {
    SGSide _side1;
    SGSide _side2;
 };
 
-inline bool operator<(const Join& j1, const Join& j2) {
+inline bool operator<(const SGJoin& j1, const SGJoin& j2) {
   return j1._side1 < j2._side1 || (j1._side1 == j2._side1 &&
                                  j1._side2 < j2._side2);
 }
 
-inline bool operator==(const Join& j1, const Join& j2) {
+inline bool operator==(const SGJoin& j1, const SGJoin& j2) {
   return j1._side1 == j2._side1 && j1._side2 == j2._side2;
 }
 
-struct JoinPtrLess {
-   bool operator()(const Join* j1, const Join* j2) const {
+struct SGJoinPtrLess {
+   bool operator()(const SGJoin* j1, const SGJoin* j2) const {
      return *j1 < *j2;
    }
 };
 
-inline std::ostream& operator<<(std::ostream& os, const Join& j) {
+inline std::ostream& operator<<(std::ostream& os, const SGJoin& j) {
   return os << "j(" << j._side1 << "," << j._side2 << ")";
 }
 
@@ -127,7 +127,7 @@ class SideGraph
 {
 public:
    // todo: replace with hash
-   typedef std::set<const Join*, JoinPtrLess> JoinSet;
+   typedef std::set<const SGJoin*, SGJoinPtrLess> JoinSet;
 
    typedef std::vector<SGSequence*> SequenceSet;
 
@@ -140,14 +140,14 @@ public:
    /**
     * Check if join is in the graph and return it else NULL.
     */
-   const Join* getJoin(const Join* join) const;
+   const SGJoin* getJoin(const SGJoin* join) const;
 
    /**
     * Join added to the graph.  Note that SideGraph will take over
     * responsability for freeing memory of the join.
-    * Duplicate joins are silently filtered.  
+    * Duplicate joins are silently filtered and erased.  
     */
-   const Join* addJoin(const Join* join);
+   const SGJoin* addJoin(const SGJoin* join);
 
    /** 
     * Get the join set, ie to iterate over or something
@@ -189,14 +189,16 @@ private:
 std::ostream& operator<<(std::ostream& os, const SideGraph& sg);
 
 
-inline const Join* SideGraph::getJoin(const Join* join) const
+inline const SGJoin* SideGraph::getJoin(const SGJoin* join) const
 {
   JoinSet::const_iterator i = _joinSet.find(join);
   return i != _joinSet.end() ? *i : NULL;
 }
 
-inline const Join* SideGraph::addJoin(const Join* join)
+inline const SGJoin* SideGraph::addJoin(const SGJoin* join)
 {
+  assert(getSequence(join->_side1._base._seqid) != NULL);
+  assert(getSequence(join->_side2._base._seqid) != NULL);
   std::pair<JoinSet::iterator, bool> r = _joinSet.insert(join);
   if (r.second == false)
   {
@@ -213,7 +215,7 @@ inline const SideGraph::JoinSet* SideGraph::getJoinSet() const
 inline const SGSequence* SideGraph::getSequence(sg_seqid_t id)
   const
 {
-  return _seqSet[id];
+  return _seqSet.at(id);
 }
 
 inline sg_int_t SideGraph::getNumSequences() const
