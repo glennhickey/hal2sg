@@ -8,7 +8,7 @@ clean :
 	rm -f  hal2sg.o sidegraph.o sglookup.o hal2sg
 	cd tests && make clean
 
-unitTests : 
+unitTests : hal2sg
 	cd tests && make
 
 hal2sg.o : hal2sg.cpp 

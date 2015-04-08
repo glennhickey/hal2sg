@@ -79,8 +79,8 @@ struct SGSide
 };
 
 inline bool operator<(const SGSide& s1, const SGSide& s2) {
-  return s1._base < s2._base || (s1._forward == s2._forward &&
-                                 s1._base < s2._base);
+  return s1._base < s2._base || (s1._base == s2._base &&
+                                 s1._forward < s2._forward);
 }
 
 inline bool operator==(const SGSide& s1, const SGSide& s2) {
@@ -158,10 +158,6 @@ public:
     * Fetch sequence using its ID
     */   
    const SGSequence* getSequence(sg_seqid_t id) const;
-
-   /**
-    * Fetch sequence using its Name */
-   const SGSequence* getSequenceByName(const std::string& name) const;
 
    /**
     * Get number of sequences
