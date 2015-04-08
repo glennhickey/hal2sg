@@ -2,10 +2,14 @@
 rootPath = ./
 include ./include.mk
 
-all : hal2sg 
+all : hal2sg unitTests
 
 clean : 
 	rm -f  hal2sg.o sidegraph.o sglookup.o hal2sg
+	cd tests && make clean
+
+unitTests : 
+	cd tests && make
 
 hal2sg.o : hal2sg.cpp 
 	${cpp} ${cppflags} -I . hal2sg.cpp -c
@@ -21,4 +25,7 @@ sgbuilder.o : sglookup.o sgbuilder.cpp sgbuilder.h ${basicLibsDependencies}
 
 hal2sg : hal2sg.o sidegraph.o sglookup.o sgbuilder.o ${basicLibsDependencies}
 	${cpp} ${cppflags} ${basicLibs} hal2sg.o sidegraph.o sglookup.o sgbuilder.o -o hal2sg 
+
+test :
+	tests/unitTests
 
