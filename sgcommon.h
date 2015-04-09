@@ -14,7 +14,7 @@
 
 typedef size_t sg_size_t;
 typedef long sg_int_t;
-typedef sg_size_t sg_seqid_t;
+typedef sg_int_t sg_seqid_t;
 typedef sg_size_t sg_joinid_t;
 
 #endif

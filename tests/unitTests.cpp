@@ -10,6 +10,7 @@ int runAllTests(void) {
   CuString *output = CuStringNew();
   CuSuite* suite = CuSuiteNew(); 
   CuSuiteAddSuite(suite, sideGraphTestSuite());
+  CuSuiteAddSuite(suite, sgLookupTestSuite());
   CuSuiteRun(suite);
   CuSuiteSummary(suite, output);
   CuSuiteDetails(suite, output);

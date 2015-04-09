@@ -11,6 +11,6 @@ all : unitTests
 clean :
 	rm -f *.o unitTests
 
-unitTests : *.h *.cpp ${basicLibsDependencies}
+unitTests : *.h *.cpp ${basicLibsDependencies} ../*.h ../*.cpp
 	${cpp} -I../ ${cppflags} ${basicLibs} ${hal2sgOjbects} *.cpp -o unitTests
 

@@ -33,9 +33,9 @@ public:
     * Note: this is a bijection, and we handle no overlaps.  every
     * source interval maps to exactly one unique target interval. 
     */
-   void addInterveral(const SGPosition& inPos,
-                      const SGPosition& outPos,
-                      sg_int_t length, bool reversed);
+   void addInterval(const SGPosition& inPos,
+                    const SGPosition& outPos,
+                    sg_int_t length, bool reversed);
 
    /** Find the position of a genome coordinate in the sequence 
     * graph */
@@ -101,9 +101,13 @@ inline SGPosition SGLookup::mapPosition(const SGPosition& inPos) const
     assert(i != pm.begin());
     --i;
   }
-  assert(i->first <= inPos.getPos());
-  assert(i->second != SideGraph::NullPos);
   
+  if (i->second == SideGraph::NullPos)
+  {
+    return i->second;
+  }
+  
+  assert(i->first <= inPos.getPos());  
   sg_int_t offset = inPos.getPos() - i->first;
   SGPosition outPos(i->second.getSeqID(), i->second.getPos() + offset);
   return outPos;
