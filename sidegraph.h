@@ -21,104 +21,8 @@
 #include <iostream>
 #include <cassert>
 
-typedef size_t sg_size_t;
-typedef long sg_int_t;
-typedef sg_size_t sg_seqid_t;
-typedef sg_size_t sg_joinid_t;
+#include "sgjoin.h"
 
-/**
- * Named sequence.  We will rely on separate map to/from HAL sequences
- * in order to get DNA, I think...  IDs will be unique numbers from
- * 0,1,2... since no plans to do anything but add, at this point.  
- */
-struct SGSequence
-{
-   sg_seqid_t _id;
-   sg_int_t _length;
-   std::string _name;
-};
-
-inline std::ostream& operator<<(std::ostream& os, const SGSequence& s) {
-  return os << "s(" << s._id << "," << s._length << "," << s._name << ")";
-}
-
-/**
- *  Position in the sidegraph
- */
-struct SGPosition
-{
-   sg_seqid_t _seqid;
-   sg_int_t _pos;
-};
-
-inline bool operator<(const SGPosition& p1, const SGPosition& p2) {
-  return p1._seqid < p2._seqid || (p1._seqid == p2._seqid &&
-                                   p1._pos < p2._pos);
-}
-
-inline bool operator==(const SGPosition& p1, const SGPosition& p2) {
-  return p1._seqid == p2._seqid && p1._pos == p2._pos;
-}
-
-inline bool operator!=(const SGPosition& p1, const SGPosition& p2) {
-  return !(p1 == p2);
-}
-
-inline std::ostream& operator<<(std::ostream& os,
-                                const SGPosition& p){
-  return os << "p(" << p._seqid << "," << p._pos << ")";
-}
-
-/**
- * Position of join endpoint
- */ 
-struct SGSide
-{
-   SGPosition _base;
-   bool _forward;
-};
-
-inline bool operator<(const SGSide& s1, const SGSide& s2) {
-  return s1._base < s2._base || (s1._base == s2._base &&
-                                 s1._forward < s2._forward);
-}
-
-inline bool operator==(const SGSide& s1, const SGSide& s2) {
-  return s1._base == s2._base && s1._forward == s2._forward;
-}
-
-inline std::ostream& operator<<(std::ostream& os, const SGSide& s) {
-  return os << "s(" << s._base << "," << s._forward << ")";
-}
-
-
-/**
- * Join from one side to another
- */
-struct SGJoin
-{
-   SGSide _side1;
-   SGSide _side2;
-};
-
-inline bool operator<(const SGJoin& j1, const SGJoin& j2) {
-  return j1._side1 < j2._side1 || (j1._side1 == j2._side1 &&
-                                 j1._side2 < j2._side2);
-}
-
-inline bool operator==(const SGJoin& j1, const SGJoin& j2) {
-  return j1._side1 == j2._side1 && j1._side2 == j2._side2;
-}
-
-struct SGJoinPtrLess {
-   bool operator()(const SGJoin* j1, const SGJoin* j2) const {
-     return *j1 < *j2;
-   }
-};
-
-inline std::ostream& operator<<(std::ostream& os, const SGJoin& j) {
-  return os << "j(" << j._side1 << "," << j._side2 << ")";
-}
 
 /**
  * Our simple in-memory sidegraph
@@ -168,7 +72,7 @@ public:
     * Add a sequence into the graph.  SideGraph takes deletion resp 
     * ID field will be ignored and updated automatically
     */
-   sg_seqid_t addSequence(SGSequence* seq);
+   const SGSequence* addSequence(SGSequence* seq);
    
 protected:
 
@@ -193,8 +97,8 @@ inline const SGJoin* SideGraph::getJoin(const SGJoin* join) const
 
 inline const SGJoin* SideGraph::addJoin(const SGJoin* join)
 {
-  assert(getSequence(join->_side1._base._seqid) != NULL);
-  assert(getSequence(join->_side2._base._seqid) != NULL);
+  assert(getSequence(join->getSide1().getBase().getSeqID()) != NULL);
+  assert(getSequence(join->getSide2().getBase().getSeqID()) != NULL);
   std::pair<JoinSet::iterator, bool> r = _joinSet.insert(join);
   if (r.second == false)
   {
@@ -219,11 +123,11 @@ inline sg_int_t SideGraph::getNumSequences() const
   return _seqSet.size();
 }
 
-inline sg_seqid_t SideGraph::addSequence(SGSequence* seq)
+inline const SGSequence* SideGraph::addSequence(SGSequence* seq)
 {
-  seq->_id = _seqSet.size();
+  seq->setID(_seqSet.size());
   _seqSet.push_back(seq);
-  return seq->_id;
+  return seq;
 }
 
 #endif

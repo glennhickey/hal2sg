@@ -158,15 +158,13 @@ SGSequence* SGBuilder::createSGSequence(const Sequence* sequence,
                                         hal_index_t length)
 {
   // make a new Side Graph Sequence
-  SGSequence* sgSeq = new SGSequence();
-  sgSeq->_length = length;
   stringstream name;
   name << sequence->getFullName();
   if (length < sequence->getSequenceLength())
   {
     name << "_" << startOffset << ":" << length;
-  }
-  sgSeq->_name = name.str();
+  }  
+  SGSequence* sgSeq = new SGSequence(-1, length, name.str());
 
   // add to the Side Graph
   _sg->addSequence(sgSeq);
@@ -183,13 +181,8 @@ const SGJoin* SGBuilder::createSGJoin(sg_seqid_t seqId1, sg_int_t pos1,
                                       sg_seqid_t seqId2, sg_int_t pos2,
                                       bool forward2)
 {
-  SGJoin* join = new SGJoin();
-  join->_side1._base._seqid = seqId1;
-  join->_side1._base._pos = pos1;
-  join->_side1._forward = forward1;
-  join->_side2._base._seqid = seqId2;
-  join->_side2._base._pos = pos2;
-  join->_side2._forward = forward2;
+  SGJoin* join = new SGJoin(SGSide(SGPosition(seqId1, pos1), forward1),
+                            SGSide(SGPosition(seqId2, pos2), forward2));
   return _sg->addJoin(join);
 }
 
@@ -329,13 +322,13 @@ void SGBuilder::updateSegment(Block* prevBlock,
     // join it on end of last inserted side graph position
     if (prevHook != NULL)
     {
-      createSGJoin(prevHook->_seqid, prevHook->_pos, !prevBlock->_reversed,
-                   insertSeq->_id, 0, false);
+      createSGJoin(prevHook->getSeqID(), prevHook->getPos(),
+                   !prevBlock->_reversed, insertSeq->getID(), 0, false);
     }
 
     // our new hook is the end of this new sequence
-    prevHook->_seqid = insertSeq->_id;
-    prevHook->_pos = insertSeq->_length - 1;
+    prevHook->setSeqID(insertSeq->getID());
+    prevHook->setPos(insertSeq->getLength() - 1);
   }
   if (prevBlock != NULL)
   {
@@ -346,20 +339,21 @@ void SGBuilder::updateSegment(Block* prevBlock,
     // need to convert hal sequence to id. 
     if (prevBlock->_tgtSeq == block->_tgtSeq)
     {
-      halPosition._seqid = prevHook->_seqid;
+      halPosition.setSeqID(prevHook->getSeqID());
     }
     else
     {
-      halPosition._seqid = _lookup->getSequenceId(block->_tgtSeq->getName());
+      halPosition.setSeqID(_lookup->getSequenceId(block->_tgtSeq->getName()));
     }
-    halPosition._pos = block->_reversed ? block->_srcEnd : block->_srcStart;
+    halPosition.setPos(block->_reversed ? block->_srcEnd : block->_srcStart);
 
     // transform HAL coordinate into Side Graph coordinate
     SGPosition sgPosition = _lookup->mapPosition(halPosition);
 
     // we now know enough to join to prevBlock
-    createSGJoin(prevHook->_seqid, prevHook->_pos, !prevBlock->_reversed,
-                 sgPosition._seqid, sgPosition._pos, !block->_reversed);
+    createSGJoin(prevHook->getSeqID(), prevHook->getPos(),
+                 !prevBlock->_reversed,
+                 sgPosition.getSeqID(), sgPosition.getPos(), !block->_reversed);
     
     // our new hook is the end of the last join
     *prevHook = sgPosition;

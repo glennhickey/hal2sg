@@ -8,7 +8,7 @@
 
 using namespace std;
 
-const SGPosition SideGraph::NullPos = {-1, -1};
+const SGPosition SideGraph::NullPos(-1, -1);
 
 SideGraph::SideGraph()
 {

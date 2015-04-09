@@ -91,22 +91,21 @@ inline std::string SGLookup::getSequenceName(sg_int_t sequenceId) const
 
 inline SGPosition SGLookup::mapPosition(const SGPosition& inPos) const
 {
-  const PosMap& pm = _mapVec.at(inPos._seqid);
-  PosMap::const_iterator i = pm.lower_bound(inPos._pos);
+  const PosMap& pm = _mapVec.at(inPos.getSeqID());
+  PosMap::const_iterator i = pm.lower_bound(inPos.getPos());
   assert(i != pm.end());
 
   // todo reversed?
-  if (i->first > inPos._pos)
+  if (i->first > inPos.getPos())
   {
     assert(i != pm.begin());
     --i;
   }
-  assert(i->first <= inPos._pos);
+  assert(i->first <= inPos.getPos());
   assert(i->second != SideGraph::NullPos);
   
-  sg_int_t offset = inPos._pos - i->first;
-  SGPosition outPos = i->second;
-  outPos._pos += offset;
+  sg_int_t offset = inPos.getPos() - i->first;
+  SGPosition outPos(i->second.getSeqID(), i->second.getPos() + offset);
   return outPos;
 }
 

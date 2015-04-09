@@ -35,10 +35,10 @@ void SGLookup::addInterveral(const SGPosition& inPos,
                              sg_int_t length,
                              bool reversed)
 {
-  PosMap& pm = _mapVec.at(inPos._seqid);
+  PosMap& pm = _mapVec.at(inPos.getSeqID());
 
-  sg_int_t left = inPos._pos;
-  sg_int_t right = inPos._pos + length;
+  sg_int_t left = inPos.getPos();
+  sg_int_t right = inPos.getPos() + length;
 
   // find the left point
   PosMap::iterator li = pm.insert(pair<sg_int_t, SGPosition>(
@@ -47,7 +47,7 @@ void SGLookup::addInterveral(const SGPosition& inPos,
   // find the right point
   PosMap::iterator ri = li;
   ++ri;
-  if (ri == pm.end() || ri->second._pos != right)
+  if (ri == pm.end() || ri->second.getPos() != right)
   {
     ri = pm.insert(li, pair<sg_int_t, SGPosition>(
                                       right, SideGraph::NullPos));

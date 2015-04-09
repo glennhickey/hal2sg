@@ -14,7 +14,7 @@ unitTests : hal2sg
 hal2sg.o : hal2sg.cpp 
 	${cpp} ${cppflags} -I . hal2sg.cpp -c
 
-sidegraph.o : sidegraph.cpp sidegraph.h
+sidegraph.o : sidegraph.cpp sidegraph.h sgcommon.h sgsequence.h sgposition.h sgside.h sgjoin.h
 	${cpp} ${cppflags} -I . sidegraph.cpp -c
 
 sglookup.o : sidegraph.o sglookup.cpp sglookup.h
