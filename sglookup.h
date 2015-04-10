@@ -15,7 +15,9 @@
  * Structure to look up a genome coordinate (in its independent
  * coordinate system (ie original Fasta file) as used by Cactus/HAL)
  * in the Side Graph that it's been added to. This structure therefore
- * needs to be updated every time we add to the side graph. 
+ * needs to be updated every time we add to the side graph.  Note we only
+ * map a single (HAL) genome into a sidegraph here (so need to keep one
+ * of these going for each genome added).   
  */
 class SGLookup
 {
@@ -40,16 +42,6 @@ public:
    /** Find the position of a genome coordinate in the sequence 
     * graph */
    SGPosition mapPosition(const SGPosition& inPos) const;
-
-   /** Map sequence name (string) to sequence id (integer position in
-    * hals sequence list for this genome)
-    */
-   sg_int_t getSequenceId(const std::string& sequenceName) const;
-
-   /** Map sequence id  (integer position in hals sequence list for this 
-    * genome) to its name
-    */
-   std::string getSequenceName(sg_int_t sequenceId) const;
                  
 protected: 
 
@@ -73,21 +65,6 @@ protected:
    SeqNameMap _seqNameToId;
    SeqIdMap _seqIdToName;
 };
-
-inline sg_int_t SGLookup::getSequenceId(const std::string& sequenceName) const
-{
-  SeqNameMap::const_iterator i = _seqNameToId.find(sequenceName);
-  if (i != _seqNameToId.end())
-  {
-    return i->second;
-  }
-  return -1;
-}
-
-inline std::string SGLookup::getSequenceName(sg_int_t sequenceId) const
-{
-  return _seqIdToName.at(sequenceId);
-}
 
 inline SGPosition SGLookup::mapPosition(const SGPosition& inPos) const
 {

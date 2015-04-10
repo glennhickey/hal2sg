@@ -43,6 +43,7 @@ void SGLookup::addInterval(const SGPosition& inPos,
                            sg_int_t length,
                            bool reversed)
 {
+  cout << "ADD INT " << inPos << " --> " << outPos << " +" << length << endl;
   PosMap& pm = _mapVec.at(inPos.getSeqID());
 
   sg_int_t left = inPos.getPos();

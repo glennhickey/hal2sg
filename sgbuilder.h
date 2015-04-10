@@ -23,7 +23,8 @@ public:
    /** 
     * Set the alignment
     */
-   void init(hal::AlignmentConstPtr alignment, const hal::Genome* root = NULL);
+   void init(hal::AlignmentConstPtr alignment, const hal::Genome* root = NULL,
+             bool referenceDupes = true);
 
    /**
     * Erase everything
@@ -94,7 +95,7 @@ protected:
    void updateSegment(Block* prevBlock,
                       Block* block,
                       Block* nextBlock,
-                      SGPosition* prevHook,
+                      SGPosition& prevHook,
                       const hal::Sequence* srcSequence,
                       const hal::Genome* srcGenome,
                       hal_index_t globalStart, hal_index_t globalEnd,
@@ -108,8 +109,14 @@ protected:
      const std::vector<hal::MappedSegmentConstPtr>& fragments,
      Block& block) const;
 
+   /** check if block aligns something to itself */
+   bool isSelfBlock(const Block& block) const;
+
+   /** cut block against another */
+   Block* cutBlock(Block* prev, Block* cur);
+
 protected:
-   
+
    SideGraph* _sg;
    const hal::Genome* _root;
    hal::AlignmentConstPtr _alignment;
@@ -118,8 +125,13 @@ protected:
    SequenceMapBack _seqMapBack;
    std::set<const hal::Genome*> _mapPath;
    const hal::Genome* _mapMrca;
-   
+   bool _referenceDupes;
+
+   friend std::ostream& operator<<(std::ostream& os, const Block* block);
+
 };
+
+std::ostream& operator<<(std::ostream& os, const SGBuilder::Block* block);
 
 inline bool SGBuilder::BlockPtrLess::operator()(const SGBuilder::Block* b1,
                                                 const SGBuilder::Block* b2)
@@ -152,6 +164,30 @@ inline bool SGBuilder::BlockPtrLess::operator()(const SGBuilder::Block* b1,
     }
   }
   return false;
+}
+
+inline std::ostream& operator<<(std::ostream& os, const SGBuilder::Block* block)
+{
+  if (block == NULL)
+  {
+    os << "BLOCK(NULL)";
+  }
+  else
+  {
+    os << "BLOCK(" << block->_srcSeq->getName() << ": "
+       << block->_srcStart << "," << block->_srcEnd <<  ") TGT("
+       << block->_tgtSeq->getName() << ": "
+       << block->_tgtStart << "," << block->_tgtEnd << ") "
+       << block->_reversed;
+  }
+  return os;
+}
+
+inline bool SGBuilder::isSelfBlock(const SGBuilder::Block& block) const
+{
+  return block._srcStart != block._tgtStart ||
+     block._srcEnd != block._tgtEnd ||
+     block._srcSeq != block._tgtSeq;
 }
 
 #endif

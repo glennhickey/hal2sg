@@ -45,9 +45,9 @@ inline SGSequence::SGSequence() : _id(-1), _length(-1)
 {
 }
 
-inline SGSequence::SGSequence(sg_seqid_t id, sg_int_t lenth,
+inline SGSequence::SGSequence(sg_seqid_t id, sg_int_t length,
                               const std::string& name) :
-  _id(-1), _length(-1), _name(name)
+  _id(id), _length(length), _name(name)
 {
 }
 
