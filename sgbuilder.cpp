@@ -385,19 +385,14 @@ void SGBuilder::updateSegment(Block* prevBlock,
       block->_tgtSeq->getGenome()->getName());
     assert(lui != _luMap.end());
     SGSide sgSide = lui->second->mapPosition(halPosition);
-    const SGPosition& sgPosition = sgSide.getBase();
+    SGPosition sgPosition = sgSide.getBase();
     bool sgReverseMap = !sgSide.getForward();
+
+    // Now we add our "source" sequence into the Side Graph, via
+    // our alignment block.  Noting that we have to cut for every snp.
+    pair<SGSide> blockEnds = addBlock(block, sgPosition, sgReverseMap);
     
     assert(sgPosition != SideGraph::NullPos);
-
-    // now we map in our alignment block source into the lookup table
-    SGPosition newHalPosition;
-    newHalPosition.setSeqID((sg_seqid_t)block->_srcSeq->getArrayIndex());
-    newHalPosition.setPos(block->_srcStart);
-    sg_int_t intervalLen =  block->_srcEnd - block->_srcStart + 1;
-    cout << "ai1 ";
-    _lookup->addInterval(newHalPosition, sgPosition, intervalLen,
-                         block->_reversed);
 
     if (prevHook != SideGraph::NullPos)
     {
@@ -418,6 +413,84 @@ void SGBuilder::updateSegment(Block* prevBlock,
     }
   }
 }
+
+SGPosition SGBuilder::addBlock(const Block* block, const SGPosition& sgPosition,
+                               bool sgReversed)
+{
+  pair<SGSide> blockEnds;
+  string srcDNA;
+  string tgtDNA;
+  block->_srcSeq->getSubString(block->_srcStart,
+                               block->_srcEnd - block->_srcStart);
+  block->_tgtSeq->getSubString(block->_tgtStart,
+                               block->_tgtEnd - block->_tgtStart);
+
+  SGSide hook(SideGraph::NullPos, true);
+  bool runningSnp = false;
+  hal_index_t length = block->_srcEnd - block->srcStart + 1;
+  hal_index_t srcPos;
+  hal_index_t tgtPos;
+  char srcVal;
+  char tgtVal;
+  hal_index_t bp = 0;
+  for (hal_index_t i = 0; i < length; ++i)
+  {
+    srcPos =  block->_srcStart + i;
+    srcVal = srcDNA[i];
+    if (block->_reversed == false)
+    {
+      tgtPos = block->_tgtStart + i;
+      tgtVal = tgtDNA[i];
+    }
+    else
+    {
+      tgtPos = block->_tgtEnd - i;
+      tgtVal = reverseComplement(tgtDNA[tgtDNA.size() - 1 - i]);
+    }
+    bool snp = isSubstitution(srcVal, tgtVal);
+    if (i > 0 && snp != runningSnp)
+    {
+      pair<SGSide> fragEnds = addBlockSlice(block, bp, i - 1, snp, hook,
+                                            srcDNA, tgtDNA);
+      if (bp == 0)
+      {
+        blockEnds.first = fragEnds.first;
+      }
+      hook = fragEnds.second;
+      bp = i;
+      runningSnp = snp;
+    }
+    if (i == length - 1)
+    {
+      pair<SGSide> fragEnds = addBlockSlice(block, bp, i - 1, snp, hook,
+                                            srcDNA, tgtDNA);
+      blockEnds.second = fragEnds.second;
+      hook = fragEnds.second;
+    }    
+  }
+  return blockEnds;
+}
+
+pair<SGSide> SGBuilder::addBlockSlice(const Block*, hal_index_t srcStartOffset,
+                                      hal_index_t srcEndOffset,
+                                      bool snp, SGSide& hook,
+                                      const string& srcDNA,
+                                      const string& tgtDNA)
+{
+
+  
+   // now we map in our alignment block source into the lookup table
+    SGPosition newHalPosition;
+    newHalPosition.setSeqID((sg_seqid_t)block->_srcSeq->getArrayIndex());
+    newHalPosition.setPos(block->_srcStart);
+    sg_int_t intervalLen =  block->_srcEnd - block->_srcStart + 1;
+    cout << "ai1 ";
+    _lookup->addInterval(newHalPosition, sgPosition, intervalLen,
+                         block->_reversed);
+}
+
+
+
 
 
 void SGBuilder::fragmentsToBlock(const vector<MappedSegmentConstPtr>& fragments,

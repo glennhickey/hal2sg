@@ -101,6 +101,20 @@ protected:
                       hal_index_t globalStart, hal_index_t globalEnd,
                       const hal::Genome* tgtGenome);
 
+   /** Add a block, breaking apart for SNPs. only add joins that are
+    * contained in the block.  the returned endpoints the unsed to 
+    * thread into the graph. */
+   std::pair<SGSide> addBlock(const Block*, const SGPosition& sgPosition,
+                              bool sgReversed);
+
+   /** Add a slice of a block.  Either every base is a snp (snp==true) or
+    * no bases are a snp.  hook on the previous hook. */
+   std::pair<SGSide> addBlockSlice(const Block*, hal_index_t srcStartOffset,
+                                   hal_index_t srcEndOffset,
+                                   bool snp, SGSide& hook,
+                                   const std::string& srcDNA,
+                                   const std::string& tgtDNA);
+
    /**
     * Don't want to deal with the mapped block fragments all the time. 
     * code to read into struct here. 
