@@ -32,9 +32,9 @@ void SGLookup::init(const vector<string>& sequenceNames)
 
     // add sentinel markers
     PosMap& pm = _mapVec[i];
-    pm.insert(pair<sg_int_t, SGPosition>(0, SGPosition(-1, -1)));
-    pm.insert(pair<sg_int_t, SGPosition>(numeric_limits<sg_int_t>::max(),
-                                         SGPosition(-1, -1)));
+    pm.insert(pair<sg_int_t, SGSide>(0, SGSide(SideGraph::NullPos, true)));
+    pm.insert(pair<sg_int_t, SGSide>(numeric_limits<sg_int_t>::max(),
+                                     SGSide(SideGraph::NullPos, true)));
   }
 }
 
@@ -50,22 +50,56 @@ void SGLookup::addInterval(const SGPosition& inPos,
   sg_int_t right = inPos.getPos() + length;
 
   // find the left point
-  PosMap::iterator li = pm.insert(pair<sg_int_t, SGPosition>(
-                                    left, SideGraph::NullPos)).first;
+  SGSide leftSide(SideGraph::NullPos, true);
+  PosMap::iterator li = pm.insert(pair<sg_int_t, SGSide>(
+                                    left, leftSide)).first;
 
   // find the right point
   PosMap::iterator ri = li;
   ++ri;
-  if (ri == pm.end() || ri->second.getPos() != right)
+  if (ri == pm.end() || ri->second.getBase().getPos() != right)
   {
-    ri = pm.insert(li, pair<sg_int_t, SGPosition>(
-                                      right, SideGraph::NullPos));
+    SGSide rightSide(SideGraph::NullPos, true);
+    ri = pm.insert(li, pair<sg_int_t, SGSide>(right, rightSide));
     --ri;
     assert(ri == li);
   }
   
   // update the left point
-  assert(li->second == SideGraph::NullPos);
-  li->second = outPos;
+  assert(li->second.getBase() == SideGraph::NullPos);
+  li->second = SGSide(outPos, !reversed);
+  cout << "ADDED " << li->second << endl;
+}
 
+SGSide SGLookup::mapPosition(const SGPosition& inPos) const
+{
+  const PosMap& pm = _mapVec.at(inPos.getSeqID());
+  PosMap::const_iterator i = pm.lower_bound(inPos.getPos());
+  assert(i != pm.end());
+
+  if (i->first > inPos.getPos())
+  {
+    assert(i != pm.begin());
+    --i;
+  }
+  
+  if (i->second.getBase() == SideGraph::NullPos)
+  {
+    return i->second;
+  }
+  
+  assert(i->first <= inPos.getPos());  
+  sg_int_t offset = inPos.getPos() - i->first;
+  SGSide outSide(i->second);
+  SGPosition outPos(outSide.getBase());
+  outPos.setPos(outPos.getPos() + offset);
+  if (outSide.getForward() == false)
+  {
+    PosMap::const_iterator j = i;
+    ++j;
+    sg_int_t transform = j->first - offset - i->first - 1 - offset;
+    outPos.setPos(outPos.getPos() + transform);
+  }
+  outSide.setBase(outPos);
+  return outSide;
 }

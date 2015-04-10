@@ -384,7 +384,10 @@ void SGBuilder::updateSegment(Block* prevBlock,
     GenomeLUMap::iterator lui = _luMap.find(
       block->_tgtSeq->getGenome()->getName());
     assert(lui != _luMap.end());
-    SGPosition sgPosition = lui->second->mapPosition(halPosition);
+    SGSide sgSide = lui->second->mapPosition(halPosition);
+    const SGPosition& sgPosition = sgSide.getBase();
+    bool sgReverseMap = !sgSide.getForward();
+    
     assert(sgPosition != SideGraph::NullPos);
 
     // now we map in our alignment block source into the lookup table

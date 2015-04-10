@@ -24,6 +24,7 @@ public:
    bool getForward() const;
 
    void set(const SGPosition& base, bool forward);
+   void setBase(const SGPosition& base);
 
    bool operator<(const SGSide& s2) const;
    bool operator==(const SGSide& s2) const;
@@ -62,6 +63,11 @@ inline void SGSide::set(const SGPosition& base, bool forward)
 {
   _base = base;
   _forward = forward;
+}
+
+inline void SGSide::setBase(const SGPosition& base)
+{
+  _base = base;
 }
 
 inline bool SGSide::operator<(const SGSide& s2) const

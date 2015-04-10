@@ -41,14 +41,14 @@ public:
 
    /** Find the position of a genome coordinate in the sequence 
     * graph */
-   SGPosition mapPosition(const SGPosition& inPos) const;
+   SGSide mapPosition(const SGPosition& inPos) const;
                  
 protected: 
 
    // we store intervals as sorted list of points.  the leftmost
    // point of the interval is what stores the actual map.  the right
    // point just marks the end of the interval. 
-   typedef std::map<sg_int_t, SGPosition> PosMap;
+   typedef std::map<sg_int_t, SGSide> PosMap;
    
    // use array to map sequence id to maybe save some time
    // over storing in single map and having id part of key.
@@ -65,29 +65,5 @@ protected:
    SeqNameMap _seqNameToId;
    SeqIdMap _seqIdToName;
 };
-
-inline SGPosition SGLookup::mapPosition(const SGPosition& inPos) const
-{
-  const PosMap& pm = _mapVec.at(inPos.getSeqID());
-  PosMap::const_iterator i = pm.lower_bound(inPos.getPos());
-  assert(i != pm.end());
-
-  // todo reversed?
-  if (i->first > inPos.getPos())
-  {
-    assert(i != pm.begin());
-    --i;
-  }
-  
-  if (i->second == SideGraph::NullPos)
-  {
-    return i->second;
-  }
-  
-  assert(i->first <= inPos.getPos());  
-  sg_int_t offset = inPos.getPos() - i->first;
-  SGPosition outPos(i->second.getSeqID(), i->second.getPos() + offset);
-  return outPos;
-}
 
 #endif
