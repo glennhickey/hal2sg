@@ -458,18 +458,17 @@ void SGBuilder::mapBlockSnps(const Block* block,
 {  
   // now we're going to slice the block up according to snps.  slices will
   // be runs of positions that either are all snps or all not snps.
-  // for each slice, we need to 
+  // for each slice, we need to
+  hal_index_t length = block->_srcEnd - block->_srcStart + 1;
   string srcDNA;
   string tgtDNA;
-  block->_srcSeq->getSubString(srcDNA, block->_srcStart,
-                               block->_srcEnd - block->_srcStart);
-  block->_tgtSeq->getSubString(tgtDNA, block->_tgtStart,
-                               block->_tgtEnd - block->_tgtStart);
+  block->_srcSeq->getSubString(srcDNA, block->_srcStart, length);
+  block->_tgtSeq->getSubString(tgtDNA, block->_tgtStart, length);
 
   SGSide hook(blockEnds.first);
   bool sgForwardMap = blockEnds.first <= blockEnds.second; 
   bool runningSnp = false;
-  hal_index_t length = block->_srcEnd - block->_srcStart + 1;
+
   hal_index_t srcPos;
   hal_index_t tgtPos;
   char srcVal;
@@ -490,6 +489,17 @@ void SGBuilder::mapBlockSnps(const Block* block,
       tgtVal = reverseComplement(tgtDNA[tgtDNA.size() - 1 - i]);
     }
     bool snp = isSubstitution(srcVal, tgtVal);
+    if (snp == true)
+    {
+      cout << "snp " << srcVal << "->" << tgtVal << " at srcpos "
+           << srcPos << " tgt[ops " << tgtPos << " rev " << block->_reversed
+           <<endl;
+      cout << "srcDNA " << srcDNA << endl;
+      cout << "tgtDNA " << tgtDNA << endl;
+      reverseComplement(tgtDNA);
+      cout << "rgtDNA " << tgtDNA << endl;
+    }
+    assert(snp == false);
     if (i > 0 && snp != runningSnp)
     {
       pair<SGSide, SGSide> fragEnds = mapSliceSnps(block, bp, i - 1, snp, hook,
@@ -580,7 +590,7 @@ void SGBuilder::fragmentsToBlock(const vector<MappedSegmentConstPtr>& fragments,
                           srcBack->getEndPosition()));
   block._srcSeq = srcFront->getSequence();
   assert(block._srcStart <= block._srcEnd);
-
+  
   // convert to segment level;
   block._tgtStart -= block._tgtSeq->getStartPosition();
   block._tgtEnd -= block._tgtSeq->getStartPosition();
@@ -598,10 +608,16 @@ SGBuilder::Block* SGBuilder::cutBlock(Block* prev, Block* cur)
     //     << "cCur " << (size_t)cur << " " << cur << endl;
     assert(prev->_srcStart <= prev->_srcEnd);
     assert(cur->_srcStart <= cur->_srcEnd);
-    cur->_srcStart = max(cur->_srcStart, prev->_srcEnd + 1);
-    if (cur->_srcStart > cur->_srcEnd)
+    sg_int_t cutLen = prev->_srcEnd - cur->_srcStart + 1;
+    if (cutLen > 0)
     {
-      cur = NULL;
+      cur->_srcStart += cutLen;
+      cur->_tgtStart += cutLen;
+      
+      if (cur->_srcStart > cur->_srcEnd)
+      {
+        cur = NULL;
+      }
     }
   }
   if (cur != NULL)
