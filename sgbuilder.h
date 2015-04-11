@@ -85,35 +85,35 @@ protected:
                                 hal_index_t length);
 
    /** Add a join to the side graph */
-   const SGJoin* createSGJoin(sg_seqid_t seqId1, sg_int_t pos1, bool forward1,
-                              sg_seqid_t seqId2, sg_int_t pos2, bool forward2);
+   const SGJoin* createSGJoin(const SGSide& side1, const SGSide& side2);
 
    /** Add interval (from blockmapper machinery) to the side graph.  
     * The interval maps from the new SOURCE genome to a TARGET genome
     * that is already in the side graph. 
     */
-   void updateSegment(Block* prevBlock,
-                      Block* block,
-                      Block* nextBlock,
-                      SGPosition& prevHook,
-                      const hal::Sequence* srcSequence,
-                      const hal::Genome* srcGenome,
-                      hal_index_t globalStart, hal_index_t globalEnd,
-                      const hal::Genome* tgtGenome);
+   void processBlock(Block* prevBlock,
+                     Block* block,
+                     Block* nextBlock,
+                     SGSide& prevHook,
+                     const hal::Sequence* srcSequence,
+                     const hal::Genome* srcGenome,
+                     hal_index_t globalStart, hal_index_t globalEnd,
+                     const hal::Genome* tgtGenome);
 
    /** Add a block, breaking apart for SNPs. only add joins that are
-    * contained in the block.  the returned endpoints the unsed to 
-    * thread into the graph. */
-   std::pair<SGSide> addBlock(const Block*, const SGPosition& sgPosition,
-                              bool sgReversed);
+    * contained in the block.  Update the endpoints if needed (as result of 
+    * snps) */
+   void mapBlockSnps(const Block*, std::pair<SGSide, SGSide>& blockEnds);
 
    /** Add a slice of a block.  Either every base is a snp (snp==true) or
     * no bases are a snp.  hook on the previous hook. */
-   std::pair<SGSide> addBlockSlice(const Block*, hal_index_t srcStartOffset,
-                                   hal_index_t srcEndOffset,
-                                   bool snp, SGSide& hook,
-                                   const std::string& srcDNA,
-                                   const std::string& tgtDNA);
+   std::pair<SGSide, SGSide> mapSliceSnps(const Block* block,
+                                          hal_index_t srcStartOffset,
+                                          hal_index_t srcEndOffset,
+                                          bool snp, SGSide& hook,
+                                          bool sgForwardMap,
+                                          const std::string& srcDNA,
+                                          const std::string& tgtDNA);
 
    /**
     * Don't want to deal with the mapped block fragments all the time. 

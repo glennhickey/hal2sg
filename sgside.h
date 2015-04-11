@@ -25,8 +25,10 @@ public:
 
    void set(const SGPosition& base, bool forward);
    void setBase(const SGPosition& base);
-
+   void setForward(bool forward);
+   
    bool operator<(const SGSide& s2) const;
+   bool operator<=(const SGSide& s2) const;
    bool operator==(const SGSide& s2) const;
    
 protected:
@@ -70,10 +72,20 @@ inline void SGSide::setBase(const SGPosition& base)
   _base = base;
 }
 
+inline void SGSide::setForward(bool forward)
+{
+  _forward = forward;
+}
+
 inline bool SGSide::operator<(const SGSide& s2) const
 {
   return _base < s2._base || (_base == s2._base &&
                               _forward < s2._forward);
+}
+
+inline bool SGSide::operator<=(const SGSide& s2) const
+{
+  return *this < s2 || *this == s2;
 }
 
 inline bool SGSide::operator==(const SGSide& s2) const

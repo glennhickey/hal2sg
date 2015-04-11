@@ -40,6 +40,7 @@ protected:
 
 std::ostream& operator<<(std::ostream& os, const SGPosition& p);
 
+
 inline SGPosition::SGPosition() : _seqid(-1), _pos(-1)
 {
 }
