@@ -30,6 +30,7 @@ public:
    bool operator<(const SGSide& s2) const;
    bool operator<=(const SGSide& s2) const;
    bool operator==(const SGSide& s2) const;
+   bool operator!=(const SGSide& s2) const;
    
 protected:
    
@@ -91,6 +92,11 @@ inline bool SGSide::operator<=(const SGSide& s2) const
 inline bool SGSide::operator==(const SGSide& s2) const
 {
   return _base == s2._base && _forward == s2._forward;
+}
+
+inline bool SGSide::operator!=(const SGSide& s2) const
+{
+  return !(*this == s2);
 }
 
 inline std::ostream& operator<<(std::ostream& os, const SGSide& s)

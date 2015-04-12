@@ -145,6 +145,7 @@ protected:
    std::set<const hal::Genome*> _mapPath;
    const hal::Genome* _mapMrca;
    bool _referenceDupes;
+   SGJoin* _lastJoin;
 
    friend std::ostream& operator<<(std::ostream& os, const Block* block);
 

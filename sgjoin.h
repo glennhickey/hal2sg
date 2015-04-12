@@ -24,6 +24,8 @@ public:
    const SGSide& getSide2() const;
    
    void set(const SGSide& side1, const SGSide& side2);
+   void setSide1(const SGSide& side1);
+   void setSide2(const SGSide& side2);
    
    bool operator<(const SGJoin& j2) const;
    bool operator==(const SGJoin& j2) const;
@@ -70,6 +72,16 @@ inline const SGSide& SGJoin::getSide2() const
 inline void SGJoin::set(const SGSide& side1, const SGSide& side2)
 {
   _side1 = side1;
+  _side2 = side2;
+}
+
+inline void SGJoin::setSide1(const SGSide& side1)
+{
+  _side1 = side1;
+}
+
+inline void SGJoin::setSide2(const SGSide& side2)
+{
   _side2 = side2;
 }
 

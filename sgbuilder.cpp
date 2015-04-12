@@ -215,8 +215,42 @@ SGSequence* SGBuilder::createSGSequence(const Sequence* sequence,
 const SGJoin* SGBuilder::createSGJoin(const SGSide& side1, const SGSide& side2)
 {
   SGJoin* join = new SGJoin(side1, side2);
-  // todo filter out trivial join (ie cons base in same seq here)
-  return _sg->addJoin(join);
+  
+  // if two consecutive joins are end to end, we merge into a single join
+  if (_lastJoin != NULL && _lastJoin->getSide2() == join->getSide1())
+  {
+    join->setSide1(_lastJoin->getSide1());
+    assert(join->getSide2() != join->getSide1());
+    delete _lastJoin;
+    _lastJoin = NULL;
+  }
+  
+  // write the last join
+  if (_lastJoin != NULL)
+  {
+    const SGJoin* j = _sg->addJoin(_lastJoin);
+    (void)j;
+    assert(j == _lastJoin);
+    // note: once last join's in the side graph, we've lost all
+    // control of it.  
+    _lastJoin = NULL;
+  }
+
+  // filter trivial join
+  if (abs(join->getSide1().getBase().getPos() -
+          join->getSide2().getBase().getPos()) == 1 &&
+      join->getSide1().getForward() !=
+      join->getSide2().getForward())
+  {
+    delete join;
+    join = NULL;
+  }
+  else
+  {
+    _lastJoin = join;
+  }
+  
+  return join;
 }
 
 void SGBuilder::mapSequence(const Sequence* sequence,
@@ -312,6 +346,7 @@ void SGBuilder::mapSequence(const Sequence* sequence,
       fragmentsToBlock(fragments, *block);
       blocks.push_back(block);
     }
+    _lastJoin = NULL;
     // extractSegment() method above works in sorted order by target.
     // we need sorted order by source (to detect insertions, for example).
     sort(blocks.begin(), blocks.end(), BlockPtrLess());
@@ -344,6 +379,12 @@ void SGBuilder::mapSequence(const Sequence* sequence,
     for (size_t j = 0; j < blocks.size(); ++j)
     {
       delete blocks[j];
+    }
+
+    if (_lastJoin != NULL)
+    {
+      _sg->addJoin(_lastJoin);
+      _lastJoin = NULL;
     }
   }
 }
