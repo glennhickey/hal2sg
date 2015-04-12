@@ -186,7 +186,7 @@ SGSequence* SGBuilder::createSGSequence(const Sequence* sequence,
   name << sequence->getFullName();
   if (length < sequence->getSequenceLength())
   {
-    name << "_" << startOffset << ":" << length;
+    name << "_" << startOffset << "_" << length;
   }  
   SGSequence* sgSeq = new SGSequence(-1, length, name.str());
 
@@ -362,7 +362,7 @@ void SGBuilder::processBlock(Block* prevBlock,
   hal_index_t srcPos = block != NULL ? block->_srcStart :
      globalEnd - srcSequence->getEndPosition();
 
-  cout << "PREV " << prevBlock << endl;
+  cout << endl << "PREV " << prevBlock << endl;
   cout << "CUR  " << block << endl;
   
   if (srcPos > prevSrcPos + 1)
@@ -380,6 +380,7 @@ void SGBuilder::processBlock(Block* prevBlock,
     // our new hook is the end of this new sequence
     prevHook.setBase(SGPosition(insertSeq->getID(),
                                 insertSeq->getLength() - 1));
+    prevHook.setForward(true);
   }
   if (block != NULL)
   {
@@ -395,26 +396,28 @@ void SGBuilder::processBlock(Block* prevBlock,
     SGPosition halTgtFirst(
       (sg_seqid_t)block->_tgtSeq->getArrayIndex(),
       block->_reversed ? block->_tgtEnd : block->_tgtStart);
+    cout << "halTGTFirst " << halTgtFirst << endl;
     
     // map from tgt to side graph (second mapping);
     GenomeLUMap::iterator lui = _luMap.find(
       block->_tgtSeq->getGenome()->getName());
     assert(lui != _luMap.end());
     blockEnds.first = lui->second->mapPosition(halTgtFirst);
+    cout << "sgFirst " << blockEnds.first << endl;
+    bool sgMapReversed = !blockEnds.first.getForward();
     blockEnds.second = blockEnds.first;
-    SGPosition firstPos = blockEnds.first.getBase();
-    if (blockEnds.first.getForward() == false)
+    SGPosition secondPos = blockEnds.second.getBase();
+    if (sgMapReversed != block->_reversed)
     {
-
-      firstPos.setPos(firstPos.getPos() - blockLength + 1);
-      blockEnds.first.setBase(firstPos);
+      secondPos.setPos(secondPos.getPos() - blockLength + 1);
+      blockEnds.second.setBase(secondPos);
       blockEnds.first.setForward(true);
       blockEnds.second.setForward(false);
     }
     else
     {
-      firstPos.setPos(firstPos.getPos() + blockLength - 1);
-      blockEnds.second.setBase(firstPos);
+      secondPos.setPos(secondPos.getPos() + blockLength - 1);
+      blockEnds.second.setBase(secondPos);
       blockEnds.first.setForward(false);
       blockEnds.second.setForward(true);
     }
@@ -442,7 +445,10 @@ void SGBuilder::processBlock(Block* prevBlock,
 
     // finally, we can attach the block to the side graph by adding a
     // join to prevhook (and, in case of last block, a final join)
+    cout << "ADDING JOIN ? " << (prevHook.getBase() != SideGraph::NullPos)
+         << " " << (isSelfBlock(*block) == false) << endl;
 
+    
     if (prevHook.getBase() != SideGraph::NullPos)
     {
       // we can have a case where a block aligns identical segments
@@ -453,10 +459,11 @@ void SGBuilder::processBlock(Block* prevBlock,
         // we now know enough to join to prevBlock
         createSGJoin(prevHook, blockEnds.first);
       }
-      
-      // our new hook is the end of the last join
-      prevHook = blockEnds.second;
     }
+      
+    // our new hook is the end of the last join
+    prevHook = blockEnds.second;
+    
     if (nextBlock == NULL)
     {
       // actually, not sure need join here
@@ -502,15 +509,14 @@ void SGBuilder::mapBlockSnps(const Block* block,
     bool snp = isSubstitution(srcVal, tgtVal);
     if (snp == true)
     {
-      cout << "snp " << srcVal << "->" << tgtVal << " at srcpos "
+/*      cout << "snp " << srcVal << "->" << tgtVal << " at srcpos "
            << srcPos << " tgt[ops " << tgtPos << " rev " << block->_reversed
            <<endl;
       cout << "srcDNA " << srcDNA << endl;
       cout << "tgtDNA " << tgtDNA << endl;
-      reverseComplement(tgtDNA);
-      cout << "rgtDNA " << tgtDNA << endl;
+*/
     }
-    assert(snp == false);
+    //assert(snp == false);
     if (i > 0 && snp != runningSnp)
     {
       pair<SGSide, SGSide> fragEnds = mapSliceSnps(block, bp, i - 1, snp, hook,
@@ -522,7 +528,6 @@ void SGBuilder::mapBlockSnps(const Block* block,
       }
       hook = fragEnds.second;
       bp = i;
-      runningSnp = snp;
     }
     if (i == length - 1)
     {
@@ -535,7 +540,8 @@ void SGBuilder::mapBlockSnps(const Block* block,
       }
       blockEnds.second = fragEnds.second;
       hook = fragEnds.second;
-    }    
+    }
+    runningSnp = snp;
   }
 }
 

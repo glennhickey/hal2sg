@@ -204,9 +204,9 @@ inline std::ostream& operator<<(std::ostream& os, const SGBuilder::Block* block)
 
 inline bool SGBuilder::isSelfBlock(const SGBuilder::Block& block) const
 {
-  return block._srcStart != block._tgtStart ||
-     block._srcEnd != block._tgtEnd ||
-     block._srcSeq != block._tgtSeq;
+  return block._srcStart == block._tgtStart &&
+     block._srcEnd == block._tgtEnd &&
+     block._srcSeq == block._tgtSeq;
 }
 
 #endif
