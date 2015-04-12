@@ -17,6 +17,7 @@
 class SGBuilder
 {
 public:
+   
    SGBuilder();
    ~SGBuilder();
 
@@ -44,12 +45,16 @@ public:
     */
    const SideGraph* getSideGraph() const;
 
+   size_t getSequenceString(const SGSequence* sgSequence,
+                            std::string& outString) const;
+
 protected:
    
+   typedef std::map<const SGSequence*, std::pair<const hal::Sequence*,
+                                                 hal_index_t> > SequenceMapBack;
+
    typedef std::map<std::string, SGLookup*> GenomeLUMap;
 
-   typedef std::map<SGSequence*, std::pair<const hal::Sequence*,
-                                           hal_index_t> > SequenceMapBack;
 
    /** convenience structure for alignment block.  note hall coordinates
     * are in forward strand relative to Segment (not genome).  */

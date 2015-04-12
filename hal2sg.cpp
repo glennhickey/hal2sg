@@ -21,6 +21,7 @@ static CLParserPtr initParser()
 {
   CLParserPtr optionsParser = hdf5CLParserInstance();
   optionsParser->addArgument("halFile", "input hal file");
+  optionsParser->addArgument("fastaFile", "Output FASTA sequences");
   optionsParser->addArgument("sqlFile", "SQL inserts written here");
   optionsParser->addOption("refGenome", 
                            "name of reference genome (root if empty)", 
@@ -60,6 +61,7 @@ int main(int argc, char** argv)
 {
   CLParserPtr optionsParser = initParser();
   string halPath;
+  string fastaPath;
   string sqlPath;
   string refGenomeName;
   string rootGenomeName;
@@ -72,6 +74,7 @@ int main(int argc, char** argv)
   {
     optionsParser->parseOptions(argc, argv);
     halPath = optionsParser->getArgument<string>("halFile");
+    fastaPath = optionsParser->getArgument<string>("fastaFile");
     sqlPath = optionsParser->getArgument<string>("sqlFile");
     refGenomeName = optionsParser->getOption<string>("refGenome");
     rootGenomeName = optionsParser->getOption<string>("rootGenome");
@@ -95,11 +98,19 @@ int main(int argc, char** argv)
   }
   try
   {
+    ofstream fastaStream(fastaPath);
+    if (!fastaStream)
+    {
+      throw hal_exception("error opening output fasta file " + fastaPath);
+    }
+    fastaStream.close();
+    
     ofstream sqlStream(sqlPath);
     if (!sqlStream)
     {
-      throw hal_exception("error opening output file " + sqlPath);
+      throw hal_exception("error opening output sql file " + sqlPath);
     }
+    sqlStream.close();
     
     AlignmentConstPtr alignment = openHalAlignmentReadOnly(halPath, 
                                                            optionsParser);
@@ -219,9 +230,7 @@ int main(int argc, char** argv)
     cout << *sgbuild.getSideGraph() << endl;
 
     SGSQL sqlWriter;
-    sqlWriter.writeInserts(sgbuild.getSideGraph(), sqlStream);
-
-    
+    sqlWriter.writeDb(&sgbuild, sqlPath, fastaPath);
 
   }
 /*  catch(hal_exception& e)

@@ -54,6 +54,17 @@ const SideGraph* SGBuilder::getSideGraph() const
   return _sg;
 }
 
+size_t SGBuilder::getSequenceString(const SGSequence* sgSequence,
+                                    string& outString) const
+{
+  SequenceMapBack::const_iterator i = _seqMapBack.find(sgSequence);
+  assert(i != _seqMapBack.end());
+  const Sequence* halSeq = i->second.first;
+  hal_index_t halPos = i->second.second;
+  halSeq->getSubString(outString, halPos, sgSequence->getLength());
+  return outString.length();
+}
+
 void SGBuilder::addGenome(const Genome* genome,
                           const Sequence* sequence, 
                           hal_index_t start,
