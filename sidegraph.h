@@ -39,7 +39,7 @@ public:
 
 public:
    SideGraph();
-   ~SideGraph();
+   virtual ~SideGraph();
 
    /**
     * Check if join is in the graph and return it else NULL.

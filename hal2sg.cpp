@@ -10,6 +10,7 @@
 #include <fstream>
 
 #include "sgbuilder.h"
+#include "sgsql.h"
 
 using namespace std;
 using namespace hal;
@@ -20,7 +21,7 @@ static CLParserPtr initParser()
 {
   CLParserPtr optionsParser = hdf5CLParserInstance();
   optionsParser->addArgument("halFile", "input hal file");
-  optionsParser->addArgument("sgFile", "SQL info here todo..");
+  optionsParser->addArgument("sqlFile", "SQL inserts written here");
   optionsParser->addOption("refGenome", 
                            "name of reference genome (root if empty)", 
                            "\"\"");
@@ -59,6 +60,7 @@ int main(int argc, char** argv)
 {
   CLParserPtr optionsParser = initParser();
   string halPath;
+  string sqlPath;
   string refGenomeName;
   string rootGenomeName;
   string targetGenomes;
@@ -70,6 +72,7 @@ int main(int argc, char** argv)
   {
     optionsParser->parseOptions(argc, argv);
     halPath = optionsParser->getArgument<string>("halFile");
+    sqlPath = optionsParser->getArgument<string>("sqlFile");
     refGenomeName = optionsParser->getOption<string>("refGenome");
     rootGenomeName = optionsParser->getOption<string>("rootGenome");
     targetGenomes = optionsParser->getOption<string>("targetGenomes");
@@ -92,6 +95,12 @@ int main(int argc, char** argv)
   }
   try
   {
+    ofstream sqlStream(sqlPath);
+    if (!sqlStream)
+    {
+      throw hal_exception("error opening output file " + sqlPath);
+    }
+    
     AlignmentConstPtr alignment = openHalAlignmentReadOnly(halPath, 
                                                            optionsParser);
     if (alignment->getNumGenomes() == 0)
@@ -208,6 +217,11 @@ int main(int argc, char** argv)
     }
     
     cout << *sgbuild.getSideGraph() << endl;
+
+    SGSQL sqlWriter;
+    sqlWriter.writeInserts(sgbuild.getSideGraph(), sqlStream);
+
+    
 
   }
 /*  catch(hal_exception& e)
