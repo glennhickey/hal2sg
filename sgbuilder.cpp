@@ -912,7 +912,7 @@ void SGBuilder::getRootSubString(string& outDNA, const Sequence* sequence,
     {
       for (size_t j = 0; j < root->getNumChildren(); ++j)
       {
-        if (bottom->hasChild(j) && bottom->getChildReversed(j) == false)
+        if (bottom->hasChild(j))
         {
           top->toChild(bottom, j);
           top->getString(buffer);
