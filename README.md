@@ -11,7 +11,7 @@ Iteratatively add genomes to side graph.  Each genome is aligned to nearest geno
 
 **Note** Best to compile in debug mode (cppflags_dbg in sonLib/include.mk).  asserts are used to check if the output is honest. 
 
-	  hal2sg input.hal output.fa output.sql 
+	  hal2sg input.hal output.fa output.sql > output.out
 
 `input.hal` Input alignment to convert
 
