@@ -98,14 +98,14 @@ int main(int argc, char** argv)
   }
   try
   {
-    ofstream fastaStream(fastaPath);
+    ofstream fastaStream(fastaPath.c_str());
     if (!fastaStream)
     {
       throw hal_exception("error opening output fasta file " + fastaPath);
     }
     fastaStream.close();
     
-    ofstream sqlStream(sqlPath);
+    ofstream sqlStream(sqlPath.c_str());
     if (!sqlStream)
     {
       throw hal_exception("error opening output sql file " + sqlPath);

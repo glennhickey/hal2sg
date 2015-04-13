@@ -23,10 +23,10 @@ void SGSQL::writeDb(const SGBuilder* sgBuilder, const string& sqlInsertPath,
   _sg = _sgBuilder->getSideGraph();
   assert(_sg != NULL);
   _outPath = sqlInsertPath;
-  _outStream.open(_outPath);
+  _outStream.open(_outPath.c_str());
   assert(_outStream);
   _faPath = fastaPath;
-  _faStream.open(_faPath);
+  _faStream.open(_faPath.c_str());
   assert(_faStream);
   _checksumMap.clear();
 
