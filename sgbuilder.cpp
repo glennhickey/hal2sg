@@ -431,12 +431,9 @@ void SGBuilder::mapSequence(const Sequence* sequence,
                         genome, globalStart, globalEnd, target);
         }
       }
-      // add insert at end
-      if (blocks.back()->_srcEnd < sequence->getSequenceLength())
-      {
-        processBlock(blocks.back(), NULL, NULL, prevHook, sequence,
-                     genome, globalStart, globalEnd, target);
-      }
+      // add insert at end / last step in path
+      processBlock(blocks.back(), NULL, NULL, prevHook, sequence,
+                   genome, globalStart, globalEnd, target);
     }
     for (size_t j = 0; j < blocks.size(); ++j)
     {
@@ -606,21 +603,20 @@ void SGBuilder::processBlock(Block* prevBlock,
     {
       addPathStep(blockEnds.first);
     }
-    
-    if (nextBlock == NULL)
+  }    
+  if (prevBlock != NULL && block == NULL)
+  {
+    // note to self, this shoudl be in createSGJoin or
+    // somehow centralized. 
+    if (_lastJoin != NULL)
     {
-      // note to self, this shoudl be in createSGJoin or
-      // somehow centralized. 
-      if (_lastJoin != NULL)
-      {
-        _sg->addJoin(_lastJoin);
-        addPathStep(_lastJoin->getSide1());
-        addPathStep(_lastJoin->getSide2());
-        _lastJoin = NULL;
-      }
-      addPathStep(blockEnds.second);
-      //assert(_pathLength == srcSequence->getSequenceLength());
+      _sg->addJoin(_lastJoin);
+      addPathStep(_lastJoin->getSide1());
+      addPathStep(_lastJoin->getSide2());
+      _lastJoin = NULL;
     }
+    addPathStep(prevHook);
+    //assert(_pathLength == srcSequence->getSequenceLength());
   }
 }
 
