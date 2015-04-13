@@ -58,6 +58,8 @@ protected:
     */
    void writeSequenceInserts();
 
+   /** write path INSERTs in my own invented format
+    */
    void writePathInserts();
 
    static void getChecksum(const std::string& inputString,

@@ -217,7 +217,7 @@ int main(int argc, char** argv)
     }
 
     SGBuilder sgbuild;
-    sgbuild.init(alignment, rootGenome);
+    sgbuild.init(alignment, rootGenome, false, true);
     // add the reference genome
     sgbuild.addGenome(refGenome, refSequence, start, length);
 

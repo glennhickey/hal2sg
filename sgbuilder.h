@@ -25,7 +25,7 @@ public:
     * Set the alignment
     */
    void init(hal::AlignmentConstPtr alignment, const hal::Genome* root = NULL,
-             bool referenceDupes = true);
+             bool referenceDupes = true, bool noSubMode = false);
 
    /**
     * Erase everything
@@ -46,7 +46,26 @@ public:
    const SideGraph* getSideGraph() const;
 
    size_t getSequenceString(const SGSequence* sgSequence,
-                            std::string& outString) const;
+                            std::string& outString,
+                            sg_int_t pos = 0,
+                            sg_int_t length = -1) const;
+   
+
+   typedef std::vector<SGSide> SidePath;
+   struct SeqLess {
+      bool operator()(const hal::Sequence* s1, const hal::Sequence* s2) const;
+   };
+   typedef std::map<const hal::Sequence*, SidePath*, SGBuilder::SeqLess>
+   PathMap;
+
+   /** Get the paths
+    */
+   const PathMap* getPathMap() const;
+
+   /** Check to make sure the path exactly covers the sequence and 
+    * all the joins exist.  Assertion triggered if something's amiss
+    * (and returns false).  May not be the fastest function.  */
+   bool verifyPath(const hal::Sequence* sequence, const SidePath* path) const;
 
 protected:
    
@@ -54,7 +73,6 @@ protected:
                                                  hal_index_t> > SequenceMapBack;
 
    typedef std::map<std::string, SGLookup*> GenomeLUMap;
-
 
    /** convenience structure for alignment block.  note hall coordinates
     * are in forward strand relative to Segment (not genome).  */
@@ -91,6 +109,9 @@ protected:
 
    /** Add a join to the side graph */
    const SGJoin* createSGJoin(const SGSide& side1, const SGSide& side2);
+
+   /** Add a step to the path */
+   void addPathStep(const SGSide& side);
 
    /** Add interval (from blockmapper machinery) to the side graph.  
     * The interval maps from the new SOURCE genome to a TARGET genome
@@ -134,6 +155,13 @@ protected:
    /** cut block against another */
    Block* cutBlock(Block* prev, Block* cur);
 
+   /** We are anchoring on the root genome (at least for now).  But in
+    * Adams output, the root sequence is Ns which is a problem.  We 
+    * use the function as an override to map a root sequence from its children
+    * using the knowledge that there are no substitutions */
+   void getRootSubString(std::string& outDNA, const hal::Sequence* sequence,
+                         hal_index_t pos, hal_index_t length) const;
+
 protected:
 
    SideGraph* _sg;
@@ -146,6 +174,12 @@ protected:
    const hal::Genome* _mapMrca;
    bool _referenceDupes;
    SGJoin* _lastJoin;
+   SidePath* _path;
+   PathMap _pathMap;
+   bool _inferRootSeq;
+   mutable std::string _rootString;
+   bool _noSubMode;
+   bool _pathLength;
 
    friend std::ostream& operator<<(std::ostream& os, const Block* block);
 
@@ -209,5 +243,17 @@ inline bool SGBuilder::isSelfBlock(const SGBuilder::Block& block) const
      block._srcEnd == block._tgtEnd &&
      block._srcSeq == block._tgtSeq;
 }
+
+inline bool SGBuilder::SeqLess::operator()(const hal::Sequence* s1,
+                                           const hal::Sequence* s2) const
+{
+  return s1->getFullName() < s2->getFullName();
+}
+
+inline const SGBuilder::PathMap* SGBuilder::getPathMap() const
+{
+  return &_pathMap;
+}
+
 
 #endif

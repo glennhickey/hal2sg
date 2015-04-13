@@ -6,6 +6,7 @@
 #include "sgsql.h"
 
 using namespace std;
+using namespace hal;
 
 SGSQL::SGSQL() : _sgBuilder(0), _sg(0)
 {
@@ -33,6 +34,7 @@ void SGSQL::writeDb(const SGBuilder* sgBuilder, const string& sqlInsertPath,
   writeFastaInsert();
   writeSequenceInserts();
   writeJoinInserts();
+  writePathInserts();
 
   _outStream.close();
   _faStream.close();
@@ -130,6 +132,33 @@ void SGSQL::writeJoinInserts()
                << (side2.getForward() ? "TRUE" : "FALSE") << ")\n";
   }
   _outStream << endl;
+}
+
+
+void SGSQL::writePathInserts()
+{
+  const SGBuilder::PathMap* pathMap = _sgBuilder->getPathMap();
+  SGBuilder::PathMap::const_iterator i;
+  _outStream << "# (HAL_Genome.SequenceName, Step#, SequenceID, Position, "
+             << "Forward)" << endl;
+  for (i = pathMap->begin(); i != pathMap->end(); ++i)
+  {
+    const Sequence* halSeq = i->first;
+    const SGBuilder::SidePath* path = i->second;
+    _sgBuilder->verifyPath(halSeq, path);
+    SGBuilder::SidePath::const_iterator j;
+    for (size_t j = 0; j < path->size(); ++j)
+    {
+      const SGSide& side = path->at(j);
+      _outStream << "INSERT INTO Path VALUES ("
+                 << halSeq->getFullName() << ", "
+                 << j << ", "
+                 << side.getBase().getSeqID() << ", "
+                 << side.getBase().getPos() << ", "
+                 << (side.getForward() ? "TRUE" : "FALSE") << ")\n";
+    }
+  }
+  _outStream <<endl;
 }
 
 void SGSQL::getChecksum(const string& inputString, string& outputString)
