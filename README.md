@@ -14,7 +14,9 @@ Iteratatively add genomes to side graph.  Each genome is aligned to nearest geno
 	  hal2sg input.hal output.fa output.sql 
 
 `input.hal` Input alignment to convert
+
 `output.fa` Output fasta file of all Side Graph sequences
+
 `output.sql` Output text file listing INSERT commands for Sequences, Joins and Paths (for each input sequence) in the graph.
 
 **None of the options except `--targetGenomes` work.**
@@ -25,7 +27,7 @@ Please ignore voluminous garbage printed to stdout.
 
 `hal2sg` only works on input of this form:
 * **Mutation free:** ie as produced by Adam's pipeline
-* **Root reference:** root genome used as initial thread.
+* **Root reference:** root genome used as initial side graph sequence.
 * **Star Tree**
 * **One sequence per genome:**
 
