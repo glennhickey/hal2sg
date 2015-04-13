@@ -23,7 +23,7 @@ Iteratatively add genomes to side graph.  Each genome is aligned to nearest geno
 * Please ignore voluminous garbage printed to stdout.
 * SQL output needs work.  Obvious things are directly updating db; figuring out what References are and creating them; using the proper Path format.. 
 
-## sory state of affairs (Update April 13)
+## sorry state of affairs (Update April 13)
 
 `hal2sg` only works on input of this form:
 * **Mutation free:** ie as produced by Adam's pipeline
