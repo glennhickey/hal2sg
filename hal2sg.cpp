@@ -227,7 +227,7 @@ int main(int argc, char** argv)
       sgbuild.addGenome(targetVec[i]);
     }
     
-    cout << *sgbuild.getSideGraph() << endl;
+    //cout << *sgbuild.getSideGraph() << endl;
 
     SGSQL sqlWriter;
     sqlWriter.writeDb(&sgbuild, sqlPath, fastaPath);

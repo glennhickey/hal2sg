@@ -179,7 +179,9 @@ protected:
    bool _inferRootSeq;
    mutable std::string _rootString;
    bool _noSubMode;
-   bool _pathLength;
+   size_t _pathLength;
+   size_t _joinPathLength;
+   size_t _sgJoinPathLength;
 
    friend std::ostream& operator<<(std::ostream& os, const Block* block);
 

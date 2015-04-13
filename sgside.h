@@ -27,6 +27,10 @@ public:
    void setBase(const SGPosition& base);
    void setForward(bool forward);
    
+   /** compute length of semgent that starts with this and 
+    * ends with side2 */
+   sg_int_t lengthTo(const SGSide& side2) const;
+   
    bool operator<(const SGSide& s2) const;
    bool operator<=(const SGSide& s2) const;
    bool operator==(const SGSide& s2) const;
@@ -76,6 +80,39 @@ inline void SGSide::setBase(const SGPosition& base)
 inline void SGSide::setForward(bool forward)
 {
   _forward = forward;
+}
+
+inline sg_int_t SGSide::lengthTo(const SGSide& side2) const
+{
+  if (this->getBase().getSeqID() != side2.getBase().getSeqID())
+  {
+    return -1;
+  }
+  sg_int_t len = -1;
+  const SGSide* s1 = this;
+  const SGSide* s2 = &side2;
+  if (*s2 < *s1)
+  {
+    std::swap(s1, s2);
+  }
+
+  if (s1->getBase() == s2->getBase())
+  {
+    len = s1->getForward() != s2->getForward() ? 1 : 0;
+  }
+  else
+  {
+    len = s2->getBase().getPos() - s1->getBase().getPos() + 1;
+    if (s1->getForward() == true)
+    {
+      --len;
+    }
+    if (s2->getForward() == false)
+    {
+      --len;
+    }
+  }
+  return len;
 }
 
 inline bool SGSide::operator<(const SGSide& s2) const

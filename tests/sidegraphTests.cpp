@@ -10,6 +10,49 @@
 
 using namespace std;
 
+/** test lengthTo function */
+void sideGraphTestSide(CuTest *testCase)
+{
+  SGPosition p1(0, 5);
+  SGPosition p2(0, 10);
+  SGPosition p3(1, 1);
+
+  SGSide s1f(p1, true);
+  SGSide s1r(p1, false);
+  SGSide s2f(p2, true);
+  SGSide s2r(p2, false);
+  SGSide s3f(p3, true);
+  SGSide s3r(p3, false);
+
+  CuAssertTrue(testCase, s1f.lengthTo(s1f) == 0);
+  CuAssertTrue(testCase, s1f.lengthTo(s1r) == 1);
+  CuAssertTrue(testCase, s1f.lengthTo(s2f) == 5);
+  CuAssertTrue(testCase, s1f.lengthTo(s2r) == 4);
+  CuAssertTrue(testCase, s1f.lengthTo(s3f) == -1);
+  CuAssertTrue(testCase, s1f.lengthTo(s3r) == -1);
+
+  CuAssertTrue(testCase, s1r.lengthTo(s1f) == 1);
+  CuAssertTrue(testCase, s1r.lengthTo(s1r) == 0);
+  CuAssertTrue(testCase, s1r.lengthTo(s2f) == 6);
+  CuAssertTrue(testCase, s1r.lengthTo(s2r) == 5);
+  CuAssertTrue(testCase, s1r.lengthTo(s3f) == -1);
+  CuAssertTrue(testCase, s1r.lengthTo(s3r) == -1);
+
+  CuAssertTrue(testCase, s2f.lengthTo(s1f) == 5);
+  CuAssertTrue(testCase, s2f.lengthTo(s1r) == 6);
+  CuAssertTrue(testCase, s2f.lengthTo(s2f) == 0);
+  CuAssertTrue(testCase, s2f.lengthTo(s2r) == 1);
+  CuAssertTrue(testCase, s2f.lengthTo(s3f) == -1);
+  CuAssertTrue(testCase, s2f.lengthTo(s3r) == -1);
+  
+  CuAssertTrue(testCase, s2r.lengthTo(s1f) == 4);
+  CuAssertTrue(testCase, s2r.lengthTo(s1r) == 5);
+  CuAssertTrue(testCase, s2r.lengthTo(s2f) == 1);
+  CuAssertTrue(testCase, s2r.lengthTo(s2r) == 0);
+  CuAssertTrue(testCase, s2r.lengthTo(s3f) == -1);
+  CuAssertTrue(testCase, s2r.lengthTo(s3r) == -1);
+}
+
 /** make sure basic structs sort okay */
 void sideGraphTestJoin(CuTest *testCase)
 {
@@ -87,6 +130,7 @@ void sideGraphTest(CuTest *testCase)
 CuSuite* sideGraphTestSuite(void) 
 {
   CuSuite* suite = CuSuiteNew();
+  SUITE_ADD_TEST(suite, sideGraphTestSide);
   SUITE_ADD_TEST(suite, sideGraphTestJoin);
   SUITE_ADD_TEST(suite, sideGraphTest);
   return suite;
