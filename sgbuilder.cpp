@@ -380,8 +380,12 @@ void SGBuilder::mapSequence(const Sequence* sequence,
     while (refSeg->getArrayIndex() < lastIndex &&
            refSeg->getStartPosition() <= globalEnd)  
     {
+      cout << "refSeg "; refSeg->print(cout); cout << endl;
+      size_t xx = mappedSegments.size();
       refSeg->getMappedSegments(mappedSegments, target, &_mapPath,
                                 true, 0, _root, _mapMrca);
+      cout << " got " << (mappedSegments.size() - xx) << endl;
+      cout << refSeg.downCast<TopSegmentConstPtr>()->hasParent() << endl;
       refSeg->toRight(globalEnd);
     }
 
@@ -424,6 +428,7 @@ void SGBuilder::mapSequence(const Sequence* sequence,
         Block* prev = j == 0 ? NULL : blocks[j-1-cutback];
         Block* next = j == blocks.size() - 1 ? NULL : blocks[j+1];
         Block* block = cutBlock(prev, blocks[j]);
+
         cutback = block == NULL ? cutback + 1 : 0;
         if (block != NULL)
         {
@@ -472,9 +477,10 @@ void SGBuilder::processBlock(Block* prevBlock,
   {
     srcPos =  srcSequence->getEndPosition() + 1;
   }
-  cout << "prevSrcPos " << prevSrcPos << " srcPos " << srcPos << endl;
+
   cout << endl << "PREV " << prevBlock << endl;
   cout << "CUR  " << block << endl;
+  cout << "prevSrcPos " << prevSrcPos << " srcPos " << srcPos << endl;
 
   if (prevBlock == 0)
   {
@@ -482,13 +488,19 @@ void SGBuilder::processBlock(Block* prevBlock,
     _joinPathLength = 0;
     _sgJoinPathLength = 0;
   }
-  
-  if (srcPos > prevSrcPos + 1)
+
+  // todo: clean
+  sg_int_t seqStartCoord = prevBlock == NULL ? prevSrcPos : prevSrcPos + 1;
+
+  if (srcPos > seqStartCoord)
   {
+    cout << "ssc " << seqStartCoord << " len " << (srcPos - seqStartCoord - 0)
+         << endl;
+    
     // handle insertion (source sequence not mapped to target)
     // insert new sequence for gap between prevBock and block
-    SGSequence* insertSeq = createSGSequence(srcSequence, prevSrcPos + 1,
-                                              srcPos - prevSrcPos - 1);
+    SGSequence* insertSeq = createSGSequence(srcSequence, seqStartCoord, 
+                                              srcPos - seqStartCoord - 0);
     
     // join it on end of last inserted side graph position
     SGSide seqHook(SGPosition(insertSeq->getID(), 0), false);
@@ -582,7 +594,7 @@ void SGBuilder::processBlock(Block* prevBlock,
     _pathLength += blockLength;
     cout << "blin 1 sp += " << blockLength << " -> " << _pathLength << endl;
     assert(blockEnds.first.lengthTo(blockEnds.second) == blockLength);
-    assert(_pathLength == _joinPathLength);
+    //  assert(_pathLength == _joinPathLength);
     
     if (prevHook.getBase() != SideGraph::NullPos)
     {
@@ -857,12 +869,14 @@ bool SGBuilder::verifyPath(const Sequence* sequence, const SidePath* path) const
   {
     sequence->getString(buffer);
   }
-  //cout << "BUF " << buffer.length()  << buffer << endl;
-  //cout << "PAT " << pathString.length()  << pathString << endl;
+  cout << "BUF " << buffer.length()  << buffer.substr(0, 80) << endl;
+  cout << "PAT " << pathString.length()  << pathString.substr(0, 80) << endl;
+  cout << sequence->getFullName() << endl;
   cout << "BUF " << buffer.length()   << endl;
   cout << "PAT " << pathString.length()  << endl;
 
-
+//  if (sequence->getName() == "GI568335984")
+//     pathString = string("G") + pathString;
   if (buffer != pathString)
   {
     for (size_t x = 0; x < buffer.length(); ++x)
@@ -870,19 +884,8 @@ bool SGBuilder::verifyPath(const Sequence* sequence, const SidePath* path) const
       if (buffer[x] != pathString[x])
       {
         cout << x << " " << buffer[x] << "->" << pathString[x] << endl;
-        //break;
+        break;
       }
-    }
-    cout << "buffer ";
-    for (size_t x = 431420; x < 431420 + 200; ++x)
-    {
-      cout << buffer[x] ;
-    }
-    cout << endl;
-    cout << "pathString ";
-    for (size_t x = 431420; x < 431420 + 200; ++x)
-    {
-      cout << pathString[x] ;
     }
     cout << endl;
 

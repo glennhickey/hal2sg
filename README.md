@@ -34,6 +34,7 @@ Please ignore voluminous garbage printed to stdout.
 ## next updates
 
 * Fixes to output format?
+* Clean code and tests
 * Multiple sequences per genome (easy).  Already supported but not tested
 * Cactus graphs.  Need to finish mutation support
 * Arbitrary topology and references and genome subselection.  Much is done, just need to generalize path code, and handle paralogies in insertions, and of course tests.
