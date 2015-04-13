@@ -19,7 +19,7 @@ Iteratatively add genomes to side graph.  Each genome is aligned to nearest geno
 
 `output.sql` Output text file listing INSERT commands for Sequences, Joins and Paths (for each input sequence) in the graph.
 
-**None of the options except `--targetGenomes` work.**
+**None of the options except `--targetGenomes` (and the standard HAL caching options) work.**
 
 Please ignore voluminous garbage printed to stdout.
 
