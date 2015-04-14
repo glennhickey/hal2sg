@@ -5,16 +5,13 @@ libPath=${rootPath}
 sonLibRootPath=${rootPath}/../sonLib
 sonLibPath=${sonLibRootPath}/lib
 
-cactusRootPath=${rootPath}/../cactus
-cactusPath=${cactusRootPath}/lib
-
 halRootPath=${rootPath}/../hal
 halPath=${halRootPath}/lib
 
 include  ${sonLibRootPath}/include.mk
 
-cflags += -I ${sonLibPath} -I ${cactusPath} -I ${halPath} ${tokyoCabinetIncl} ${kyotoTycoonIncl}
-cppflags += -I ${sonLibPath} -I ${cactusPath} -I ${halPath} ${tokyoCabinetIncl} ${kyotoTycoonIncl} -D__STDC_LIMIT_MACROS -Wno-deprecated
+cflags += -I ${sonLibPath}  -I ${halPath} 
+cppflags += -I ${sonLibPath}  -I ${halPath}
 basicLibs = ${halPath}/halLiftover.a ${halPath}/halLib.a ${sonLibPath}/sonLib.a ${sonLibPath}/cuTest.a 
 basicLibsDependencies = ${basicLibs}
 
