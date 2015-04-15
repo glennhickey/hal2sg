@@ -13,5 +13,6 @@ extern "C" {
 
 CuSuite* sideGraphTestSuite();
 CuSuite* sgLookupTestSuite();
+CuSuite* sgBuildTestSuite();
 
 #endif

@@ -128,6 +128,6 @@ CuSuite* sgLookupTestSuite(void)
 {
   CuSuite* suite = CuSuiteNew();
   SUITE_ADD_TEST(suite, simpleTest);
-  //SUITE_ADD_TEST(suite, mapTest);
+  SUITE_ADD_TEST(suite, mapTest);
   return suite;
 }
