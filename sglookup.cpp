@@ -43,7 +43,6 @@ void SGLookup::addInterval(const SGPosition& inPos,
                            sg_int_t length,
                            bool reversed)
 {
-  cout << "ADD INT " << inPos << " --> " << outPos << " +" << length << endl;
   PosMap& pm = _mapVec.at(inPos.getSeqID());
 
   sg_int_t left = inPos.getPos();
@@ -68,7 +67,6 @@ void SGLookup::addInterval(const SGPosition& inPos,
   // update the left point
   assert(li->second.getBase() == SideGraph::NullPos);
   li->second = SGSide(outPos, !reversed);
-  cout << "ADDED " << li->second << endl;
 }
 
 SGSide SGLookup::mapPosition(const SGPosition& inPos) const

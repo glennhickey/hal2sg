@@ -113,9 +113,9 @@ void SGBuilder::addGenome(const Genome* genome,
   {
     SequenceIteratorConstPtr si = genome->getSequenceIterator();
     SequenceIteratorConstPtr sie = genome->getSequenceEndIterator();
-    const Sequence* curSequence = si->getSequence();
     for (; si != sie; si->toNext())
     {
+      const Sequence* curSequence = si->getSequence();
       if (start <= curSequence->getEndPosition() &&
           (start + length-1) >= curSequence->getStartPosition())
       {
@@ -159,7 +159,10 @@ void SGBuilder::addGenome(const Genome* genome,
     hal_index_t curEnd = std::min(endPos, curSequence->getEndPosition());
 
     // note all coordinates global
-    mapSequence(curSequence, curStart, curEnd, target);  
+    if (curStart <= curEnd)
+    {
+      mapSequence(curSequence, curStart, curEnd, target);
+    }
   }
 }
 
@@ -219,13 +222,13 @@ SGSequence* SGBuilder::createSGSequence(const Sequence* sequence,
   // keep record in other direction (ie to map from hal into the side graph)
   sg_seqid_t halSequenceID = (sg_seqid_t)sequence->getArrayIndex();
   assert(halSequenceID >= 0);
-  cout << "ai0 ";
+  cout << "Create Sequence " << *sgSeq << " from hal(" << halSequenceID
+       << ", " << startOffset << " l=" << length << endl;
+
   _lookup->addInterval(SGPosition(halSequenceID, startOffset),
                       SGPosition(sgSeq->getID(), 0),
                       length, false);
 
-  cout << "Create Sequence " << *sgSeq << " from hal(" << halSequenceID
-       << ", " << startOffset << " l=" << length << endl;
   return sgSeq;
 }
 
@@ -288,14 +291,6 @@ void SGBuilder::addPathStep(const SGSide& side)
     // segment edge.  make sure its at least somewhat valid.
 
     _sgJoinPathLength += _path->at(_path->size() - 2).lengthTo(_path->back());
-    cout << "blin 2 xp += " << (_path->at(_path->size() - 2).lengthTo(_path->back()))
-         << " -> " << _sgJoinPathLength << endl;
-
-    
-    cout << "n-1 " << _path->at(_path->size() - 2) << endl
-         << "n-0 " <<  _path->back() << endl;
-
-    
     assert(_path->at(_path->size() - 2).getBase().getSeqID() ==
            _path->back().getBase().getSeqID());
   }
@@ -307,6 +302,7 @@ void SGBuilder::mapSequence(const Sequence* sequence,
                             const Genome* target)
 {
   const Genome* genome = sequence->getGenome();
+  cout << "Map Sequence " << sequence->getFullName() << endl;
 
   // start a path for the sequence
   _path = new SidePath();
@@ -380,12 +376,8 @@ void SGBuilder::mapSequence(const Sequence* sequence,
     while (refSeg->getArrayIndex() < lastIndex &&
            refSeg->getStartPosition() <= globalEnd)  
     {
-      cout << "refSeg "; refSeg->print(cout); cout << endl;
-      size_t xx = mappedSegments.size();
       refSeg->getMappedSegments(mappedSegments, target, &_mapPath,
                                 true, 0, _root, _mapMrca);
-      cout << " got " << (mappedSegments.size() - xx) << endl;
-      cout << refSeg.downCast<TopSegmentConstPtr>()->hasParent() << endl;
       refSeg->toRight(globalEnd);
     }
 
@@ -411,11 +403,16 @@ void SGBuilder::mapSequence(const Sequence* sequence,
     // we need sorted order by source (to detect insertions, for example).
     sort(blocks.begin(), blocks.end(), BlockPtrLess());
 
+    // we will deal in sequence-relative (as opposed to hals wonky
+    // genome-relative) coordinates from here on.
+    hal_index_t sequenceStart = globalStart - sequence->getStartPosition();
+    hal_index_t sequenceEnd = globalEnd - sequence->getStartPosition();
+    
     if (blocks.empty() == true)
     {
       // case with zero mapped blocks.  entire segment will be insertion. 
       processBlock(NULL, NULL, NULL, prevHook, sequence,
-                   genome, globalStart, globalEnd, target);
+                   genome, sequenceStart, sequenceEnd, target);
     }
     else
     {
@@ -433,12 +430,12 @@ void SGBuilder::mapSequence(const Sequence* sequence,
         if (block != NULL)
         {
           processBlock(prev, block, next, prevHook, sequence,
-                        genome, globalStart, globalEnd, target);
+                        genome, sequenceStart, sequenceEnd, target);
         }
       }
       // add insert at end / last step in path
       processBlock(blocks.back(), NULL, NULL, prevHook, sequence,
-                   genome, globalStart, globalEnd, target);
+                   genome, sequenceStart, sequenceEnd, target);
     }
     for (size_t j = 0; j < blocks.size(); ++j)
     {
@@ -460,22 +457,29 @@ void SGBuilder::processBlock(Block* prevBlock,
                              SGSide& prevHook,
                              const Sequence* srcSequence,
                              const Genome* srcGenome,
-                             hal_index_t globalStart, hal_index_t globalEnd,
+                             hal_index_t sequenceStart,
+                             hal_index_t sequenceEnd,
                              const Genome* tgtGenome)
 {
-  hal_index_t prevSrcPos = prevBlock != NULL ? prevBlock->_srcEnd : 0;
-  hal_index_t srcPos;
+  hal_index_t prevSrcPos;  // global hal coord of end of last block
+  hal_index_t srcPos;  // global hal coord of beginning of block
+  if (prevBlock == NULL)
+  {
+    // minus one here because we consider prevSrcPos covered and want
+    // to insert stuff that comes after. 
+    prevSrcPos = sequenceStart - 1;
+  }
+  else
+  {
+    prevSrcPos = prevBlock->_srcEnd;
+  }
   if (block != NULL)
   {
     srcPos = block->_srcStart;
   }
-  else if (prevBlock == NULL)
-  {
-    srcPos = globalEnd - srcSequence->getEndPosition();
-  }
   else
   {
-    srcPos =  srcSequence->getEndPosition() + 1;
+    srcPos = sequenceEnd + 1;
   }
 
   cout << endl << "PREV " << prevBlock << endl;
@@ -489,18 +493,12 @@ void SGBuilder::processBlock(Block* prevBlock,
     _sgJoinPathLength = 0;
   }
 
-  // todo: clean
-  sg_int_t seqStartCoord = prevBlock == NULL ? prevSrcPos : prevSrcPos + 1;
-
-  if (srcPos > seqStartCoord)
-  {
-    cout << "ssc " << seqStartCoord << " len " << (srcPos - seqStartCoord - 0)
-         << endl;
-    
+  if (srcPos > prevSrcPos + 1)
+  {    
     // handle insertion (source sequence not mapped to target)
     // insert new sequence for gap between prevBock and block
-    SGSequence* insertSeq = createSGSequence(srcSequence, seqStartCoord, 
-                                              srcPos - seqStartCoord - 0);
+    SGSequence* insertSeq = createSGSequence(srcSequence, prevSrcPos + 1, 
+                                              srcPos - prevSrcPos - 1);
     
     // join it on end of last inserted side graph position
     SGSide seqHook(SGPosition(insertSeq->getID(), 0), false);
@@ -519,12 +517,7 @@ void SGBuilder::processBlock(Block* prevBlock,
                                 insertSeq->getLength() - 1));
     prevHook.setForward(true);
     _joinPathLength += seqHook.lengthTo(prevHook);
-    cout << "blin 0 jp += " << seqHook.lengthTo(prevHook) << " -> "
-         << _joinPathLength << endl;
-
     _pathLength += srcPos - prevSrcPos - 1;
-    cout << "blin 0 sp += " << (srcPos - prevSrcPos - 1) << " -> "
-         << _pathLength << endl;
     // assert(_pathLength == _joinPathLength);
   }
   if (block != NULL)
@@ -583,16 +576,16 @@ void SGBuilder::processBlock(Block* prevBlock,
     // all the snps, as well as making sure the lookup structure is
     // updated.
     pair<SGSide, SGSide> tempCheck = blockEnds;
-    mapBlockSnps(block, blockEnds);
+    if (_noSubMode == false)
+    {
+      mapBlockSnps(block, blockEnds);
+    }
     cout << "BE " << blockEnds.first << ", " << blockEnds.second << endl;
     cout << "TC " << tempCheck.first << ", " << tempCheck.second << endl;
     assert(tempCheck == blockEnds);
 
     _joinPathLength += blockEnds.first.lengthTo(blockEnds.second);
-    cout << "blin 1 jp += " << blockEnds.first.lengthTo(blockEnds.second)
-         << " -> " << _joinPathLength << endl;
     _pathLength += blockLength;
-    cout << "blin 1 sp += " << blockLength << " -> " << _pathLength << endl;
     assert(blockEnds.first.lengthTo(blockEnds.second) == blockLength);
     //  assert(_pathLength == _joinPathLength);
     
@@ -616,7 +609,7 @@ void SGBuilder::processBlock(Block* prevBlock,
       addPathStep(blockEnds.first);
     }
   }    
-  if (prevBlock != NULL && block == NULL)
+  if (block == NULL)
   {
     // note to self, this shoudl be in createSGJoin or
     // somehow centralized. 
@@ -670,14 +663,14 @@ void SGBuilder::mapBlockSnps(const Block* block,
     bool snp = isSubstitution(srcVal, tgtVal);
     if (snp == true)
     {
-/*      cout << "snp " << srcVal << "->" << tgtVal << " at srcpos "
+      cout << "snp " << srcVal << "->" << tgtVal << " at srcpos "
            << srcPos << " tgt[ops " << tgtPos << " rev " << block->_reversed
            <<endl;
       cout << "srcDNA " << srcDNA << endl;
       cout << "tgtDNA " << tgtDNA << endl;
-*/
+
     }
-    //assert(snp == false);
+    assert(snp == false);
     if (i > 0 && snp != runningSnp)
     {
       pair<SGSide, SGSide> fragEnds = mapSliceSnps(block, bp, i - 1, snp, hook,
@@ -813,7 +806,7 @@ bool SGBuilder::verifyPath(const Sequence* sequence, const SidePath* path) const
 {
   string pathString;
   string buffer;
-  cout << "path size " << path->size() << endl;
+  cout << "\npath size " << path->size() << endl;
   cout << "_pathLength " << _pathLength << endl;
   cout << "_joinPathLength " << _joinPathLength << endl;
   cout << "_sgJoinPathLength " << _sgJoinPathLength << endl;
@@ -869,26 +862,22 @@ bool SGBuilder::verifyPath(const Sequence* sequence, const SidePath* path) const
   {
     sequence->getString(buffer);
   }
-  cout << "BUF " << buffer.length()  << buffer.substr(0, 80) << endl;
-  cout << "PAT " << pathString.length()  << pathString.substr(0, 80) << endl;
-  cout << sequence->getFullName() << endl;
-  cout << "BUF " << buffer.length()   << endl;
-  cout << "PAT " << pathString.length()  << endl;
 
-//  if (sequence->getName() == "GI568335984")
-//     pathString = string("G") + pathString;
   if (buffer != pathString)
   {
-    for (size_t x = 0; x < buffer.length(); ++x)
-    {
-      if (buffer[x] != pathString[x])
-      {
-        cout << x << " " << buffer[x] << "->" << pathString[x] << endl;
-        break;
-      }
-    }
-    cout << endl;
+      cout << sequence->getFullName() << endl;
+      cout << "BUF " << buffer.length()   << endl;
+      cout << "PAT " << pathString.length()  << endl;
 
+      for (size_t x = 0; x < buffer.length(); ++x)
+      {
+        if (buffer[x] != pathString[x])
+        {
+          cout << x << " " << buffer[x] << "->" << pathString[x] << endl;
+          break;
+        }
+      }
+      cout << endl;
   }
   assert(buffer == pathString);
   if (buffer != pathString)

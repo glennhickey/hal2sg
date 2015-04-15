@@ -123,7 +123,8 @@ protected:
                      SGSide& prevHook,
                      const hal::Sequence* srcSequence,
                      const hal::Genome* srcGenome,
-                     hal_index_t globalStart, hal_index_t globalEnd,
+                     hal_index_t sequenceStart,
+                     hal_index_t sequenceEnd,
                      const hal::Genome* tgtGenome);
 
    /** Add a block, breaking apart for SNPs. only add joins that are
