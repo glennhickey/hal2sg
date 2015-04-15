@@ -58,6 +58,11 @@ protected:
     */
    void writeSequenceInserts();
 
+   /** write a "Reference" INSERT for each sequence in the graph into
+    * one Reference set. 
+    */
+   void writeReferenceInserts();
+
    /** write path INSERTs in my own invented format
     */
    void writePathInserts();

@@ -33,6 +33,7 @@ void SGSQL::writeDb(const SGBuilder* sgBuilder, const string& sqlInsertPath,
   writeFasta();
   writeFastaInsert();
   writeSequenceInserts();
+  writeReferenceInserts();
   writeJoinInserts();
   writePathInserts();
 
@@ -97,6 +98,100 @@ void SGSQL::writeSequenceInserts()
                << seq->getLength() << ");\n";
   }
   _outStream << endl;
+}
+
+
+/*
+-- References
+CREATE TABLE Reference (ID INTEGER PRIMARY KEY, 
+	name TEXT NOT NULL,
+	updateTime DATE NOT NULL, 
+	sequenceID INTEGER NOT NULL,
+	start INTEGER NOT NULL, -- default 0.
+	length INTEGER, -- if null, assume sequence.lenght - start 
+	md5checksum TEXT, -- if null, assume sequence.md5checksum
+	isDerived BOOLEAN NOT NULL, 
+	sourceDivergence REAL, -- may be null if isDerived is FALSE (not sure if it needs to be stored)?
+	ncbiTaxonID INTEGER, -- ID from http://www.ncbi.nlm.nih.gov/taxonomy, may be null
+	isPrimary BOOLEAN NOT NULL,
+	FOREIGN KEY(sequenceID) REFERENCES Sequence(ID)); 
+CREATE TABLE ReferenceAccession (ID INTEGER PRIMARY KEY,
+	referenceID INTEGER NOT NULL,
+	accessionID TEXT NOT NULL,
+	FOREIGN KEY(referenceID) REFERENCES Reference(ID)); 
+
+-- Reference sets
+CREATE TABLE ReferenceSet (ID INTEGER PRIMARY KEY,
+	ncbiTaxonID INT, -- may be null, may differ from ncbiTaxonID of contained Reference record
+	description TEXT, -- may be null, but shouldn't be?
+	fastaID INTEGER, -- may be null. TODO: What if both this and a member Reference's Sequence fastaID are null?
+	assemblyID TEXT, -- may be null, but REALLY shouldn't be?
+	isDerived BOOLEAN NOT NULL,
+	FOREIGN KEY(fastaID) REFERENCES FASTA(ID));
+CREATE TABLE ReferenceSetAccession (ID INTEGER PRIMARY KEY,
+	referenceSetID INTEGER NOT NULL,
+	accessionID TEXT NOT NULL,
+	FOREIGN KEY(referenceSetID) REFERENCES ReferenceSet(ID)); 
+
+CREATE TABLE Reference_ReferenceSet_Join (referenceID INTEGER NOT NULL, 
+	referenceSetID INTEGER NOT NULL,
+	PRIMARY KEY(referenceID, referenceSetID),
+	FOREIGN KEY(referenceID) REFERENCES Reference(ID),
+	FOREIGN KEY(referenceSetID) REFERENCES ReferenceSet(ID));
+*/
+void SGSQL::writeReferenceInserts()
+{
+  // make a reference set for each input genome from the HAL
+  map<string, size_t> refMap;
+  refMap.insert(pair<string, size_t>(_sgBuilder->getPrimaryGenomeName(), 0));
+  _outStream << "INSERT INTO ReferenceSet VALUES "
+             << "(0, NULL, NULL, 0, NULL, \'FALSE\')\n";
+  for (sg_int_t i = 0; i < _sg->getNumSequences(); ++i)
+  {
+    const SGSequence* seq = _sg->getSequence(i);
+    string halGenomeName = _sgBuilder->getHalGenomeName(seq);
+    if (refMap.find(halGenomeName) == refMap.end())
+    {
+      sg_int_t id = refMap.size();
+      refMap.insert(pair<string, size_t>(halGenomeName, id));
+      // single reference set
+      _outStream << "INSERT INTO ReferenceSet VALUES "
+                 << "(" << id 
+                 << ", NULL, "
+                 << "\'HAL Genome " + halGenomeName << "\'"
+                 << ", 0, NULL, \'FALSE\')\n";
+    }
+  }
+  
+  for (sg_int_t i = 0; i < _sg->getNumSequences(); ++i)
+  {
+    const SGSequence* seq = _sg->getSequence(i);
+    string halGenomeName = _sgBuilder->getHalGenomeName(seq);
+    bool primary = halGenomeName == _sgBuilder->getPrimaryGenomeName();
+    _outStream << "INSERT INTO Reference VALUES ("
+               << seq->getID() << ", "
+               << "\'"<< seq->getName() << "\', "
+               << "date(\'now\')" << ", "
+               << seq->getID() << ", "
+               << refMap.find(halGenomeName)->second << ", "
+               << "NULL " << ", "
+               << "NULL " << ", "
+               << "\'FALSE\'" << ", "
+               << "NULL " << ", "
+               << "NULL " << ", "
+               << (primary ? "\'TRUE\'" : "\'FALSE\'")
+               << ");\n";
+  }
+
+  for (sg_int_t i = 0; i < _sg->getNumSequences(); ++i)
+  {
+    const SGSequence* seq = _sg->getSequence(i);
+    _outStream << "INSERT INTO Reference_ReferenceSet_Join VALUES ("
+               << seq->getID() << ", 0);\n";
+  }
+  
+  _outStream << endl;
+
 }
 
 /*

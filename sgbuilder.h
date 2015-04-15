@@ -45,10 +45,23 @@ public:
     */
    const SideGraph* getSideGraph() const;
 
+   /**
+    * Get DNA bases for a Side Graph sequence by querying the
+    * source sequence in the HAL file. 
+    */
    size_t getSequenceString(const SGSequence* sgSequence,
                             std::string& outString,
                             sg_int_t pos = 0,
                             sg_int_t length = -1) const;
+   
+
+   /** Returns true if sequence was created from the first genome added
+    * (root in current impl), true otherwise */
+   const std::string& getPrimaryGenomeName() const;
+
+   /** Look up the HAL genome that he Side Graph sequence was based 
+    */
+   std::string getHalGenomeName(const SGSequence* sgSequence) const;
    
 
    typedef std::vector<SGSide> SidePath;
@@ -66,6 +79,7 @@ public:
     * all the joins exist.  Assertion triggered if something's amiss
     * (and returns false).  May not be the fastest function.  */
    bool verifyPath(const hal::Sequence* sequence, const SidePath* path) const;
+       
 
 protected:
    
@@ -183,6 +197,7 @@ protected:
    size_t _pathLength;
    size_t _joinPathLength;
    size_t _sgJoinPathLength;
+   std::string _firstGenomeName;
 
    friend std::ostream& operator<<(std::ostream& os, const Block* block);
 

@@ -53,6 +53,7 @@ void SGBuilder::clear()
     delete i->second;
   }
   _path = NULL;
+  _firstGenomeName.erase();
 }
 
 const SideGraph* SGBuilder::getSideGraph() const
@@ -82,6 +83,19 @@ size_t SGBuilder::getSequenceString(const SGSequence* sgSequence,
   return outString.length();
 }
 
+const string& SGBuilder::getPrimaryGenomeName() const
+{
+  return _firstGenomeName;
+}
+
+string SGBuilder::getHalGenomeName(const SGSequence* sgSequence) const
+{
+  SequenceMapBack::const_iterator i = _seqMapBack.find(sgSequence);
+  assert(i != _seqMapBack.end());
+  const Sequence* halSeq = i->second.first;
+  return halSeq->getGenome()->getName();
+}
+
 void SGBuilder::addGenome(const Genome* genome,
                           const Sequence* sequence, 
                           hal_index_t start,
@@ -89,6 +103,12 @@ void SGBuilder::addGenome(const Genome* genome,
 {
   cout << "\n-----------\n" << "ADDING " << genome->getName() << endl;
   assert(_luMap.find(genome->getName()) == _luMap.end());
+  if (_firstGenomeName.empty())
+  {
+    // make note of reference genome to tell if sequences are
+    // derived or not in sql. 
+    _firstGenomeName = genome->getName();
+  }
 
   start = std::max((hal_index_t)0, start);
   if (length <= 0)
@@ -253,7 +273,7 @@ const SGJoin* SGBuilder::createSGJoin(const SGSide& side1, const SGSide& side2)
   // write the last join
   if (_lastJoin != NULL)
   {
-    const SGJoin* j = _sg->addJoin(_lastJoin);
+    //const SGJoin* j = _sg->addJoin(_lastJoin);
     cout << "add join " << *_lastJoin << endl;
     // add two steps to our path.
     //addPathStep(j->getSide1());
@@ -310,7 +330,7 @@ void SGBuilder::mapSequence(const Sequence* sequence,
 
   // first genome added: it's the reference so we add sequences
   // directly. TODO: handle self-dupes
-  if (target == NULL || genome == _root || globalEnd == globalStart)
+  if (target == NULL || genome == _root)
   {
     SGSequence* ref = createSGSequence(
       sequence, globalStart - sequence->getStartPosition(),
