@@ -11,6 +11,7 @@
 #include <cassert>
 #include <string>
 #include <iostream>
+#include <algorithm>
 
 typedef size_t sg_size_t;
 typedef long sg_int_t;
