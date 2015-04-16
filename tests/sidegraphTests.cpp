@@ -53,6 +53,85 @@ void sideGraphTestSide(CuTest *testCase)
   CuAssertTrue(testCase, s2r.lengthTo(s3r) == -1);
 }
 
+/** test Segment construction from sides function */
+void sideGraphTestSegment(CuTest *testCase)
+{
+  SGPosition p1(0, 5);
+  SGPosition p2(0, 10);
+  SGPosition p3(1, 1);
+
+  SGSide s1f(p1, true);
+  SGSide s1r(p1, false);
+  SGSide s2f(p2, true);
+  SGSide s2r(p2, false);
+  SGSide s3f(p3, true);
+  SGSide s3r(p3, false);
+
+  SGSegment seg;
+  SGPosition pos;
+  
+  seg = SGSegment(s1f, s1f);
+  pos = seg.getSide().getBase();
+  CuAssertTrue(testCase, pos.getPos() == s1f.getBase().getPos() + 1);
+  CuAssertTrue(testCase, seg.getLength() == 0);
+
+  seg = SGSegment(s1r, s1r);
+  pos = seg.getSide().getBase();
+  CuAssertTrue(testCase, pos.getPos() == s1r.getBase().getPos() - 1);
+  CuAssertTrue(testCase, seg.getLength() == 0);
+
+  seg = SGSegment(s1r, s1f);
+  pos = seg.getSide().getBase();
+  CuAssertTrue(testCase, pos.getPos() == s1r.getBase().getPos());
+  CuAssertTrue(testCase, seg.getLength() == 1);
+
+  seg = SGSegment(s1f, s1r);
+  pos = seg.getSide().getBase();
+  CuAssertTrue(testCase, pos.getPos() == s1r.getBase().getPos());
+  CuAssertTrue(testCase, seg.getLength() == 1);
+
+  seg = SGSegment(s1f, s2f);
+  pos = seg.getSide().getBase();
+  CuAssertTrue(testCase, pos.getPos() == s1f.getBase().getPos() + 1);
+  CuAssertTrue(testCase, seg.getLength() == 5);
+
+  seg = SGSegment(s1f, s2r);
+  pos = seg.getSide().getBase();
+  CuAssertTrue(testCase, pos.getPos() == s1f.getBase().getPos() + 1);
+  CuAssertTrue(testCase, seg.getLength() == 4);
+
+  seg = SGSegment(s1r, s2f);
+  pos = seg.getSide().getBase();
+  CuAssertTrue(testCase, pos.getPos() == s1f.getBase().getPos());
+  CuAssertTrue(testCase, seg.getLength() == 6);
+
+  seg = SGSegment(s1r, s2r);
+  pos = seg.getSide().getBase();
+  CuAssertTrue(testCase, pos.getPos() == s1f.getBase().getPos());
+  CuAssertTrue(testCase, seg.getLength() == 5);
+
+  seg = SGSegment(s2f, s1f);
+  pos = seg.getSide().getBase();
+  CuAssertTrue(testCase, pos.getPos() == s2f.getBase().getPos());
+  CuAssertTrue(testCase, seg.getLength() == 5);
+
+  seg = SGSegment(s2f, s1r);
+  pos = seg.getSide().getBase();
+  CuAssertTrue(testCase, pos.getPos() == s2f.getBase().getPos());
+  CuAssertTrue(testCase, seg.getLength() == 6);
+
+  seg = SGSegment(s2r, s1f);
+  pos = seg.getSide().getBase();
+  CuAssertTrue(testCase, pos.getPos() == s2f.getBase().getPos() - 1);
+  CuAssertTrue(testCase, seg.getLength() == 4);
+
+  seg = SGSegment(s2r, s1r);
+  pos = seg.getSide().getBase();
+  CuAssertTrue(testCase, pos.getPos() == s2f.getBase().getPos() - 1);
+  CuAssertTrue(testCase, seg.getLength() == 5);
+}
+
+
 /** make sure basic structs sort okay */
 void sideGraphTestJoin(CuTest *testCase)
 {
@@ -131,6 +210,7 @@ CuSuite* sideGraphTestSuite(void)
 {
   CuSuite* suite = CuSuiteNew();
   SUITE_ADD_TEST(suite, sideGraphTestSide);
+  SUITE_ADD_TEST(suite, sideGraphTestSegment);
   SUITE_ADD_TEST(suite, sideGraphTestJoin);
   SUITE_ADD_TEST(suite, sideGraphTest);
   return suite;

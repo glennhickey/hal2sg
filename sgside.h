@@ -33,6 +33,7 @@ public:
    
    bool operator<(const SGSide& s2) const;
    bool operator<=(const SGSide& s2) const;
+   bool operator>=(const SGSide& s2) const;
    bool operator==(const SGSide& s2) const;
    bool operator!=(const SGSide& s2) const;
    
@@ -125,6 +126,12 @@ inline bool SGSide::operator<=(const SGSide& s2) const
 {
   return *this < s2 || *this == s2;
 }
+
+inline bool SGSide::operator>=(const SGSide& s2) const
+{
+  return !(*this < s2);
+}
+
 
 inline bool SGSide::operator==(const SGSide& s2) const
 {

@@ -101,3 +101,88 @@ SGSide SGLookup::mapPosition(const SGPosition& inPos) const
   outSide.setBase(outPos);
   return outSide;
 }
+
+void SGLookup::getPath(const SGPosition& startPos,
+                       const SGPosition& endPos,
+                       vector<SGSegment>& outPath) const
+{
+  SGPosition halStart = startPos;
+  SGPosition halEnd = endPos;
+  bool backward = endPos < startPos;
+  if (backward == true)
+  {
+    // always make a forward path.  if query is reversed, we will
+    // remember here and flip at very end. 
+    swap(halStart, halEnd);
+  }
+  
+  assert(halStart.getSeqID() == halEnd.getSeqID());
+
+  const PosMap& pm = _mapVec.at(halStart.getSeqID());
+
+  // find marker to the right of halStart
+  PosMap::const_iterator i = pm.lower_bound(halStart.getPos());
+  assert(i != pm.end());
+  if (i->first == halStart.getPos())
+  {
+    ++i;
+  }
+  // find marker >= halEnd (ie one-past what we iterate)
+  PosMap::const_iterator j = pm.lower_bound(halEnd.getPos());
+  assert(j != pm.begin());
+  if (j->first == halEnd.getPos())
+  {
+    ++j;
+  }
+
+  outPath.clear();
+
+  sg_int_t prevHalPos = halStart.getPos();
+  SGSide prevSgSide = mapPosition(halStart);
+
+  for (PosMap::const_iterator k = i; k != j; ++k)
+  {
+    assert(k != pm.end());
+    assert(k != pm.begin());
+    sg_int_t halPos = k->first;
+    sg_int_t segLen = halPos - prevHalPos;
+    assert(segLen > 0);
+    SGSide sgSide = k->second;
+
+    // note we are taking advantage of the fact that
+    // the side returned by mapPosition has a forward flag
+    // consistent with its use in sgsegment.
+    if (prevSgSide.getForward() == false && k != i)
+    {
+      // interval lookup always stores intervals left->right.
+      // for reverse mapping, we have to manually adjust segment
+      // coordinate (unless first iteration, which is already adjusted
+      // by call to mapPosition)
+      prevSgSide.setBase(SGPosition(prevSgSide.getBase().getSeqID(),
+                                    prevSgSide.getBase().getPos() + segLen -1));
+    }
+    outPath.push_back(SGSegment(prevSgSide, segLen));
+    prevHalPos = halPos;
+    prevSgSide = sgSide;
+  }
+
+  sg_int_t segLen = halEnd.getPos() - prevHalPos + 1;
+  assert(segLen > 0);
+  if (prevSgSide.getForward() == false)
+  {
+    prevSgSide.setBase(SGPosition(prevSgSide.getBase().getSeqID(),
+                                  prevSgSide.getBase().getPos() + segLen -1));
+  }
+  outPath.push_back(SGSegment(prevSgSide, segLen));
+
+  // we really wanted our path in the other direction.  flip the
+  // order of the vector, and the orientation of every segment. 
+  if (backward == true)
+  {
+    reverse(outPath.begin(), outPath.end());
+    for (size_t i = 0; i < outPath.size(); ++i)
+    {
+      outPath[i].flip();
+    }
+  }  
+}

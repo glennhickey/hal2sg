@@ -22,7 +22,7 @@
 #include <cassert>
 
 #include "sgjoin.h"
-
+#include "sgsegment.h"
 
 /**
  * Our simple in-memory sidegraph

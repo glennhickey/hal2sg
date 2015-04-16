@@ -124,10 +124,132 @@ void mapTest(CuTest *testCase)
   }
 }
 
+
+/** 
+ * A simple path test.  Note that path code will be better tested by
+ * the consistency check in sgbuilder (verifyPath())
+ */
+void pathTest(CuTest *testCase)
+{
+  vector<string> seqNames;
+  seqNames.push_back("seq");
+  SGLookup lookup;
+  lookup.init(seqNames);
+  
+  vector<SGSegment> srcSegments;
+  vector<SGSegment> tgtSegments;
+
+  srcSegments.push_back(SGSegment(SGSide(SGPosition(0, 0), true), 10));
+  tgtSegments.push_back(SGSegment(SGSide(SGPosition(20, 5), true), 10));
+
+  srcSegments.push_back(SGSegment(SGSide(SGPosition(0, 10), true), 1));
+  tgtSegments.push_back(SGSegment(SGSide(SGPosition(20, 4), true), 1));
+  
+  srcSegments.push_back(SGSegment(SGSide(SGPosition(0, 11), true), 5));
+  tgtSegments.push_back(SGSegment(SGSide(SGPosition(21, 0), true), 5));
+
+  srcSegments.push_back(SGSegment(SGSide(SGPosition(0, 16), true), 10));
+  tgtSegments.push_back(SGSegment(SGSide(SGPosition(21, 10), false), 10));
+
+  srcSegments.push_back(SGSegment(SGSide(SGPosition(0, 26), true), 10));
+  tgtSegments.push_back(SGSegment(SGSide(SGPosition(22, 30), false), 10));
+  
+  srcSegments.push_back(SGSegment(SGSide(SGPosition(0, 36), true), 10));
+  tgtSegments.push_back(SGSegment(SGSide(SGPosition(22, 20), false), 10));
+
+  srcSegments.push_back(SGSegment(SGSide(SGPosition(0, 46), true), 7));
+  tgtSegments.push_back(SGSegment(SGSide(SGPosition(22, 10), true), 7));
+  
+  for (size_t i = 0; i < srcSegments.size(); ++i)
+  {
+    SGPosition halPos = srcSegments[i].getSide().getBase();
+    sg_int_t length = srcSegments[i].getLength();
+    SGPosition leftTgtPos = tgtSegments[i].getMinPos();
+    bool reversed = tgtSegments[i].getSide().getForward() == false;
+    lookup.addInterval(halPos, leftTgtPos, length, reversed);
+  }
+
+  vector<SGSegment> path;
+  SGSegment last = srcSegments.back();
+  last.flip();
+  lookup.getPath(srcSegments[0].getSide().getBase(), last.getSide().getBase(),
+                 path);
+  
+  CuAssertTrue(testCase, path == tgtSegments);
+
+  
+  // try the same, but reverse all mappings
+  lookup.init(seqNames);
+  srcSegments.clear();
+  tgtSegments.clear();
+  
+  srcSegments.push_back(SGSegment(SGSide(SGPosition(0, 0), true), 10));
+  tgtSegments.push_back(SGSegment(SGSide(SGPosition(20, 15), false), 10));
+
+  srcSegments.push_back(SGSegment(SGSide(SGPosition(0, 10), true), 1));
+  tgtSegments.push_back(SGSegment(SGSide(SGPosition(20, 14), false), 1));
+  
+  srcSegments.push_back(SGSegment(SGSide(SGPosition(0, 11), true), 5));
+  tgtSegments.push_back(SGSegment(SGSide(SGPosition(21, 10), false), 5));
+
+  srcSegments.push_back(SGSegment(SGSide(SGPosition(0, 16), true), 10));
+  tgtSegments.push_back(SGSegment(SGSide(SGPosition(21, 110), true), 10));
+
+  srcSegments.push_back(SGSegment(SGSide(SGPosition(0, 26), true), 10));
+  tgtSegments.push_back(SGSegment(SGSide(SGPosition(22, 130), true), 10));
+  
+  srcSegments.push_back(SGSegment(SGSide(SGPosition(0, 36), true), 10));
+  tgtSegments.push_back(SGSegment(SGSide(SGPosition(22, 120), true), 10));
+
+  srcSegments.push_back(SGSegment(SGSide(SGPosition(0, 46), true), 7));
+  tgtSegments.push_back(SGSegment(SGSide(SGPosition(22, 110), false), 7));
+
+  for (size_t i = 0; i < srcSegments.size(); ++i)
+  {
+    SGPosition halPos = srcSegments[i].getSide().getBase();
+    sg_int_t length = srcSegments[i].getLength();
+    SGPosition leftTgtPos = tgtSegments[i].getMinPos();
+    bool reversed = tgtSegments[i].getSide().getForward() == false;
+    lookup.addInterval(halPos, leftTgtPos, length, reversed);
+  }
+
+
+  path.clear();
+  last = srcSegments.back();
+  last.flip();
+  lookup.getPath(srcSegments[0].getSide().getBase(), last.getSide().getBase(),
+                 path);
+
+  CuAssertTrue(testCase, path == tgtSegments);
+
+  // try a couple subpaths.
+
+  path.clear();
+  lookup.getPath(SGPosition(0, 5), SGPosition(0, 15), path);
+  CuAssertTrue(testCase, path.size() == 3);
+  CuAssertTrue(testCase, path[0] ==
+               SGSegment(SGSide(SGPosition(20, 10), false), 5));
+  CuAssertTrue(testCase, path[1] ==
+               SGSegment(SGSide(SGPosition(20, 14), false), 1));
+  CuAssertTrue(testCase, path[2] ==
+               SGSegment(SGSide(SGPosition(21, 10), false), 5));
+
+
+  path.clear();
+  lookup.getPath(SGPosition(0, 37), SGPosition(0, 27), path);
+  CuAssertTrue(testCase, path.size() == 2);
+  CuAssertTrue(testCase, path[0] ==
+               SGSegment(SGSide(SGPosition(22, 121), false), 2));
+  CuAssertTrue(testCase, path[1] == 
+               SGSegment(SGSide(SGPosition(22, 139), false), 9));
+
+}
+
 CuSuite* sgLookupTestSuite(void) 
 {
   CuSuite* suite = CuSuiteNew();
   SUITE_ADD_TEST(suite, simpleTest);
   SUITE_ADD_TEST(suite, mapTest);
+  SUITE_ADD_TEST(suite, pathTest);
   return suite;
 }

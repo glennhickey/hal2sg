@@ -18,6 +18,10 @@
  * needs to be updated every time we add to the side graph.  Note we only
  * map a single (HAL) genome into a sidegraph here (so need to keep one
  * of these going for each genome added).   
+ *
+ * Note: Using SGPositions to represent HAL coordinates in interface.  
+ * The Sequence ID of a HAL sequence is its array index:
+ * Sequence::getArrayIndex().  
  */
 class SGLookup
 {
@@ -42,6 +46,13 @@ public:
    /** Find the position of a genome coordinate in the sequence 
     * graph */
    SGSide mapPosition(const SGPosition& inPos) const;
+
+   /** Get a path of an inclusive range in a single HAL sequence
+    * through the side graph.   
+    */
+   void getPath(const SGPosition& startPos,
+                const SGPosition& endPos,
+                std::vector<SGSegment>& outPath) const;
                  
 protected: 
 
