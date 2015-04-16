@@ -48,6 +48,14 @@ public:
    /** get the minimum value endpoint
     */
    SGPosition getMaxPos() const;
+
+   /** get the side we'd join to if we're going into the segment
+    */
+   SGSide getInSide() const;
+
+   /** get the side we'd join from if we're going out of the segment
+    */
+   SGSide getOutSide() const;
       
    bool operator<(const SGSegment& s2) const;
    bool operator<=(const SGSegment& s2) const;
@@ -141,6 +149,27 @@ inline SGPosition SGSegment::getMaxPos() const
   return _side.getForward() == false ? _side.getBase() :
      SGPosition(_side.getBase().getSeqID(),
                 _side.getBase().getPos() + _length - 1);
+}
+
+inline SGSide SGSegment::getInSide() const
+{
+  SGSide side = _side;
+  // if we're forward, want to join to reverse
+  side.setForward(!side.getForward());
+  return side;
+}
+
+inline SGSide SGSegment::getOutSide() const
+{
+  SGSide side = _side;
+  if (_length > 0)
+  {
+    sg_int_t delta = _side.getForward() ? _length - 1 : -_length + 1;
+    side.setBase(SGPosition(_side.getBase().getSeqID(),
+                            _side.getBase().getPos() + delta));
+  }
+  // if we're forward, want to join to reverse
+  return side;
 }
 
 inline bool SGSegment::operator<(const SGSegment& s2) const

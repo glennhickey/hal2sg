@@ -136,6 +136,7 @@ void SGLookup::getPath(const SGPosition& startPos,
   }
 
   outPath.clear();
+  sg_int_t pathLength = 0;
 
   sg_int_t prevHalPos = halStart.getPos();
   SGSide prevSgSide = mapPosition(halStart);
@@ -162,6 +163,7 @@ void SGLookup::getPath(const SGPosition& startPos,
                                     prevSgSide.getBase().getPos() + segLen -1));
     }
     outPath.push_back(SGSegment(prevSgSide, segLen));
+    pathLength += segLen;
     prevHalPos = halPos;
     prevSgSide = sgSide;
   }
@@ -174,6 +176,12 @@ void SGLookup::getPath(const SGPosition& startPos,
                                   prevSgSide.getBase().getPos() + segLen -1));
   }
   outPath.push_back(SGSegment(prevSgSide, segLen));
+  pathLength += segLen;
+  (void)pathLength;
+  if (halStart < halEnd)
+  {
+    assert(pathLength == halEnd.getPos() - halStart.getPos() + 1);
+  }
 
   // we really wanted our path in the other direction.  flip the
   // order of the vector, and the orientation of every segment. 

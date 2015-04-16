@@ -63,26 +63,35 @@ public:
     */
    std::string getHalGenomeName(const SGSequence* sgSequence) const;
    
-
-   typedef std::vector<SGSide> SidePath;
-   struct SeqLess {
-      bool operator()(const hal::Sequence* s1, const hal::Sequence* s2) const;
-   };
-   typedef std::map<const hal::Sequence*, SidePath*, SGBuilder::SeqLess>
-   PathMap;
-
-   /** Get the paths
+   /** Get a list of the hal sequences in order they were processed 
     */
-   const PathMap* getPathMap() const;
+   const std::vector<const hal::Sequence*>& getHalSequences() const;
+
+   /** Get a Segment Path for a given halSequence 
+    */
+   void getHalSequencePath(const hal::Sequence* halSeq,
+                           std::vector<SGSegment>& outPath) const;
 
    /** Check to make sure the path exactly covers the sequence and 
     * all the joins exist.  Assertion triggered if something's amiss
     * (and returns false).  May not be the fastest function.  */
-   bool verifyPath(const hal::Sequence* sequence, const SidePath* path) const;
-       
+   bool verifyPath(const hal::Sequence* sequence,
+                   const std::vector<SGSegment>& path) const;
 
-protected:
+// Legacy to remove...
+   typedef std::vector<SGSide> SidePath;
+   typedef std::map<const hal::Sequence*, SidePath*> PathMap;
+   const PathMap* getPathMap() const;
+   bool verifyPath(const hal::Sequence* sequence,
+                   const SidePath* path) const;
+
    
+protected:
+
+   struct SeqLess {
+      bool operator()(const hal::Sequence* s1, const hal::Sequence* s2) const;
+   };
+
    typedef std::map<const SGSequence*, std::pair<const hal::Sequence*,
                                                  hal_index_t> > SequenceMapBack;
 
@@ -102,6 +111,8 @@ protected:
    struct BlockPtrLess {
       bool operator()(const Block* b1, const Block* b2) const;
    };
+   
+
 
 protected:
 
@@ -177,6 +188,7 @@ protected:
    void getRootSubString(std::string& outDNA, const hal::Sequence* sequence,
                          hal_index_t pos, hal_index_t length) const;
 
+   
 protected:
 
    SideGraph* _sg;
@@ -198,6 +210,7 @@ protected:
    size_t _joinPathLength;
    size_t _sgJoinPathLength;
    std::string _firstGenomeName;
+   std::vector<const hal::Sequence*> _halSequences;
 
    friend std::ostream& operator<<(std::ostream& os, const Block* block);
 

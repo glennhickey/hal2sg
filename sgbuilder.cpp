@@ -54,6 +54,7 @@ void SGBuilder::clear()
   }
   _path = NULL;
   _firstGenomeName.erase();
+  _halSequences.clear();
 }
 
 const SideGraph* SGBuilder::getSideGraph() const
@@ -94,6 +95,22 @@ string SGBuilder::getHalGenomeName(const SGSequence* sgSequence) const
   assert(i != _seqMapBack.end());
   const Sequence* halSeq = i->second.first;
   return halSeq->getGenome()->getName();
+}
+
+const vector<const Sequence*>& SGBuilder::getHalSequences() const
+{
+  return _halSequences;
+}
+
+void SGBuilder::getHalSequencePath(const Sequence* halSeq,
+                                   vector<SGSegment>& outPath) const
+{
+  GenomeLUMap::const_iterator lui = _luMap.find(halSeq->getGenome()->getName());
+  assert(lui != _luMap.end());
+  SGPosition start(halSeq->getArrayIndex(), 0);
+  SGPosition end(halSeq->getArrayIndex(),
+                 max((hal_size_t)0, halSeq->getSequenceLength() - 1));
+  lui->second->getPath(start, end, outPath);
 }
 
 void SGBuilder::addGenome(const Genome* genome,
@@ -182,6 +199,7 @@ void SGBuilder::addGenome(const Genome* genome,
     if (curStart <= curEnd)
     {
       mapSequence(curSequence, curStart, curEnd, target);
+      _halSequences.push_back(curSequence);
     }
   }
 }
@@ -587,9 +605,14 @@ void SGBuilder::processBlock(Block* prevBlock,
     // at least for now.
     SGPosition newHalPosition((sg_seqid_t)block->_srcSeq->getArrayIndex(),
                               block->_srcStart);
-    cout << "ai1 ";
-    _lookup->addInterval(newHalPosition, halTgtFirst, blockLength,
+    SGPosition tgtHalPosition((sg_seqid_t)block->_tgtSeq->getArrayIndex(),
+                              block->_tgtStart);
+
+    _lookup->addInterval(newHalPosition, tgtHalPosition, blockLength,
                          block->_reversed);
+    cout << "Add interval [from block] " << newHalPosition << ", "
+         << tgtHalPosition << ", " << blockLength << ", "
+         << block->_reversed << endl;
 
     // we've found how our block fits into the graph (blockEnds).  Now
     // we need to map the inside of the block.  this means processing
@@ -907,6 +930,73 @@ bool SGBuilder::verifyPath(const Sequence* sequence, const SidePath* path) const
 
   return true;
 }
+
+bool SGBuilder::verifyPath(const Sequence* sequence,
+                           const vector<SGSegment>& path) const
+{
+  string pathString;
+  string buffer;
+  
+  for (size_t i = 0; i < path.size(); ++i)
+  {
+    const SGSegment& seg = path[i];
+    const SGSequence* seq = _sg->getSequence(
+      seg.getSide().getBase().getSeqID());
+    getSequenceString(seq, buffer, seg.getMinPos().getPos(), seg.getLength());
+    cout << i << " " << seg << endl;
+    if (seg.getSide().getForward() == false)
+    {
+      reverseComplement(buffer);
+    }
+    pathString.append(buffer);
+    if (i > 0)
+    {
+      SGSide srcSide = path[i-1].getOutSide();
+      SGSide tgtSide = seg.getInSide();
+      SGJoin queryJoin(srcSide, tgtSide);      
+      const SGJoin* join = _sg->getJoin(&queryJoin);
+      assert(join != NULL);
+      if (join == NULL)
+      {
+        return false;
+      }
+    }
+  }
+
+  if (_noSubMode == true && sequence->getGenome()->getParent() == NULL)
+  {
+    getRootSubString(buffer, sequence, 0, sequence->getSequenceLength());
+  }
+  else
+  {
+    sequence->getString(buffer);
+  }
+
+  if (buffer != pathString)
+  {
+    cout << sequence->getFullName() << endl;
+    cout << "BUF " << buffer.length()   << endl;
+    cout << "PAT " << pathString.length()  << endl;
+    
+    for (size_t x = 0; x < buffer.length(); ++x)
+    {
+      if (buffer[x] != pathString[x])
+      {
+        cout << x << " " << buffer[x] << "->" << pathString[x] << endl;
+        break;
+      }
+    }
+    cout << endl;
+  }
+  assert(buffer == pathString);
+  if (buffer != pathString)
+  {
+    return false;
+  }
+
+  return true;
+}
+
 
 void SGBuilder::getRootSubString(string& outDNA, const Sequence* sequence,
                                  hal_index_t pos, hal_index_t length) const

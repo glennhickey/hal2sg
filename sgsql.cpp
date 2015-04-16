@@ -232,25 +232,29 @@ void SGSQL::writeJoinInserts()
 
 void SGSQL::writePathInserts()
 {
-  const SGBuilder::PathMap* pathMap = _sgBuilder->getPathMap();
-  SGBuilder::PathMap::const_iterator i;
-  _outStream << "# (HAL_Genome.SequenceName, Step#, SequenceID, Position, "
-             << "Forward)" << endl;
-  for (i = pathMap->begin(); i != pathMap->end(); ++i)
+  const vector<const Sequence*>& halSequences = _sgBuilder->getHalSequences();
+
+  _outStream << "# Preliminary path data for each INPUT sequence (from "
+             << "HAL file). \n#Still need to write in whatever official"
+             << " path format is.  Tuples below are:\n"
+             << "# (INPUT-SEQUENCE-NAME, PATH-STEP-#, SEGMENT) "
+             << "where SEGMENT = (SEQUENCE-ID, POSITION, LENGTH, FORWARD)\n";
+
+  for (size_t i = 0; i < halSequences.size(); ++i)
   {
-    const Sequence* halSeq = i->first;
-    const SGBuilder::SidePath* path = i->second;
-    _sgBuilder->verifyPath(halSeq, path);
-    SGBuilder::SidePath::const_iterator j;
-    for (size_t j = 0; j < path->size(); ++j)
+    vector<SGSegment> path;
+    _sgBuilder->getHalSequencePath(halSequences[i], path);
+    for (size_t j = 0; j < path.size(); ++j)
     {
-      const SGSide& side = path->at(j);
       _outStream << "INSERT INTO Path VALUES ("
-                 << halSeq->getFullName() << ", "
+                 << halSequences[i]->getFullName() << ", "
                  << j << ", "
-                 << side.getBase().getSeqID() << ", "
-                 << side.getBase().getPos() << ", "
-                 << (side.getForward() ? "TRUE" : "FALSE") << ")\n";
+                 << path[j].getSide().getBase().getSeqID() << ", "
+                 << path[j].getSide().getBase().getPos() << ", "
+                 << path[j].getLength() << ", "
+                 << (path[j].getSide().getForward() ? "\'TRUE\'" : "\'FALSE\'")
+                 << ")\n";
+      
     }
   }
   _outStream <<endl;

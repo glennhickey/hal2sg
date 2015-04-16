@@ -16,7 +16,8 @@ using namespace std;
 void simpleTest(CuTest *testCase)
 {
   vector<string> seqNames;
-  seqNames.push_back("seq");
+  seqNames.push_back("seq1");
+  seqNames.push_back("seq2");
   SGLookup lookup;
   lookup.init(seqNames);
   
@@ -24,6 +25,11 @@ void simpleTest(CuTest *testCase)
   lookup.addInterval(SGPosition(0, 10), SGPosition(20, 0), 10, false);
   // try a reverse mapping
   lookup.addInterval(SGPosition(0, 20), SGPosition(50, 20), 10, true);
+
+  // try a reverse mapping followed by forward
+  lookup.addInterval(SGPosition(1, 0), SGPosition(60, 0), 10, true);
+  lookup.addInterval(SGPosition(1, 10), SGPosition(60, 10), 30, false);
+  lookup.addInterval(SGPosition(1, 40), SGPosition(60, 40), 5, false);
   
   for (size_t i = 0; i < 5; ++i)
   {
@@ -51,6 +57,22 @@ void simpleTest(CuTest *testCase)
     SGPosition mapPos = mapSide.getBase();
     CuAssertTrue(testCase, mapSide.getForward() == false);
     CuAssertTrue(testCase, mapPos == SGPosition(50, 29-i));
+  }
+
+  for (size_t i = 0; i < 10; ++i)
+  {
+    SGSide mapSide = lookup.mapPosition(SGPosition(1, i));
+    SGPosition mapPos = mapSide.getBase();
+    CuAssertTrue(testCase, mapSide.getForward() == false);
+    CuAssertTrue(testCase, mapPos == SGPosition(60, 9-i));
+  }
+
+  for (size_t i = 0; i < 35; ++i)
+  {
+    SGSide mapSide = lookup.mapPosition(SGPosition(1, 10 + i));
+    SGPosition mapPos = mapSide.getBase();
+    CuAssertTrue(testCase, mapSide.getForward() == true);
+    CuAssertTrue(testCase, mapPos == SGPosition(60, 10 + i));
   }
 }
 
