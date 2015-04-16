@@ -145,7 +145,9 @@ void SGSQL::writeReferenceInserts()
   map<string, size_t> refMap;
   refMap.insert(pair<string, size_t>(_sgBuilder->getPrimaryGenomeName(), 0));
   _outStream << "INSERT INTO ReferenceSet VALUES "
-             << "(0, NULL, NULL, 0, NULL, \'FALSE\')\n";
+             << "(0, NULL, "
+             << "\'HAL Genome " + _sgBuilder->getPrimaryGenomeName() << "\'"
+             << ", 0, NULL, \'FALSE\')\n";
   for (sg_int_t i = 0; i < _sg->getNumSequences(); ++i)
   {
     const SGSequence* seq = _sg->getSequence(i);
