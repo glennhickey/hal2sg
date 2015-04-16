@@ -48,7 +48,7 @@ void SGSQL::writeFasta()
   {
     const SGSequence* seq = _sg->getSequence(i);
     _sgBuilder->getSequenceString(seq, dnaBuffer);
-    assert(dnaBuffer.length() == seq->getLength());
+    assert((sg_int_t)dnaBuffer.length() == seq->getLength());
     _faStream << ">"  << seq->getName() << "\n";
     size_t len;
     for (size_t pos = 0; pos < dnaBuffer.length(); pos += len)

@@ -242,7 +242,7 @@ SGSequence* SGBuilder::createSGSequence(const Sequence* sequence,
   // make a new Side Graph Sequence
   stringstream name;
   name << sequence->getFullName();
-  if (length < sequence->getSequenceLength())
+  if (length < (hal_index_t)sequence->getSequenceLength())
   {
     name << "_" << startOffset << "_" << length;
   }  
