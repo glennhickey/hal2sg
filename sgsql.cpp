@@ -234,10 +234,10 @@ void SGSQL::writePathInserts()
 {
   const vector<const Sequence*>& halSequences = _sgBuilder->getHalSequences();
 
-  _outStream << "# Preliminary path data for each INPUT sequence (from "
-             << "HAL file). \n#Still need to write in whatever official"
+  _outStream << "-- Preliminary path data for each INPUT sequence (from "
+             << "HAL file). \n-- Still need to write in whatever official"
              << " path format is.  Tuples below are:\n"
-             << "# (INPUT-SEQUENCE-NAME, PATH-STEP-#, SEGMENT) "
+             << "-- (INPUT-SEQUENCE-NAME, PATH-STEP-#, SEGMENT) "
              << "where SEGMENT = (SEQUENCE-ID, POSITION, LENGTH, FORWARD)\n";
 
   for (size_t i = 0; i < halSequences.size(); ++i)
