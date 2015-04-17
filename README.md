@@ -25,9 +25,9 @@ To run the converter:
 
 * **None of the options except `--targetGenomes` (and the standard HAL caching options) work.**
 * Please ignore voluminous garbage printed to stdout.
-* SQL output needs work.  Obvious things are directly updating db; figuring out what References are and creating them; using the proper Path format.. 
+* SQL output needs work.  Obvious things are directly updating db; verifying use of references, variants etc.
 
-## sorry state of affairs (Update April 14)
+## sorry state of affairs (Update April 15)
 
 `hal2sg` only works on input of this form:
 * **Mutation free:** ie as produced by Adam's pipeline
@@ -36,8 +36,6 @@ To run the converter:
 
 ## next updates
 
-* Fixes to output format?
-* Clean code and tests
 * Cactus graphs.  Need to finish mutation support
 * Arbitrary topology and references and genome subselection.  Much is done, just need to generalize path code, and handle paralogies in insertions, and of course tests.
 
