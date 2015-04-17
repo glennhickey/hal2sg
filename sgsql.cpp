@@ -142,8 +142,8 @@ CREATE TABLE Reference_ReferenceSet_Join (referenceID INTEGER NOT NULL,
 void SGSQL::writeReferenceInserts()
 {
   // make a reference set for each input genome from the HAL
-  map<string, size_t> refMap;
-  refMap.insert(pair<string, size_t>(_sgBuilder->getPrimaryGenomeName(), 0));
+  _refMap.clear();
+  _refMap.insert(pair<string, size_t>(_sgBuilder->getPrimaryGenomeName(), 0));
   _outStream << "INSERT INTO ReferenceSet VALUES "
              << "(0, NULL, "
              << "\'HAL Genome " + _sgBuilder->getPrimaryGenomeName() << "\'"
@@ -152,10 +152,10 @@ void SGSQL::writeReferenceInserts()
   {
     const SGSequence* seq = _sg->getSequence(i);
     string halGenomeName = _sgBuilder->getHalGenomeName(seq);
-    if (refMap.find(halGenomeName) == refMap.end())
+    if (_refMap.find(halGenomeName) == _refMap.end())
     {
-      sg_int_t id = refMap.size();
-      refMap.insert(pair<string, size_t>(halGenomeName, id));
+      sg_int_t id = _refMap.size();
+      _refMap.insert(pair<string, size_t>(halGenomeName, id));
       // single reference set
       _outStream << "INSERT INTO ReferenceSet VALUES "
                  << "(" << id 
@@ -175,7 +175,7 @@ void SGSQL::writeReferenceInserts()
                << "\'"<< seq->getName() << "\', "
                << "date(\'now\')" << ", "
                << seq->getID() << ", "
-               << refMap.find(halGenomeName)->second << ", "
+               << _refMap.find(halGenomeName)->second << ", "
                << "NULL " << ", "
                << "NULL " << ", "
                << "\'FALSE\'" << ", "
@@ -231,26 +231,82 @@ void SGSQL::writeJoinInserts()
   _outStream << endl;
 }
 
+/*
+-- Tables common to both site and allelic models
+CREATE TABLE VariantSet (ID INTEGER PRIMARY KEY,
+	referenceSetID INTEGER NOT NULL,
+	-- datasetID -- TODO: what is this? What table would it point to?
+	vcfURI TEXT NOT NULL,
+	FOREIGN KEY(referenceSetID) REFERENCES ReferenceSet(ID));
 
+-- Site (classical) model tables 
+-- We shouldn't be storing anything here besides what's needed for the Allele table join.
+CREATE TABLE Variant (ID INTEGER PRIMARY KEY, 
+	variantName TEXT NOT NULL, -- corresponding variant in the VCF, accessible via index?
+	variantSetID INTEGER NOT NULL,
+	FOREIGN KEY(variantSetID) REFERENCES VariantSet(ID)); -- any metadata needed here?
+
+-- is the Call table even needed here? Can't it all be obtained from the VCF?
+CREATE TABLE Call (callSetID INTEGER, 
+	variantID INTEGER NOT NULL,
+	PRIMARY KEY(callSetID, variantID),
+	FOREIGN KEY(callSetID) REFERENCES CallSet(ID),
+	FOREIGN KEY(variantID) REFERENCES Variant(ID));
+
+-- Allelic model tables
+CREATE TABLE Allele (ID INTEGER PRIMARY KEY, 
+	variantSetID INTEGER,  -- TODO: Can this be null? cf. Heng Li's question about Alleles and VariantSets
+	FOREIGN KEY(variantSetID) REFERENCES VariantSet(ID));
+
+CREATE TABLE AllelePathItem (alleleID INTEGER, 
+	pathItemIndex INTEGER NOT NULL, -- one-based index of this pathItem within the entire path
+	sequenceID INTEGER NOT NULL, start INTEGER NOT NULL,
+	length INTEGER NOT NULL, strandIsForward BOOLEAN NOT NULL,
+	PRIMARY KEY(alleleID, pathItemIndex),
+	FOREIGN KEY(alleleID) REFERENCES allele(ID),
+	FOREIGN KEY(sequenceID) REFERENCES Sequence(ID));
+*/
 void SGSQL::writePathInserts()
 {
-  const vector<const Sequence*>& halSequences = _sgBuilder->getHalSequences();
+  // For every genome in the input HAL, we create one Variant Set.
+  // For every sequence in a genome, we create one
+  // Allele, and a list of Allele Path Items.
 
-  _outStream << "-- Preliminary path data for each INPUT sequence (from "
-             << "HAL file). \n-- Still need to write in whatever official"
-             << " path format is.  Tuples below are:\n"
-             << "-- (INPUT-SEQUENCE-NAME, PATH-STEP-#, SEGMENT) "
-             << "where SEGMENT = (SEQUENCE-ID, POSITION, LENGTH, FORWARD)\n";
-
-  for (size_t i = 0; i < halSequences.size(); ++i)
+  // create a variant set for every genome
+  size_t i;
+  map<string, size_t>::const_iterator j;
+  for (i = 0, j = _refMap.begin(); j != _refMap.end(); ++j, ++i)
   {
+    _outStream << "INSERT INTO VariantSet VALUES ("
+               << i << ", "
+               << i << ", "
+               << "hal2sg genome " <<j->first << ");\n"; 
+  }
+  _outStream << endl;
+
+  // create an allele for every sequence; 
+  const vector<const Sequence*>& halSequences = _sgBuilder->getHalSequences();
+  for (i = 0; i < halSequences.size(); ++i)
+  {
+    _outStream << "INSERT INTO Allele ("
+               << i << ", "
+               << _refMap.find(halSequences[i]->getGenome()->getName())->second
+               << ");\n";
+  }
+  _outStream << endl;
+
+  // create a path (AellePathItem) for every sequence
+  for (i = 0; i < halSequences.size(); ++i)
+  {
+    _outStream << "-- PATH for HAL input sequence "
+               << halSequences[i]->getFullName() << "\n";
     vector<SGSegment> path;
     _sgBuilder->getHalSequencePath(halSequences[i], path);
     for (size_t j = 0; j < path.size(); ++j)
     {
-      _outStream << "INSERT INTO Path VALUES ("
-                 << halSequences[i]->getFullName() << ", "
-                 << j << ", "
+      _outStream << "INSERT INTO AllelePathItem VALUES ("
+                 << i << ", "
+                 << i << ", "
                  << path[j].getSide().getBase().getSeqID() << ", "
                  << path[j].getSide().getBase().getPos() << ", "
                  << path[j].getLength() << ", "
@@ -258,8 +314,9 @@ void SGSQL::writePathInserts()
                  << ")\n";
       
     }
+    _outStream <<endl;
   }
-  _outStream <<endl;
+
 }
 
 void SGSQL::getChecksum(const string& inputString, string& outputString)
