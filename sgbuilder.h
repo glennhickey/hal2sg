@@ -77,14 +77,6 @@ public:
     * (and returns false).  May not be the fastest function.  */
    bool verifyPath(const hal::Sequence* sequence,
                    const std::vector<SGSegment>& path) const;
-
-// Legacy to remove...
-   typedef std::vector<SGSide> SidePath;
-   typedef std::map<const hal::Sequence*, SidePath*> PathMap;
-   const PathMap* getPathMap() const;
-   bool verifyPath(const hal::Sequence* sequence,
-                   const SidePath* path) const;
-
    
 protected:
 
@@ -134,9 +126,6 @@ protected:
 
    /** Add a join to the side graph */
    const SGJoin* createSGJoin(const SGSide& side1, const SGSide& side2);
-
-   /** Add a step to the path */
-   void addPathStep(const SGSide& side);
 
    /** Add interval (from blockmapper machinery) to the side graph.  
     * The interval maps from the new SOURCE genome to a TARGET genome
@@ -201,14 +190,10 @@ protected:
    const hal::Genome* _mapMrca;
    bool _referenceDupes;
    SGJoin* _lastJoin;
-   SidePath* _path;
-   PathMap _pathMap;
    bool _inferRootSeq;
    mutable std::string _rootString;
    bool _noSubMode;
    size_t _pathLength;
-   size_t _joinPathLength;
-   size_t _sgJoinPathLength;
    std::string _firstGenomeName;
    std::vector<const hal::Sequence*> _halSequences;
 
@@ -279,11 +264,6 @@ inline bool SGBuilder::SeqLess::operator()(const hal::Sequence* s1,
                                            const hal::Sequence* s2) const
 {
   return s1->getFullName() < s2->getFullName();
-}
-
-inline const SGBuilder::PathMap* SGBuilder::getPathMap() const
-{
-  return &_pathMap;
 }
 
 

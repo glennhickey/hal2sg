@@ -551,14 +551,14 @@ void EmptySequenceTest::checkCallBack(AlignmentConstPtr alignment)
   // no breakpoints except sequence size difference
   CuAssertTrue(_testCase, joins->size() == 1);
 
-  const SGBuilder::PathMap* pathMap = sgBuild.getPathMap();
-  SGBuilder::PathMap::const_iterator i;
-  for (i = pathMap->begin(); i != pathMap->end(); ++i)
+  const vector<const Sequence*>& halSequences = sgBuild.getHalSequences();
+  for (size_t i = 0; i < halSequences.size(); ++i)
   {
-    const Sequence* halSeq = i->first;
-    const SGBuilder::SidePath* path = i->second;
-    CuAssertTrue(_testCase, sgBuild.verifyPath(halSeq, path) == true);
+    vector<SGSegment> path;
+    sgBuild.getHalSequencePath(halSequences[i], path);
+    CuAssertTrue(_testCase, sgBuild.verifyPath(halSequences[i], path) == true);
   }
+
 }
 
 void sgBuilderEmptySequenceTest(CuTest *testCase)
