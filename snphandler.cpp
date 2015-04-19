@@ -27,17 +27,17 @@ SNPHandler::~SNPHandler()
 
 const SGPosition& SNPHandler::findSNP(const SGPosition& pos, char nuc)
 {
+  if (_caseSens == false)
+  {
+    nuc = std::toupper(nuc);
+  }
+  
   if (pos != _cachePos)
   {
     pair<SNPMap::iterator, bool> ins = _snpMap.insert(
       pair<SGPosition, SNPList*>(pos, NULL));
     _cacheIt = ins.first;
     _cachePos = pos;
-  }
-
-  if (_caseSens == false)
-  {
-    nuc = std::toupper(nuc);
   }
 
   SNPList* snpList = _cacheIt->second;
@@ -57,34 +57,26 @@ const SGPosition& SNPHandler::findSNP(const SGPosition& pos, char nuc)
 void SNPHandler::addSNP(const SGPosition& pos, char nuc,
                         const SGPosition& snpPosition)
 {
+  assert(findSNP(pos, nuc) == SideGraph::NullPos);
+
+  if (_caseSens == false)
+  {
+    nuc = std::toupper(nuc);
+  }
+         
   if (pos != _cachePos)
   {
     pair<SNPMap::iterator, bool> ins = _snpMap.insert(
       pair<SGPosition, SNPList*>(pos, NULL));
     _cacheIt = ins.first;
     _cachePos = pos;
-    if (_cacheIt->second == NULL)
-    {
-      _cacheIt->second = new SNPList();
-    }
   }
+  if (_cacheIt->second == NULL)
+  {
+    _cacheIt->second = new SNPList();
+  }
+  
   SNPList* snpList = _cacheIt->second;
-
-  if (_caseSens == false)
-  {
-    nuc = std::toupper(nuc);
-  }
-
-#ifndef _NDEBUG
-  for (SNPList::iterator i = snpList->begin(); i != snpList->end(); ++i)
-  {
-    if (i->_nuc == nuc)
-    {
-      assert(i->_nuc != nuc);
-    }
-  }
-#endif
-
   snpList->push_back(SNP(snpPosition, nuc));
   
 }
