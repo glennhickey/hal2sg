@@ -11,6 +11,7 @@ int runAllTests(void) {
   CuSuite* suite = CuSuiteNew(); 
   CuSuiteAddSuite(suite, sideGraphTestSuite());
   CuSuiteAddSuite(suite, sgLookupTestSuite());
+  CuSuiteAddSuite(suite, snpHandlerTestSuite());
   CuSuiteAddSuite(suite, sgBuildTestSuite());
   CuSuiteRun(suite);
   CuSuiteSummary(suite, output);

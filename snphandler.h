@@ -15,53 +15,72 @@
  * Structure to link a position in a sidegraph with alternate bases
  * ie to represent point mutations in the hal.  These mutations
  * need to become snp bubbles in the Side Graph.  But we keep track of
- * them separately as we build.
+ * them separately as we build. 
  *
- * So say we have a sequence AAACCGTT in the sidegraph. 
- * The SNP handler maps each of these positions to a list of SNPs:
+ * The normal lookup structure can map a HAL position onto the side graph. 
+ * This lookup structure, further maps the position on a side graph to 
+ * "homologous" positions with different bases (ie created by previous)
+ * SNP bubbles.  This way we can quickly check, when adding a SNP,
+ * if we need to make a new sequence, or if a sequence containing that 
+ * base is already there for us to hook into. 
  *
- *    C
- *    |
- *   GG
- *   ||
- *   CT  A
- *   ||  |
- *  AAACCGTT
- *
- * We always need to be able to walk columns in this structure to make sure
- * that the same value doesn't appear more than once per column. 
- * When we iterate over a HAL genome, we effectively drop new bases onto
- * the top of this structure.  We have enough information to iteratively 
- * add sequences and joins as necessary to keep values unique and make sure
- * that multibase snps get merged into one. 
+ * We only keep a SNP list at positions where there is a snp.  
+ * And for now we use a single SNP handler to index all SNPs in the graph.
  *
  */
 class SNPHandler
 {
 public:
 
-   SNPHandler();
+   SNPHandler(bool caseSensitive = false);
    ~SNPHandler();
+   
+   /** Check to see if SNP present in Side Graph.  If it's not then
+    * SideGraph::NullPos is returned */
+   const SGPosition& findSNP(const SGPosition& pos, char nuc);
 
-   void addSNP(const std::vector<char>
-   
-public:
-   
+   /** Add a snp to the lookup structure.  This doesn't add it to the graph
+    * (ie create necessary sequence and joins -- that has to be done 
+    * elsewhere */
+   void addSNP(const SGPosition& pos, char nuc,
+               const SGPosition& snpPosition);
+
+   /** Get previous SNP position in map in relation to last call to 
+    * findSNP.  Saves a lookup if we want to check a series of 
+    * contiguous positions, for example.  throws an exception if
+    * there is not last position. 
+    */
+   const SGPosition& getPrevSNP() const;
+
+   /** Get next SNP position in map in relation to last call to 
+    * findSNP 
+    */
+   const SGPosition& getNextSNP() const;
+
+protected:
+
    struct SNP
    {
-      char _nuc;
+      SNP();
+      SNP(const SGPosition& pos, char nuc);
       SGPosition _pos;
+      char _nuc;
    };
-   
-protected:
 
    typedef std::vector<SNP> SNPList;
    typedef std::map<SGPosition, SNPList*> SNPMap;
    
 protected:
 
+   bool _caseSens;
    SNPMap _snpMap;
-   
+   SNPMap::iterator _cacheIt;
+   SGPosition _cachePos;
 };
+
+
+inline SNPHandler::SNP::SNP() {}
+inline SNPHandler::SNP::SNP(const SGPosition& pos, char nuc) :
+  _pos(pos), _nuc(nuc){}
 
 #endif
