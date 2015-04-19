@@ -27,6 +27,10 @@
  * We only keep a SNP list at positions where there is a snp.  
  * And for now we use a single SNP handler to index all SNPs in the graph.
  *
+ * Also, note that multiple positions in the side graph can correspond
+ * to the same SNP alignment.  In this case these positions will all
+ * map to the same SNPList pointer. 
+ *
  */
 class SNPHandler
 {

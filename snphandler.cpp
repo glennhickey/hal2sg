@@ -19,9 +19,16 @@ SNPHandler::SNPHandler(bool caseSensitive) : _caseSens(caseSensitive)
 
 SNPHandler::~SNPHandler()
 {
+  // simple way of making sure we don't delete same pointer twice:
+  // add to a set first.
+  set<SNPList*> snpSet;
   for (SNPMap::iterator i = _snpMap.begin(); i != _snpMap.end(); ++i)
   {
-    delete i->second;
+    snpSet.insert(i->second);
+  }
+  for (set<SNPList*>::iterator i = snpSet.begin(); i != snpSet.end(); ++i)
+  {
+    delete *i;
   }
 }
 
@@ -78,5 +85,7 @@ void SNPHandler::addSNP(const SGPosition& pos, char nuc,
   
   SNPList* snpList = _cacheIt->second;
   snpList->push_back(SNP(snpPosition, nuc));
-  
+
+  // add new position into the handler
+  _snpMap.insert(pair<SGPosition, SNPList*>(snpPosition, snpList));
 }

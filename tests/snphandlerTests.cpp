@@ -19,40 +19,41 @@ void snpMapTest(CuTest *testCase)
   SGPosition p2(0, 1);
   SGPosition p3(1, 10);
   SGPosition p4(1, 0);
-
+  SGPosition p5(1, 3);
+  SGPosition p6(2, 0);
+  
   SNPHandler snpHandler(false);
 
   snpHandler.addSNP(p1, 'A', p4);
   snpHandler.addSNP(p3, 'A', p2);
   snpHandler.addSNP(p1, 'c', p3);
-  snpHandler.addSNP(p1, 'T', p2);
+  snpHandler.addSNP(p1, 'T', p5);
 
   CuAssertTrue(testCase, snpHandler.findSNP(p1, 'A') == p4);
   CuAssertTrue(testCase, snpHandler.findSNP(p3, 'A') == p2);
   CuAssertTrue(testCase, snpHandler.findSNP(p1, 'c') == p3);
   CuAssertTrue(testCase, snpHandler.findSNP(p1, 'C') == p3);
-  CuAssertTrue(testCase, snpHandler.findSNP(p1, 'T') == p2);
   CuAssertTrue(testCase, snpHandler.findSNP(p1, 'G') == SideGraph::NullPos);
   CuAssertTrue(testCase, snpHandler.findSNP(p3, 'G') == SideGraph::NullPos);
-  CuAssertTrue(testCase, snpHandler.findSNP(p2, 'A') == SideGraph::NullPos);
+  CuAssertTrue(testCase, snpHandler.findSNP(p2, 'A') == p2);
 
   SNPHandler snpHandlerCS(true);
 
   snpHandlerCS.addSNP(p1, 'A', p4);
   snpHandlerCS.addSNP(p3, 'A', p2);
   snpHandlerCS.addSNP(p1, 'c', p3);
-  snpHandlerCS.addSNP(p1, 'T', p2);
-  snpHandlerCS.addSNP(p1, 't', p3);
+  snpHandlerCS.addSNP(p1, 'T', p5);
+  snpHandlerCS.addSNP(p1, 't', p6);
 
   CuAssertTrue(testCase, snpHandlerCS.findSNP(p1, 'A') == p4);
   CuAssertTrue(testCase, snpHandlerCS.findSNP(p3, 'A') == p2);
   CuAssertTrue(testCase, snpHandlerCS.findSNP(p1, 'c') == p3);
   CuAssertTrue(testCase, snpHandlerCS.findSNP(p1, 'C') == SideGraph::NullPos);
-  CuAssertTrue(testCase, snpHandlerCS.findSNP(p1, 'T') == p2);
-  CuAssertTrue(testCase, snpHandlerCS.findSNP(p1, 't') == p3);
+  CuAssertTrue(testCase, snpHandlerCS.findSNP(p1, 'T') == p5);
+  CuAssertTrue(testCase, snpHandlerCS.findSNP(p1, 't') == p6);
   CuAssertTrue(testCase, snpHandlerCS.findSNP(p1, 'G') == SideGraph::NullPos);
   CuAssertTrue(testCase, snpHandlerCS.findSNP(p3, 'G') == SideGraph::NullPos);
-  CuAssertTrue(testCase, snpHandlerCS.findSNP(p2, 'A') == SideGraph::NullPos);
+  CuAssertTrue(testCase, snpHandlerCS.findSNP(p2, 'A') == p2);
 }
 
 CuSuite* snpHandlerTestSuite(void) 
