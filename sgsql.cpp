@@ -70,7 +70,7 @@ void SGSQL::writeFastaInsert()
 {
   _outStream << "INSERT INTO FASTA VALUES ("
              << 0 << ", "
-             << "file://" << _faPath << ")\n";
+             << "'file://" << _faPath << "');\n";
   _outStream << endl;
 }
 
@@ -147,7 +147,7 @@ void SGSQL::writeReferenceInserts()
   _outStream << "INSERT INTO ReferenceSet VALUES "
              << "(0, NULL, "
              << "\'HAL Genome " + _sgBuilder->getPrimaryGenomeName() << "\'"
-             << ", 0, NULL, \'FALSE\')\n";
+             << ", 0, NULL, \'FALSE\');\n";
   for (sg_int_t i = 0; i < _sg->getNumSequences(); ++i)
   {
     const SGSequence* seq = _sg->getSequence(i);
@@ -223,10 +223,10 @@ void SGSQL::writeJoinInserts()
                << count++ << ", "
                << side1.getBase().getSeqID() << ", "
                << side1.getBase().getPos() << ", "
-               << (side1.getForward() ? "TRUE" : "FALSE") << ", "
+               << (side1.getForward() ? "'TRUE'" : "'FALSE'") << ", "
                << side2.getBase().getSeqID() << ", "
                << side2.getBase().getPos() << ", "
-               << (side2.getForward() ? "TRUE" : "FALSE") << ")\n";
+               << (side2.getForward() ? "'TRUE'" : "'FALSE'") << ");\n";
   }
   _outStream << endl;
 }
@@ -280,7 +280,7 @@ void SGSQL::writePathInserts()
     _outStream << "INSERT INTO VariantSet VALUES ("
                << i << ", "
                << i << ", "
-               << "hal2sg genome " <<j->first << ");\n"; 
+               << "'hal2sg genome " <<j->first << "');\n"; 
   }
   _outStream << endl;
 
@@ -288,9 +288,10 @@ void SGSQL::writePathInserts()
   const vector<const Sequence*>& halSequences = _sgBuilder->getHalSequences();
   for (i = 0; i < halSequences.size(); ++i)
   {
-    _outStream << "INSERT INTO Allele ("
+    _outStream << "INSERT INTO Allele VALUES ("
                << i << ", "
                << _refMap.find(halSequences[i]->getGenome()->getName())->second
+               << ",NULL"
                << ");\n";
   }
   _outStream << endl;
@@ -311,7 +312,7 @@ void SGSQL::writePathInserts()
                  << path[j].getSide().getBase().getPos() << ", "
                  << path[j].getLength() << ", "
                  << (path[j].getSide().getForward() ? "\'TRUE\'" : "\'FALSE\'")
-                 << ")\n";
+                 << ");\n";
       
     }
     _outStream <<endl;
