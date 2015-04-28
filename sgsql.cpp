@@ -306,7 +306,7 @@ void SGSQL::writePathInserts()
     {
       _outStream << "INSERT INTO AllelePathItem VALUES ("
                  << i << ", "
-                 << i << ", "
+                 << j << ", "
                  << path[j].getSide().getBase().getSeqID() << ", "
                  << path[j].getSide().getBase().getPos() << ", "
                  << path[j].getLength() << ", "
