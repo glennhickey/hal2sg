@@ -147,7 +147,7 @@ void SGSQL::writeReferenceInserts()
   _refMap.clear();
   _refMap.insert(pair<string, size_t>(_sgBuilder->getPrimaryGenomeName(), 0));
   _outStream << "INSERT INTO ReferenceSet VALUES "
-             << "(0, 0, "
+             << "(0, NULL, "
              << "\'" << "hal2sg " << _halPath << "\'"
              << ", \'" << _sgBuilder->getPrimaryGenomeName() << "\'"
              << ", \'FALSE\');\n";
