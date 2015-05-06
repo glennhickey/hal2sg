@@ -7,7 +7,7 @@ sidegraphInc = sidegraph.h sgcommon.h sgsequence.h sgposition.h sgside.h sgjoin.
 all : hal2sg 
 
 clean : 
-	rm -f  hal2sg.o sidegraph.o sglookup.o md5.o sgsql.o hal2sg
+	rm -f  hal2sg.o sidegraph.o sglookup.o snphandler.o sgbuilder.o md5.o sgsql.o hal2sg
 	cd tests && make clean
 
 unitTests : hal2sg
