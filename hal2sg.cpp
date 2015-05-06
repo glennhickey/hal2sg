@@ -230,7 +230,7 @@ int main(int argc, char** argv)
     //cout << *sgbuild.getSideGraph() << endl;
 
     SGSQL sqlWriter;
-    sqlWriter.writeDb(&sgbuild, sqlPath, fastaPath);
+    sqlWriter.writeDb(&sgbuild, sqlPath, fastaPath, halPath);
 
   }
 /*  catch(hal_exception& e)

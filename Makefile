@@ -28,11 +28,14 @@ snphandler.o : snphandler.cpp snphandler.h ${sidegraphInc}
 sgbuilder.o : sgbuilder.cpp sgbuilder.h sglookup.h snphandler.h ${sidegraphInc} ${basicLibsDependencies}
 	${cpp} ${cppflags} -I . sgbuilder.cpp -c
 
-sgsql.o : sgsql.cpp sgsql.h sglookup.h ${sidegraphInc} ${basicLibsDependencies}
+md5.o : md5.cpp md5.h
+	${cpp} ${cppflags} -I . md5.cpp -c
+
+sgsql.o : sgsql.cpp md5.h sgsql.h sglookup.h ${sidegraphInc} ${basicLibsDependencies}
 	${cpp} ${cppflags} -I . sgsql.cpp -c
 
-hal2sg : hal2sg.o sidegraph.o sglookup.o snphandler.o sgbuilder.o sgsql.o ${basicLibsDependencies}
-	${cpp} ${cppflags} ${basicLibs} hal2sg.o sidegraph.o sglookup.o snphandler.o sgbuilder.o sgsql.o -o hal2sg 
+hal2sg : hal2sg.o sidegraph.o sglookup.o snphandler.o sgbuilder.o md5.o sgsql.o ${basicLibsDependencies}
+	${cpp} ${cppflags} ${basicLibs} hal2sg.o sidegraph.o sglookup.o snphandler.o sgbuilder.o md5.o sgsql.o -o hal2sg 
 
 test : unitTests
 	tests/unitTests

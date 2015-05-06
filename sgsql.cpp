@@ -3,6 +3,7 @@
  *
  * Released under the MIT license, see LICENSE.txt
  */
+#include "md5.h"
 #include "sgsql.h"
 
 using namespace std;
@@ -17,7 +18,7 @@ SGSQL::~SGSQL()
 }
 
 void SGSQL::writeDb(const SGBuilder* sgBuilder, const string& sqlInsertPath,
-                    const string& fastaPath)
+                    const string& fastaPath, const string& halPath)
 {
   _sgBuilder = sgBuilder;
   _sg = _sgBuilder->getSideGraph();
@@ -28,6 +29,7 @@ void SGSQL::writeDb(const SGBuilder* sgBuilder, const string& sqlInsertPath,
   _faPath = fastaPath;
   _faStream.open(_faPath.c_str());
   assert(_faStream);
+  _halPath = halPath;
   _checksumMap.clear();
 
   writeFasta();
@@ -70,7 +72,7 @@ void SGSQL::writeFastaInsert()
 {
   _outStream << "INSERT INTO FASTA VALUES ("
              << 0 << ", "
-             << "'file://" << _faPath << "');\n";
+             << "'" << _faPath << "');\n";
   _outStream << endl;
 }
 
@@ -141,28 +143,21 @@ CREATE TABLE Reference_ReferenceSet_Join (referenceID INTEGER NOT NULL,
 */
 void SGSQL::writeReferenceInserts()
 {
-  // make a reference set for each input genome from the HAL
+  // make a single reference set
   _refMap.clear();
   _refMap.insert(pair<string, size_t>(_sgBuilder->getPrimaryGenomeName(), 0));
   _outStream << "INSERT INTO ReferenceSet VALUES "
-             << "(0, NULL, "
-             << "\'HAL Genome " + _sgBuilder->getPrimaryGenomeName() << "\'"
-             << ", 0, NULL, \'FALSE\');\n";
+             << "(0, 0, "
+             << "\'" << "hal2sg " << _halPath << "\'"
+             << ", \'" << _sgBuilder->getPrimaryGenomeName() << "\'"
+             << ", \'FALSE\');\n";
+
+  // keep _refMap around for now (though not necessary with just one
+  // reference set) in case we want to go back to one set per genome
   for (sg_int_t i = 0; i < _sg->getNumSequences(); ++i)
   {
     const SGSequence* seq = _sg->getSequence(i);
-    string halGenomeName = _sgBuilder->getHalGenomeName(seq);
-    if (_refMap.find(halGenomeName) == _refMap.end())
-    {
-      sg_int_t id = _refMap.size();
-      _refMap.insert(pair<string, size_t>(halGenomeName, id));
-      // single reference set
-      _outStream << "INSERT INTO ReferenceSet VALUES "
-                 << "(" << id 
-                 << ", NULL, "
-                 << "\'HAL Genome " + halGenomeName << "\'"
-                 << ", 0, NULL, \'FALSE\')\n";
-    }
+    _refMap.insert(pair<string, size_t>(_sgBuilder->getHalGenomeName(seq), 0));
   }
   
   for (sg_int_t i = 0; i < _sg->getNumSequences(); ++i)
@@ -279,7 +274,7 @@ void SGSQL::writePathInserts()
   {
     _outStream << "INSERT INTO VariantSet VALUES ("
                << i << ", "
-               << i << ", "
+               << j->second << ", "
                << "'hal2sg genome " <<j->first << "');\n"; 
   }
   _outStream << endl;
@@ -291,7 +286,7 @@ void SGSQL::writePathInserts()
     _outStream << "INSERT INTO Allele VALUES ("
                << i << ", "
                << _refMap.find(halSequences[i]->getGenome()->getName())->second
-               << ",NULL"
+               << ", NULL"
                << ");\n";
   }
   _outStream << endl;
@@ -322,5 +317,5 @@ void SGSQL::writePathInserts()
 
 void SGSQL::getChecksum(const string& inputString, string& outputString)
 {
-  outputString = "md5";
+  outputString = md5(inputString);
 }
