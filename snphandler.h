@@ -10,6 +10,7 @@
 #include <map>
 
 #include "sglookup.h"
+#include "sidegraph.h"
 
 /**
  * Structure to link a position in a sidegraph with alternate bases
@@ -36,8 +37,22 @@ class SNPHandler
 {
 public:
 
-   SNPHandler(bool caseSensitive = false);
+   SNPHandler(SideGraph* sideGraph = NULL, bool caseSensitive = false);
    ~SNPHandler();
+
+   /**
+    * Create a SNP in side graph.  return endpoints that will represent
+    * first and last side of SNP (to be hooked to graph elsewhere).  
+    * New sequences are created as necessary in the side graph.
+    * The lookup strcuture is updated for the entire (src) range provided. 
+    */
+   std::pair<SGSide, SGSide> createSNP(const std::string& dnaString,
+                                       size_t dnaOffset,
+                                       size_t dnaLength,
+                                       const SGPosition& srcPos,
+                                       const SGPosition& tgtPos,
+                                       bool reverseMap,
+                                       SGLookup* srcLookup);
    
    /** Check to see if SNP present in Side Graph.  If it's not then
     * SideGraph::NullPos is returned */
@@ -63,6 +78,10 @@ public:
 
 protected:
 
+   void getSNPName(const SGPosition& tgtPos, const std::string& dnaString,
+                   sg_int_t dnaOffset, bool reverseMap, sg_int_t i,
+                   std::string& nameBuf) const;
+   
    struct SNP
    {
       SNP();
@@ -80,6 +99,7 @@ protected:
    SNPMap _snpMap;
    SNPMap::iterator _cacheIt;
    SGPosition _cachePos;
+   SideGraph* _sg;
 };
 
 

@@ -97,6 +97,8 @@ inline const SGJoin* SideGraph::getJoin(const SGJoin* join) const
 
 inline const SGJoin* SideGraph::addJoin(const SGJoin* join)
 {
+  assert(join->getSide1().getBase().getSeqID() >= 0);
+  assert(join->getSide2().getBase().getSeqID() >= 0);
   assert(getSequence(join->getSide1().getBase().getSeqID()) != NULL);
   assert(getSequence(join->getSide2().getBase().getSeqID()) != NULL);
   std::pair<JoinSet::iterator, bool> r = _joinSet.insert(join);
