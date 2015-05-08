@@ -45,6 +45,10 @@ public:
     * first and last side of SNP (to be hooked to graph elsewhere).  
     * New sequences are created as necessary in the side graph.
     * The lookup strcuture is updated for the entire (src) range provided. 
+    *
+    * If createNewSeq is set to false, then the tgtPosition will be added
+    * directly to the SNP map without any new SNP bubble being created. This
+    * is the logic to use when the first SNP is added. 
     */
    std::pair<SGSide, SGSide> createSNP(const std::string& dnaString,
                                        size_t dnaOffset,
@@ -52,7 +56,8 @@ public:
                                        const SGPosition& srcPos,
                                        const SGPosition& tgtPos,
                                        bool reverseMap,
-                                       SGLookup* srcLookup);
+                                       SGLookup* srcLookup,
+                                       bool createNewSeq = true);
    
    /** Check to see if SNP present in Side Graph.  If it's not then
     * SideGraph::NullPos is returned */

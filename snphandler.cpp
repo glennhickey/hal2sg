@@ -40,8 +40,11 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& dnaString,
                                            const SGPosition& srcPos,
                                            const SGPosition& tgtPos,
                                            bool reverseMap,
-                                           SGLookup* srcLookup)
-{  
+                                           SGLookup* srcLookup,
+                                           bool createNewSeq)
+{
+  cout << "\ncreateSNP " << dnaString << " " << dnaOffset << "," << dnaLength
+       << endl;
   vector<SGPosition> sgPositions(dnaLength);
   // note : should use hints / cache to speed up consecutive bases
   // but start simple for baseline tests
@@ -53,13 +56,18 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& dnaString,
   {
     if (reverseMap == false)
     {
-      tgt.setPos(tgtPos.getPos() + dnaOffset + i);
+      tgt.setPos(tgtPos.getPos() + i);
     }
     else
     {
-      tgt.setPos(tgtPos.getPos() - dnaOffset - i);
+      tgt.setPos(tgtPos.getPos() - i);
     }
+    cout << "findSNP " << tgt << "," << dnaString[i + dnaOffset]
+         << " = " << findSNP(tgt, dnaString[i + dnaOffset])
+         << " i=" << i << ", tgtPos=" << tgtPos << endl;
     sgPositions[i] = findSNP(tgt, dnaString[i + dnaOffset]);
+    // if create flag is not on, then there should be 
+    assert(createNewSeq == true || sgPositions[i] == SideGraph::NullPos);
   }
 
   // now we have a position for all existing snps in the graph.  any
@@ -78,8 +86,17 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& dnaString,
       for (; j < dnaLength && sgPositions[j] == SideGraph::NullPos; ++j);
       --j;
       getSNPName(tgtPos, dnaString, dnaOffset, reverseMap, i, nameBuf);
-      SGSequence* newSeq = new SGSequence(-1, j - i + 1, nameBuf);
-      _sg->addSequence(newSeq);
+      const SGSequence* newSeq;
+      if (createNewSeq == true)
+      {
+        newSeq = _sg->addSequence(new SGSequence(-1, j - i + 1, nameBuf));
+      }
+      else
+      {
+        assert(i == 0 && j == dnaLength - 1);
+        newSeq = _sg->getSequence(tgtPos.getSeqID());
+        assert(newSeq != NULL);
+      }
 
       if (i > 0)
       {
