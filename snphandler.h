@@ -50,14 +50,14 @@ public:
     * directly to the SNP map without any new SNP bubble being created. This
     * is the logic to use when the first SNP is added. 
     */
-   std::pair<SGSide, SGSide> createSNP(const std::string& dnaString,
+   std::pair<SGSide, SGSide> createSNP(const std::string& srcDNAString,
+                                       const std::string& tgtDNAString,
                                        size_t dnaOffset,
                                        size_t dnaLength,
                                        const SGPosition& srcPos,
                                        const SGPosition& tgtPos,
                                        bool reverseMap,
-                                       SGLookup* srcLookup,
-                                       bool createNewSeq = true);
+                                       SGLookup* srcLookup);
    
    /** Check to see if SNP present in Side Graph.  If it's not then
     * SideGraph::NullPos is returned */

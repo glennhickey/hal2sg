@@ -70,12 +70,14 @@ void snpHandlerSingleSNPTest(CuTest *testCase)
   lookup.init(seqNames);
   SNPHandler snpHandler(&sg);
   
-  string dna = "A";
+  string srcDNA = "A";
+  string tgtDNA = "T";
   SGPosition srcPos(1, 5);
   SGPosition tgtPos(0, 5);
 
-  pair<SGSide, SGSide> hooks = snpHandler.createSNP(dna, 0, 1, srcPos, tgtPos,
-                                                    false, &lookup);
+  pair<SGSide, SGSide> hooks = snpHandler.createSNP(srcDNA, tgtDNA, 0, 1,
+                                                    srcPos, tgtPos, false,
+                                                    &lookup);
 
   cout << "outhooks " << hooks.first << " , " << hooks.second << endl;
   
@@ -88,6 +90,7 @@ void snpHandlerSingleSNPTest(CuTest *testCase)
   CuAssertTrue(testCase, hooks.first.getBase().getSeqID() == 1);
   CuAssertTrue(testCase, sg.getSequence(1)->getLength() == 1);
   CuAssertTrue(testCase, lookup.mapPosition(srcPos) == hooks.second);
+  CuAssertTrue(testCase, snpHandler.findSNP(tgtPos, 'T') == tgtPos);
 }
 
 /** next case: we add a single multibase SNP
@@ -103,14 +106,16 @@ void snpHandlerMultibaseSNPTest(CuTest *testCase)
   lookup.init(seqNames);
   SNPHandler snpHandler(&sg);
   
-  string dna = "ACCCTA";
+  string srcDNA = "ACCCTA";
+  string tgtDNA = "TGTGGT";
   SGPosition srcPos(1, 5);
   SGPosition srcPos2(1, 7);
   SGPosition tgtPos(0, 5);
   SGPosition tgtPos1(0, 6);
   SGPosition tgtPos2(0, 7);
 
-  pair<SGSide, SGSide> hooks = snpHandler.createSNP(dna, 2, 3, srcPos, tgtPos,
+  pair<SGSide, SGSide> hooks = snpHandler.createSNP(srcDNA, tgtDNA, 2, 3,
+                                                    srcPos, tgtPos,
                                                     false, &lookup);
 
   cout << "outhooks " << hooks.first << " , " << hooks.second << endl;
@@ -125,6 +130,11 @@ void snpHandlerMultibaseSNPTest(CuTest *testCase)
   CuAssertTrue(testCase, hooks.first.getBase().getSeqID() == 1);
   CuAssertTrue(testCase, sg.getSequence(1)->getLength() == 3);
   CuAssertTrue(testCase, lookup.mapPosition(srcPos2) == hooks.second);
+
+  CuAssertTrue(testCase, snpHandler.findSNP(tgtPos, 'T') == tgtPos);
+  CuAssertTrue(testCase, snpHandler.findSNP(tgtPos1, 'G') == tgtPos1);
+  CuAssertTrue(testCase, snpHandler.findSNP(tgtPos2, 'G') == tgtPos2);
+    
 }
 
 /** next case: we add a single multibase SNP and mix in some overlaps
@@ -147,33 +157,34 @@ void snpHandlerOverlapSNPTest(CuTest *tc)
   string dna0 = "AC...T...CCC.";
   string dna1 = "T...ATA....TT";
   string dna2 = "TC....AGGGGGA";
+  string dnaTgt = "GGGGGGGTTTTAG";
   
   SGPosition srcPos(1, 0);
   SGPosition tgtPos(0, 0);
-  snpHandler.createSNP(dna0, 0, 2, srcPos, tgtPos, false, &lookup);
+  snpHandler.createSNP(dna0, dnaTgt, 0, 2, srcPos, tgtPos, false, &lookup);
   srcPos.setPos(5);
   tgtPos.setPos(5);
-  snpHandler.createSNP(dna0, 5, 1, srcPos, tgtPos, false, &lookup);
+  snpHandler.createSNP(dna0, dnaTgt, 5, 1, srcPos, tgtPos, false, &lookup);
   srcPos.setPos(9);
   tgtPos.setPos(9);
-  snpHandler.createSNP(dna0, 9, 3, srcPos, tgtPos, false, &lookup);
+  snpHandler.createSNP(dna0, dnaTgt, 9, 3, srcPos, tgtPos, false, &lookup);
 
   srcPos = SGPosition(2, 0);
   tgtPos = SGPosition(0, 0);
-  snpHandler.createSNP(dna1, 0, 1, srcPos, tgtPos, false, &lookup);
+  snpHandler.createSNP(dna1, dnaTgt, 0, 1, srcPos, tgtPos, false, &lookup);
   srcPos.setPos(4);
   tgtPos.setPos(4);
-  snpHandler.createSNP(dna1, 4, 3, srcPos, tgtPos, false, &lookup);
+  snpHandler.createSNP(dna1, dnaTgt, 4, 3, srcPos, tgtPos, false, &lookup);
   srcPos.setPos(11);
   tgtPos.setPos(11);
-  snpHandler.createSNP(dna1, 11, 2, srcPos, tgtPos, false, &lookup);
+  snpHandler.createSNP(dna1, dnaTgt, 11, 2, srcPos, tgtPos, false, &lookup);
 
   srcPos = SGPosition(3, 0);
   tgtPos = SGPosition(0, 0);
-  snpHandler.createSNP(dna2, 0, 2, srcPos, tgtPos, false, &lookup);
+  snpHandler.createSNP(dna2, dnaTgt, 0, 2, srcPos, tgtPos, false, &lookup);
   srcPos.setPos(6);
   tgtPos.setPos(6);
-  snpHandler.createSNP(dna2, 6, 7, srcPos, tgtPos, false, &lookup);
+  snpHandler.createSNP(dna2, dnaTgt, 6, 7, srcPos, tgtPos, false, &lookup);
 
   // the snps were added in this order (x's for duplicates).  so we
   // expect the sequence ids that were created to correspond to these
@@ -240,35 +251,6 @@ void snpHandlerOverlapSNPTest(CuTest *tc)
 
 /** easiest case: we add a single SNP
  */
-void snpHandlerCreateNewSeqFlagTest(CuTest *testCase)
-{
-  SideGraph sg;
-  sg.addSequence(new SGSequence(-1, 100, "Seq0"));
-  SGLookup lookup;
-  vector<string> seqNames;
-  seqNames.push_back("Seq0");
-  seqNames.push_back("Seq1");  
-  lookup.init(seqNames);
-  SNPHandler snpHandler(&sg);
-  
-  string dna = "A";
-  SGPosition srcPos(1, 5);
-  SGPosition tgtPos(0, 5);
-
-  pair<SGSide, SGSide> hooks = snpHandler.createSNP(dna, 0, 1, srcPos, tgtPos,
-                                                    false, &lookup, false);
-
-  cout << "outhooks " << hooks.first << " , " << hooks.second << endl;
-  
-  CuAssertTrue(testCase, hooks.first.getBase() == hooks.second.getBase());
-  CuAssertTrue(testCase, hooks.first.getForward() == false);
-  CuAssertTrue(testCase, hooks.second.getForward() == true);
-  CuAssertTrue(testCase, snpHandler.findSNP(tgtPos, 'A') ==
-               hooks.first.getBase());
-  CuAssertTrue(testCase, sg.getNumSequences() == 1);
-  CuAssertTrue(testCase, hooks.first.getBase().getSeqID() == 0);
-  CuAssertTrue(testCase, lookup.mapPosition(srcPos) == hooks.second);
-}
 
 CuSuite* snpHandlerTestSuite(void) 
 {
@@ -277,6 +259,5 @@ CuSuite* snpHandlerTestSuite(void)
   SUITE_ADD_TEST(suite, snpHandlerSingleSNPTest);
   SUITE_ADD_TEST(suite, snpHandlerMultibaseSNPTest);
   SUITE_ADD_TEST(suite, snpHandlerOverlapSNPTest);
-  SUITE_ADD_TEST(suite, snpHandlerCreateNewSeqFlagTest);
   return suite;
 }

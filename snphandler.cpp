@@ -34,16 +34,16 @@ SNPHandler::~SNPHandler()
   }
 }
 
-pair<SGSide, SGSide> SNPHandler::createSNP(const string& dnaString,
+pair<SGSide, SGSide> SNPHandler::createSNP(const string& srcDNA,
+                                           const string& tgtDNA,
                                            size_t dnaOffset,
                                            size_t dnaLength,
                                            const SGPosition& srcPos,
                                            const SGPosition& tgtPos,
                                            bool reverseMap,
-                                           SGLookup* srcLookup,
-                                           bool createNewSeq)
+                                           SGLookup* srcLookup)
 {
-  cout << "\ncreateSNP " << dnaString << " " << dnaOffset << "," << dnaLength
+  cout << "\ncreateSNP " << srcDNA << " " << dnaOffset << "," << dnaLength
        << endl;
   vector<SGPosition> sgPositions(dnaLength);
   // note : should use hints / cache to speed up consecutive bases
@@ -62,12 +62,21 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& dnaString,
     {
       tgt.setPos(tgtPos.getPos() - i);
     }
-    cout << "findSNP " << tgt << "," << dnaString[i + dnaOffset]
-         << " = " << findSNP(tgt, dnaString[i + dnaOffset])
+    cout << "findSNP " << tgt << "," << srcDNA[i + dnaOffset]
+         << " = " << findSNP(tgt, srcDNA[i + dnaOffset])
          << " i=" << i << ", tgtPos=" << tgtPos << endl;
-    sgPositions[i] = findSNP(tgt, dnaString[i + dnaOffset]);
-    // if create flag is not on, then there should be 
-    assert(createNewSeq == true || sgPositions[i] == SideGraph::NullPos);
+    sgPositions[i] = findSNP(tgt, srcDNA[i + dnaOffset]);
+
+    // if empty slot, we add base from tgt but dont need to
+    // create / update any other structures. 
+    if (sgPositions[i] == SideGraph::NullPos &&
+        findSNP(tgt, tgtDNA[i + dnaOffset]) == SideGraph::NullPos)
+    {
+      assert(srcDNA[i + dnaOffset] != tgtDNA[dnaOffset + i]);
+      addSNP(SGPosition(tgtPos.getSeqID(), tgtPos.getPos() + i),
+             tgtDNA[dnaOffset + i], 
+             SGPosition(tgtPos.getSeqID(), tgtPos.getPos() + i));
+    }
   }
 
   // now we have a position for all existing snps in the graph.  any
@@ -85,19 +94,10 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& dnaString,
       sg_int_t j = i + 1;
       for (; j < dnaLength && sgPositions[j] == SideGraph::NullPos; ++j);
       --j;
-      getSNPName(tgtPos, dnaString, dnaOffset, reverseMap, i, nameBuf);
+      getSNPName(tgtPos, srcDNA, dnaOffset, reverseMap, i, nameBuf);
       const SGSequence* newSeq;
-      if (createNewSeq == true)
-      {
-        newSeq = _sg->addSequence(new SGSequence(-1, j - i + 1, nameBuf));
-      }
-      else
-      {
-        assert(i == 0 && j == dnaLength - 1);
-        newSeq = _sg->getSequence(tgtPos.getSeqID());
-        assert(newSeq != NULL);
-      }
-
+      newSeq = _sg->addSequence(new SGSequence(-1, j - i + 1, nameBuf));
+      
       if (i > 0)
       {
         SGJoin* inJoin = new SGJoin(prevHook,
@@ -124,11 +124,11 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& dnaString,
         sgPositions[k].setPos(k - i);
 
         cout << "addSNP " << SGPosition(tgtPos.getSeqID(), tgtPos.getPos() + k)
-             << " , " <<  dnaString[dnaOffset + k] << " , "
+             << " , " <<  srcDNA[dnaOffset + k] << " , "
              << sgPositions[k] << endl;
         
         addSNP(SGPosition(tgtPos.getSeqID(), tgtPos.getPos() + k),
-               dnaString[dnaOffset + k],
+               srcDNA[dnaOffset + k],
                sgPositions[k]);
       }
       
@@ -145,7 +145,6 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& dnaString,
   // finally we update the srcLookup for every snp, to make sure that
   // we always map to the right base (ie when using the lookup structure
   // to compute paths for the input
-
   for (sg_int_t i = 0; i < dnaLength; ++i)
   {
     sg_int_t j = i + 1;
@@ -160,7 +159,7 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& dnaString,
     pos.setPos(srcPos.getPos() + i);
     srcLookup->addInterval(pos, sgPositions[i], j - i, false);
   }
-
+  
   // return hooks at either end to be joined by calling code to rest of
   // graph
   pair<SGSide, SGSide> outHooks;
@@ -227,17 +226,20 @@ void SNPHandler::addSNP(const SGPosition& pos, char nuc,
   snpList->push_back(SNP(snpPosition, nuc));
 
   // add new position into the handler
-  assert(_snpMap.find(snpPosition) == _snpMap.end());
-  _snpMap.insert(pair<SGPosition, SNPList*>(snpPosition, snpList));
+  if (pos != snpPosition)
+  {
+    assert(_snpMap.find(snpPosition) == _snpMap.end());
+    _snpMap.insert(pair<SGPosition, SNPList*>(snpPosition, snpList));
+  }
 }
 
-void SNPHandler::getSNPName(const SGPosition& tgtPos, const string& dnaString,
+void SNPHandler::getSNPName(const SGPosition& tgtPos, const string& srcDNA,
                             sg_int_t dnaOffset, bool reverseMap, sg_int_t i,
                             string& nameBuf) const
 {
   const SGSequence* seq = _sg->getSequence(tgtPos.getSeqID());
   stringstream ss;
   ss << seq->getName() << "_" << (tgtPos.getPos() + dnaOffset + i)
-     << "_SNP_" << dnaString[dnaOffset + i];
+     << "_SNP_" << srcDNA[dnaOffset + i];
   nameBuf = ss.str();
 }
