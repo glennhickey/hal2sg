@@ -7,7 +7,9 @@
 #include <sstream>
 
 #include "sgbuilder.h"
+#include "snphandler.h"
 #include "halBlockMapper.h"
+
 
 using namespace std;
 using namespace hal;
@@ -251,10 +253,9 @@ SGSequence* SGBuilder::createSGSequence(const Sequence* sequence,
   _sg->addSequence(sgSeq);
   // keep record of where it came from (ie to trace back from the side graph
   // to hal
-  _seqMapBack.insert(pair<SGSequence*, pair<const Sequence*, hal_index_t> >(
-                       sgSeq,
-                       pair<const Sequence*, hal_index_t>(sequence,
-                                                          startOffset)));
+  _seqMapBack.insert(
+    pair<const SGSequence*, pair<const Sequence*, hal_index_t> >(
+      sgSeq, pair<const Sequence*, hal_index_t>(sequence, startOffset)));
   
   // keep record in other direction (ie to map from hal into the side graph)
   sg_seqid_t halSequenceID = (sg_seqid_t)sequence->getArrayIndex();
@@ -622,8 +623,8 @@ SGBuilder::mapBlockBody(const Block* block,
     {
       pair<SGSide, SGSide> sliceEnds = mapBlockSlice(block, blockEnds,
                                                      bp, i - 1,
-                                                     snp, sgForwardMap, srcDNA,
-                                                     tgtDNA);
+                                                     runningSnp, sgForwardMap,
+                                                     srcDNA, tgtDNA);
       if (bp == 0)
       {
         outBlockEnds.first = sliceEnds.first;
@@ -638,8 +639,8 @@ SGBuilder::mapBlockBody(const Block* block,
     if (i == length - 1)
     {
       pair<SGSide, SGSide> sliceEnds = mapBlockSlice(block, blockEnds, bp, i,
-                                                     snp, sgForwardMap, srcDNA,
-                                                     tgtDNA);
+                                                     runningSnp, sgForwardMap,
+                                                     srcDNA, tgtDNA);
       if (bp == 0)
       {
         outBlockEnds.first = sliceEnds.first;
@@ -668,9 +669,6 @@ SGBuilder::mapBlockSlice(const Block* block,
                          const string& srcDNA,
                          const string& tgtDNA)
 {
-  //cout << "slice " << srcStartOffset << " - " << srcEndOffset;
-  // todo: we need to handle snps here.
-
   SGPosition srcHalPosition((sg_seqid_t)block->_srcSeq->getArrayIndex(),
                             block->_srcStart + srcStartOffset);
   SGPosition tgtHalPosition((sg_seqid_t)block->_tgtSeq->getArrayIndex(),
@@ -680,64 +678,41 @@ SGBuilder::mapBlockSlice(const Block* block,
   pair<SGSide, SGSide> outEnds = blockEnds;
   bool reversed = blockEnds.second < blockEnds.first;
 
-  //if (snp == false)
+  SGPosition startPos = blockEnds.first.getBase();
+  SGPosition endPos = blockEnds.second.getBase();
+  cout << "startPos " << startPos << "  endPos " << endPos << endl;
+  if (reversed == false)
   {
-    SGPosition startPos = blockEnds.first.getBase();
-    SGPosition endPos = blockEnds.second.getBase();
-    cout << "startPos " << startPos << "  endPos " << endPos << endl;
-    if (reversed == false)
-    {
-      startPos.setPos(startPos.getPos() + srcStartOffset);
-      endPos.setPos(startPos.getPos() + blockLength - 1);
-    }
-    else
-    {
-      startPos.setPos(startPos.getPos() - srcStartOffset);
-      endPos.setPos(startPos.getPos() - blockLength + 1);
-    }
+    startPos.setPos(startPos.getPos() + srcStartOffset);
+    endPos.setPos(startPos.getPos() + blockLength - 1);
+  }
+  else
+  {
+    startPos.setPos(startPos.getPos() - srcStartOffset);
+    endPos.setPos(startPos.getPos() - blockLength + 1);
+  }
+
+  if (snp == false)
+  {
     outEnds.first.setBase(startPos);
     outEnds.second.setBase(endPos);
-
     _lookup->addInterval(srcHalPosition, (reversed ? endPos : startPos),
                          blockLength, block->_reversed);
   }
-/*
   else
   {
-    //assert(false);
-  
-    pair<SGSide, SGSide> snpHooks = _snpHandler->createSNP(
-      srcDNA,
-      tgtDNA,
-      srcStartOffset,
-      srcEndOffset - srcStartOffset + 1,
-    
-      !sgForwardMap,
-      _lookup);
-    return snpHooks;
-                                                        
-  
-
-    SGSide start(hook);
-    SGPosition pos = start.getBase();
-    pos.setPos(pos.getPos() + (srcStartOffset == 0 ? 0 : 1));
-    start.setBase(pos);
-    pair<SGSide, SGSide> sliceEnds(start, start);
-  
-    if (sgForwardMap)
-    {
-      pos.setPos(pos.getPos() + (srcEndOffset - srcStartOffset));
-    }
-    else
-    {
-      pos.setPos(pos.getPos() - (srcEndOffset - srcStartOffset));
-    }
-    sliceEnds.second.setBase(pos);
-    sliceEnds.second.setForward(sgForwardMap);
-    cout << " -> " << sliceEnds.second << endl;
-
+    outEnds = _snpHandler->createSNP(srcDNA,
+                                     tgtDNA,
+                                     srcStartOffset,
+                                     blockLength,
+                                     block->_srcSeq,
+                                     srcHalPosition,
+                                     (reversed ? endPos : startPos),
+                                     !reversed,
+                                     _lookup,
+                                     &_seqMapBack);
   }
-*/
+
   return outEnds;
 }
 

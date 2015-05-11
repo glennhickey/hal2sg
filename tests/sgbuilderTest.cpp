@@ -529,6 +529,52 @@ void EmptySequenceTest::createCallBack(AlignmentPtr alignment)
   }
 }
 
+
+void EmptySequenceTest::checkCallBack(AlignmentConstPtr alignment)
+{
+  validateAlignment(alignment);
+  const Genome* ancGenome = alignment->openGenome("AncGenome");
+
+  SGBuilder sgBuild;
+  
+  sgBuild.init(alignment, ancGenome, false, false);
+  sgBuild.addGenome(ancGenome);
+  const Genome* leaf1Genome = alignment->openGenome("Leaf1");
+  sgBuild.addGenome(leaf1Genome);
+
+  const SideGraph* sg = sgBuild.getSideGraph();
+
+  // we expect empty sequences to not be converted.  
+  CuAssertTrue(_testCase, sg->getNumSequences() == 2);
+
+  const SideGraph::JoinSet* joins = sg->getJoinSet();
+
+  // no breakpoints except sequence size difference
+  CuAssertTrue(_testCase, joins->size() == 1);
+
+  const vector<const Sequence*>& halSequences = sgBuild.getHalSequences();
+  for (size_t i = 0; i < halSequences.size(); ++i)
+  {
+    vector<SGSegment> path;
+    sgBuild.getHalSequencePath(halSequences[i], path);
+    CuAssertTrue(_testCase, sgBuild.verifyPath(halSequences[i], path) == true);
+  }
+
+}
+
+void sgBuilderEmptySequenceTest(CuTest *testCase)
+{
+  try
+  {
+    EmptySequenceTest tester;
+    tester.check(testCase);
+  }
+  catch (...) 
+  {
+    CuAssertTrue(testCase, false);
+  }
+}
+
 ///////////////////////////////////////////////////////////////////////////
 //
 //            SNP TEST
@@ -600,8 +646,26 @@ void SNPTest::checkCallBack(AlignmentConstPtr alignment)
 
   const SideGraph* sg = sgBuild.getSideGraph();
 
-  cout << *sg << endl;
+  const vector<const Sequence*>& halSequences = sgBuild.getHalSequences();
+  for (size_t i = 0; i < halSequences.size(); ++i)
+  {
+    vector<SGSegment> path;
+    sgBuild.getHalSequencePath(halSequences[i], path);
+    CuAssertTrue(_testCase, sgBuild.verifyPath(halSequences[i], path) == true);
+  }
 
+  CuAssertTrue(_testCase, sg->getNumSequences() == 2);
+
+  SGJoin join;
+  join = SGJoin(SGSide(SGPosition(0, 4), true),
+                SGSide(SGPosition(1, 0), false));
+  CuAssertTrue(_testCase, sg->getJoin(&join) != NULL);
+
+  join = SGJoin(SGSide(SGPosition(1, 0), true),
+                SGSide(SGPosition(0, 6), false));
+  CuAssertTrue(_testCase, sg->getJoin(&join) != NULL);
+
+  CuAssertTrue(_testCase, sg->getJoinSet()->size() == 2);
 }
 
 void sgBuilderSNPTest(CuTest *testCase)
@@ -617,51 +681,6 @@ void sgBuilderSNPTest(CuTest *testCase)
   }
 }
 
-
-void EmptySequenceTest::checkCallBack(AlignmentConstPtr alignment)
-{
-  validateAlignment(alignment);
-  const Genome* ancGenome = alignment->openGenome("AncGenome");
-
-  SGBuilder sgBuild;
-  
-  sgBuild.init(alignment, ancGenome, false, false);
-  sgBuild.addGenome(ancGenome);
-  const Genome* leaf1Genome = alignment->openGenome("Leaf1");
-  sgBuild.addGenome(leaf1Genome);
-
-  const SideGraph* sg = sgBuild.getSideGraph();
-
-  // we expect empty sequences to not be converted.  
-  CuAssertTrue(_testCase, sg->getNumSequences() == 2);
-
-  const SideGraph::JoinSet* joins = sg->getJoinSet();
-
-  // no breakpoints except sequence size difference
-  CuAssertTrue(_testCase, joins->size() == 1);
-
-  const vector<const Sequence*>& halSequences = sgBuild.getHalSequences();
-  for (size_t i = 0; i < halSequences.size(); ++i)
-  {
-    vector<SGSegment> path;
-    sgBuild.getHalSequencePath(halSequences[i], path);
-    CuAssertTrue(_testCase, sgBuild.verifyPath(halSequences[i], path) == true);
-  }
-
-}
-
-void sgBuilderEmptySequenceTest(CuTest *testCase)
-{
-  try
-  {
-    EmptySequenceTest tester;
-    tester.check(testCase);
-  }
-  catch (...) 
-  {
-    CuAssertTrue(testCase, false);
-  }
-}
 
 CuSuite* sgBuildTestSuite(void) 
 {

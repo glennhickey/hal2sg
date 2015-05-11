@@ -11,7 +11,7 @@
 
 #include "sglookup.h"
 #include "sidegraph.h"
-
+#include "sgbuilder.h"
 /**
  * Structure to link a position in a sidegraph with alternate bases
  * ie to represent point mutations in the hal.  These mutations
@@ -37,6 +37,8 @@ class SNPHandler
 {
 public:
 
+   typedef SGBuilder::SequenceMapBack SequenceMapBack;
+   
    SNPHandler(SideGraph* sideGraph = NULL, bool caseSensitive = false);
    ~SNPHandler();
 
@@ -45,19 +47,17 @@ public:
     * first and last side of SNP (to be hooked to graph elsewhere).  
     * New sequences are created as necessary in the side graph.
     * The lookup strcuture is updated for the entire (src) range provided. 
-    *
-    * If createNewSeq is set to false, then the tgtPosition will be added
-    * directly to the SNP map without any new SNP bubble being created. This
-    * is the logic to use when the first SNP is added. 
     */
    std::pair<SGSide, SGSide> createSNP(const std::string& srcDNAString,
                                        const std::string& tgtDNAString,
                                        size_t dnaOffset,
                                        size_t dnaLength,
+                                       const hal::Sequence* halSrcSequence,
                                        const SGPosition& srcPos,
                                        const SGPosition& tgtPos,
                                        bool reverseMap,
-                                       SGLookup* srcLookup);
+                                       SGLookup* srcLookup,
+                                       SequenceMapBack* seqMapBack);
    
    /** Check to see if SNP present in Side Graph.  If it's not then
     * SideGraph::NullPos is returned */

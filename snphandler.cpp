@@ -12,6 +12,7 @@
 #include "snphandler.h"
 
 using namespace std;
+using namespace hal;
 
 SNPHandler::SNPHandler(SideGraph* sideGraph, bool caseSensitive)
   :  _caseSens(caseSensitive), _sg(sideGraph)
@@ -38,10 +39,12 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& srcDNA,
                                            const string& tgtDNA,
                                            size_t dnaOffset,
                                            size_t dnaLength,
+                                           const Sequence* halSrcSequence,
                                            const SGPosition& srcPos,
                                            const SGPosition& tgtPos,
                                            bool reverseMap,
-                                           SGLookup* srcLookup)
+                                           SGLookup* srcLookup,
+                                           SequenceMapBack* seqMapBack)
 {
   cout << "\ncreateSNP " << srcDNA << " " << dnaOffset << "," << dnaLength
        << endl;
@@ -158,6 +161,13 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& srcDNA,
     SGPosition pos = srcPos;
     pos.setPos(srcPos.getPos() + i);
     srcLookup->addInterval(pos, sgPositions[i], j - i, false);
+
+    // keep record of where it came from (ie to trace back from the side graph
+    // to hal
+    seqMapBack->insert(
+      pair<const SGSequence*, pair<const Sequence*, hal_index_t> >(
+        _sg->getSequence(sgPositions[i].getSeqID()),
+        pair<const Sequence*, hal_index_t>(halSrcSequence, pos.getPos())));
   }
   
   // return hooks at either end to be joined by calling code to rest of
@@ -239,7 +249,7 @@ void SNPHandler::getSNPName(const SGPosition& tgtPos, const string& srcDNA,
 {
   const SGSequence* seq = _sg->getSequence(tgtPos.getSeqID());
   stringstream ss;
-  ss << seq->getName() << "_" << (tgtPos.getPos() + dnaOffset + i)
+  ss << seq->getName() << "_" << (tgtPos.getPos() + i)
      << "_SNP_" << srcDNA[dnaOffset + i];
   nameBuf = ss.str();
 }

@@ -64,6 +64,8 @@ void snpHandlerSingleSNPTest(CuTest *testCase)
   SideGraph sg;
   sg.addSequence(new SGSequence(-1, 100, "Seq0"));
   SGLookup lookup;
+  SNPHandler::SequenceMapBack mapBack;
+  const hal::Sequence* halSeq = NULL;
   vector<string> seqNames;
   seqNames.push_back("Seq0");
   seqNames.push_back("Seq1");  
@@ -76,8 +78,8 @@ void snpHandlerSingleSNPTest(CuTest *testCase)
   SGPosition tgtPos(0, 5);
 
   pair<SGSide, SGSide> hooks = snpHandler.createSNP(srcDNA, tgtDNA, 0, 1,
-                                                    srcPos, tgtPos, false,
-                                                    &lookup);
+                                                    halSeq, srcPos, tgtPos,
+                                                    false, &lookup, &mapBack);
 
   cout << "outhooks " << hooks.first << " , " << hooks.second << endl;
   
@@ -100,6 +102,8 @@ void snpHandlerMultibaseSNPTest(CuTest *testCase)
   SideGraph sg;
   sg.addSequence(new SGSequence(-1, 100, "Seq0"));
   SGLookup lookup;
+  SNPHandler::SequenceMapBack mapBack;
+  const hal::Sequence* halSeq = NULL;
   vector<string> seqNames;
   seqNames.push_back("Seq0");
   seqNames.push_back("Seq1");  
@@ -115,8 +119,9 @@ void snpHandlerMultibaseSNPTest(CuTest *testCase)
   SGPosition tgtPos2(0, 7);
 
   pair<SGSide, SGSide> hooks = snpHandler.createSNP(srcDNA, tgtDNA, 2, 3,
+                                                    halSeq,
                                                     srcPos, tgtPos,
-                                                    false, &lookup);
+                                                    false, &lookup, &mapBack);
 
   cout << "outhooks " << hooks.first << " , " << hooks.second << endl;
   
@@ -144,6 +149,8 @@ void snpHandlerOverlapSNPTest(CuTest *tc)
   SideGraph sg;
   sg.addSequence(new SGSequence(-1, 100, "Seq0"));
   SGLookup lookup;
+  SNPHandler::SequenceMapBack mapBack;
+  const hal::Sequence* halSeq = NULL;
   vector<string> seqNames;
   seqNames.push_back("Seq0");
   seqNames.push_back("Seq1");
@@ -161,30 +168,38 @@ void snpHandlerOverlapSNPTest(CuTest *tc)
   
   SGPosition srcPos(1, 0);
   SGPosition tgtPos(0, 0);
-  snpHandler.createSNP(dna0, dnaTgt, 0, 2, srcPos, tgtPos, false, &lookup);
+  snpHandler.createSNP(dna0, dnaTgt, 0, 2, halSeq, srcPos, tgtPos, false,
+                       &lookup, &mapBack);
   srcPos.setPos(5);
   tgtPos.setPos(5);
-  snpHandler.createSNP(dna0, dnaTgt, 5, 1, srcPos, tgtPos, false, &lookup);
+  snpHandler.createSNP(dna0, dnaTgt, 5, 1, halSeq, srcPos, tgtPos, false,
+                       &lookup, &mapBack);
   srcPos.setPos(9);
   tgtPos.setPos(9);
-  snpHandler.createSNP(dna0, dnaTgt, 9, 3, srcPos, tgtPos, false, &lookup);
+  snpHandler.createSNP(dna0, dnaTgt, 9, 3, halSeq, srcPos, tgtPos, false,
+                       &lookup, &mapBack);
 
   srcPos = SGPosition(2, 0);
   tgtPos = SGPosition(0, 0);
-  snpHandler.createSNP(dna1, dnaTgt, 0, 1, srcPos, tgtPos, false, &lookup);
+  snpHandler.createSNP(dna1, dnaTgt, 0, 1, halSeq, srcPos, tgtPos, false,
+                       &lookup, &mapBack);
   srcPos.setPos(4);
   tgtPos.setPos(4);
-  snpHandler.createSNP(dna1, dnaTgt, 4, 3, srcPos, tgtPos, false, &lookup);
+  snpHandler.createSNP(dna1, dnaTgt, 4, 3, halSeq, srcPos, tgtPos, false,
+                       &lookup, &mapBack);
   srcPos.setPos(11);
   tgtPos.setPos(11);
-  snpHandler.createSNP(dna1, dnaTgt, 11, 2, srcPos, tgtPos, false, &lookup);
+  snpHandler.createSNP(dna1, dnaTgt, 11, 2, halSeq, srcPos, tgtPos, false,
+                       &lookup, &mapBack);
 
   srcPos = SGPosition(3, 0);
   tgtPos = SGPosition(0, 0);
-  snpHandler.createSNP(dna2, dnaTgt, 0, 2, srcPos, tgtPos, false, &lookup);
+  snpHandler.createSNP(dna2, dnaTgt, 0, 2, halSeq, srcPos, tgtPos, false,
+                       &lookup, &mapBack);
   srcPos.setPos(6);
   tgtPos.setPos(6);
-  snpHandler.createSNP(dna2, dnaTgt, 6, 7, srcPos, tgtPos, false, &lookup);
+  snpHandler.createSNP(dna2, dnaTgt, 6, 7, halSeq, srcPos, tgtPos, false,
+                       &lookup, &mapBack);
 
   // the snps were added in this order (x's for duplicates).  so we
   // expect the sequence ids that were created to correspond to these
