@@ -88,7 +88,7 @@ int main(int argc, char** argv)
     {
       throw hal_exception("--rootGenome and --targetGenomes options are "
                           "mutually exclusive");
-    }
+    }    
   }
   catch(exception& e)
   {
@@ -98,6 +98,16 @@ int main(int argc, char** argv)
   }
   try
   {
+    // TEMP
+    if (refGenomeName != "\"\"" || rootGenomeName != "\"\"" ||
+        refSequenceName != "\"\"" ||
+        start != 0 || length != 0 || noAncestors == true)
+    {
+      throw hal_exception("The following options are disabled in this release:"
+                          "\n--refGenome\n--rootGenome\n--refSeqeunce\n--start"
+                          "\n--length\n--noAncestors");
+    }
+    
     ofstream fastaStream(fastaPath.c_str());
     if (!fastaStream)
     {
