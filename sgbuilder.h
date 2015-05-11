@@ -10,6 +10,7 @@
 #include "hal.h"
 #include "sidegraph.h"
 #include "sglookup.h"
+#include "snphandler.h"
 
 /*
  * Iteratively add genomes from a HAL file to our SideGraph. 
@@ -131,7 +132,7 @@ protected:
     * The interval maps from the new SOURCE genome to a TARGET genome
     * that is already in the side graph. 
     */
-   void processBlock(Block* prevBlock,
+   void mapBlockEnds(Block* prevBlock,
                      Block* block,
                      Block* nextBlock,
                      SGSide& prevHook,
@@ -144,18 +145,21 @@ protected:
    /** Add a block, breaking apart for SNPs. only add joins that are
     * contained in the block.  Update the endpoints if needed (as result of 
     * snps) */
-   void mapBlockSnps(const Block*, std::pair<SGSide, SGSide>& blockEnds);
+   std::pair<SGSide, SGSide>
+   mapBlockBody(const Block*, const std::pair<SGSide, SGSide>& blockEnds);
 
    /** Add a slice of a block.  Either every base is a snp (snp==true) or
     * no bases are a snp.  hook on the previous hook. */
-   std::pair<SGSide, SGSide> mapSliceSnps(const Block* block,
-                                          hal_index_t srcStartOffset,
-                                          hal_index_t srcEndOffset,
-                                          bool snp, SGSide& hook,
-                                          bool sgForwardMap,
-                                          const std::string& srcDNA,
-                                          const std::string& tgtDNA);
-
+   std::pair<SGSide, SGSide>
+   mapBlockSlice(const Block* block,
+                 const std::pair<SGSide, SGSide>& blockEnds,
+                 hal_index_t srcStartOffset,
+                 hal_index_t srcEndOffset,
+                 bool snp,
+                 bool sgForwardMap,
+                 const std::string& srcDNA,
+                 const std::string& tgtDNA);
+   
    /**
     * Don't want to deal with the mapped block fragments all the time. 
     * code to read into struct here. 
@@ -196,6 +200,7 @@ protected:
    size_t _pathLength;
    std::string _firstGenomeName;
    std::vector<const hal::Sequence*> _halSequences;
+   SNPHandler* _snpHandler;
 
    friend std::ostream& operator<<(std::ostream& os, const Block* block);
 

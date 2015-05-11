@@ -13,7 +13,8 @@ using namespace std;
 using namespace hal;
 
 SGBuilder::SGBuilder() : _sg(0), _root(0), _lookup(0), _mapMrca(0),
-                         _referenceDupes(true), _noSubMode(false)
+                         _referenceDupes(true), _noSubMode(false),
+                         _snpHandler(0)
 {
 
 }
@@ -32,6 +33,7 @@ void SGBuilder::init(AlignmentConstPtr alignment, const Genome* root,
   _root = root;
   _referenceDupes = referenceDupes;
   _noSubMode = noSubMode;
+  _snpHandler = new SNPHandler(_sg);
 }
 
 void SGBuilder::clear()
@@ -50,6 +52,8 @@ void SGBuilder::clear()
   _mapMrca = NULL;
   _firstGenomeName.erase();
   _halSequences.clear();
+  delete _snpHandler;
+  _snpHandler = NULL;
 }
 
 const SideGraph* SGBuilder::getSideGraph() const
@@ -259,8 +263,8 @@ SGSequence* SGBuilder::createSGSequence(const Sequence* sequence,
        << ", " << startOffset << " l=" << length << endl;
 
   _lookup->addInterval(SGPosition(halSequenceID, startOffset),
-                      SGPosition(sgSeq->getID(), 0),
-                      length, false);
+                       SGPosition(sgSeq->getID(), 0),
+                       length, false);
 
   return sgSeq;
 }
@@ -268,44 +272,19 @@ SGSequence* SGBuilder::createSGSequence(const Sequence* sequence,
 const SGJoin* SGBuilder::createSGJoin(const SGSide& side1, const SGSide& side2)
 {
   SGJoin* join = new SGJoin(side1, side2);
-  return _sg->addJoin(join);
-
-  // if two consecutive joins are end to end, we merge into a single join
-  if (_lastJoin != NULL && _lastJoin->getSide2() == join->getSide1())
-  {
-    join->setSide1(_lastJoin->getSide1());
-    assert(join->getSide2() != join->getSide1());
-    delete _lastJoin;
-    _lastJoin = NULL;
-  }
-  
-  // write the last join
-  if (_lastJoin != NULL)
-  {
-    //const SGJoin* j = _sg->addJoin(_lastJoin);
-    cout << "add join " << *_lastJoin << endl;
-    // add two steps to our path.
-    // note: once last join's in the side graph, we've lost all
-    // control of it.  
-    _lastJoin = NULL;
-  }
 
   // filter trivial join
-  if (abs(join->getSide1().getBase().getPos() -
+/*  if (abs(join->getSide1().getBase().getPos() -
           join->getSide2().getBase().getPos()) == 1 &&
       join->getSide1().getForward() !=
       join->getSide2().getForward())
   {
     cout << "filter trivial " << *join << endl;
     delete join;
-    join = NULL;
+    return NULL;
   }
-  else
-  {
-    _lastJoin = join;
-  }
-  
-  return join;
+*/
+  return _sg->addJoin(join);
 }
 
 void SGBuilder::mapSequence(const Sequence* sequence,
@@ -373,7 +352,7 @@ void SGBuilder::mapSequence(const Sequence* sequence,
     for (set<const Genome*>::iterator i = _mapPath.begin();
          i != _mapPath.end(); ++i)
     {
-       cout << (*i)->getName() << ", ";
+      cout << (*i)->getName() << ", ";
     }
     cout << endl;
     /////
@@ -416,7 +395,7 @@ void SGBuilder::mapSequence(const Sequence* sequence,
     if (blocks.empty() == true)
     {
       // case with zero mapped blocks.  entire segment will be insertion. 
-      processBlock(NULL, NULL, NULL, prevHook, sequence,
+      mapBlockEnds(NULL, NULL, NULL, prevHook, sequence,
                    genome, sequenceStart, sequenceEnd, target);
     }
     else
@@ -434,12 +413,12 @@ void SGBuilder::mapSequence(const Sequence* sequence,
         cutback = block == NULL ? cutback + 1 : 0;
         if (block != NULL)
         {
-          processBlock(prev, block, next, prevHook, sequence,
-                        genome, sequenceStart, sequenceEnd, target);
+          mapBlockEnds(prev, block, next, prevHook, sequence,
+                       genome, sequenceStart, sequenceEnd, target);
         }
       }
       // add insert at end / last step in path
-      processBlock(blocks.back(), NULL, NULL, prevHook, sequence,
+      mapBlockEnds(blocks.back(), NULL, NULL, prevHook, sequence,
                    genome, sequenceStart, sequenceEnd, target);
     }
     for (size_t j = 0; j < blocks.size(); ++j)
@@ -456,7 +435,7 @@ void SGBuilder::mapSequence(const Sequence* sequence,
 }
 
 
-void SGBuilder::processBlock(Block* prevBlock,
+void SGBuilder::mapBlockEnds(Block* prevBlock,
                              Block* block,
                              Block* nextBlock,
                              SGSide& prevHook,
@@ -501,7 +480,7 @@ void SGBuilder::processBlock(Block* prevBlock,
     // handle insertion (source sequence not mapped to target)
     // insert new sequence for gap between prevBock and block
     SGSequence* insertSeq = createSGSequence(srcSequence, prevSrcPos + 1, 
-                                              srcPos - prevSrcPos - 1);
+                                             srcPos - prevSrcPos - 1);
     
     // join it on end of last inserted side graph position
     SGSide seqHook(SGPosition(insertSeq->getID(), 0), false);
@@ -554,34 +533,20 @@ void SGBuilder::processBlock(Block* prevBlock,
       blockEnds.second.setForward(true);
     }
 
-    // we map our source block to the interval in the lookup
-    // we add the source segment to our lookup structure to map
-    // it back to side graph.  this lookup structure is snp
-    // ignorant -- ie snp information kept in separate mapping structure
-    // at least for now.
-    SGPosition newHalPosition((sg_seqid_t)block->_srcSeq->getArrayIndex(),
-                              block->_srcStart);
-    SGPosition tgtHalPosition((sg_seqid_t)block->_tgtSeq->getArrayIndex(),
-                              block->_tgtStart);
-
-    _lookup->addInterval(newHalPosition, tgtHalPosition, blockLength,
-                         block->_reversed);
-
     // we've found how our block fits into the graph (blockEnds).  Now
     // we need to map the inside of the block.  this means processing
     // all the snps, as well as making sure the lookup structure is
     // updated.
-    pair<SGSide, SGSide> tempCheck = blockEnds;
-    if (_noSubMode == false)
-    {
-      mapBlockSnps(block, blockEnds);
-    }
+    pair<SGSide, SGSide> mappedBlockEnds =  mapBlockBody(block, blockEnds);
+ 
     cout << "BE " << blockEnds.first << ", " << blockEnds.second << endl;
-    cout << "TC " << tempCheck.first << ", " << tempCheck.second << endl;
-    assert(tempCheck == blockEnds);
+    cout << "TC " << mappedBlockEnds.first << ", " << mappedBlockEnds.second
+         << endl;
+    assert(mappedBlockEnds == blockEnds);
 
     _pathLength += blockLength;
-    assert(blockEnds.first.lengthTo(blockEnds.second) == blockLength);
+    assert(mappedBlockEnds.first.lengthTo(mappedBlockEnds.second) ==
+           blockLength);
     
     if (prevHook.getBase() != SideGraph::NullPos)
     {
@@ -591,12 +556,12 @@ void SGBuilder::processBlock(Block* prevBlock,
       if (isSelfBlock(*block) == false)
       {
         // we now know enough to join to prevBlock
-        createSGJoin(prevHook, blockEnds.first);
+        createSGJoin(prevHook, mappedBlockEnds.first);
       }
     }
       
     // our new hook is the end of the last join
-    prevHook = blockEnds.second;
+    prevHook = mappedBlockEnds.second;
   }    
   if (block == NULL)
   {
@@ -610,19 +575,20 @@ void SGBuilder::processBlock(Block* prevBlock,
   }
 }
 
-void SGBuilder::mapBlockSnps(const Block* block,
-                             pair<SGSide, SGSide>& blockEnds)
-{  
-  // now we're going to slice the block up according to snps.  slices will
-  // be runs of positions that either are all snps or all not snps.
-  // for each slice, we need to
+pair<SGSide, SGSide>
+SGBuilder::mapBlockBody(const Block* block,
+                        const pair<SGSide, SGSide>& blockEnds)
+{
+  // note to self:  block is the pairwise HAL alignment
+  //                blockEnds are the endpoints in the Side Graph
   hal_index_t length = block->_srcEnd - block->_srcStart + 1;
   string srcDNA;
   string tgtDNA;
   block->_srcSeq->getSubString(srcDNA, block->_srcStart, length);
   block->_tgtSeq->getSubString(tgtDNA, block->_tgtStart, length);
+  pair<SGSide, SGSide> outBlockEnds = blockEnds;
 
-  SGSide hook(blockEnds.first);
+  SGSide prevHook(blockEnds.first);
   bool sgForwardMap = blockEnds.first <= blockEnds.second; 
   bool runningSnp = false;
 
@@ -631,6 +597,11 @@ void SGBuilder::mapBlockSnps(const Block* block,
   char srcVal;
   char tgtVal;
   hal_index_t bp = 0;
+
+  // slice block into runs of consecutive SNPs and the regions in between
+  // ex:  AACGTATAC
+  //      ACCGTGGAG
+  // would translate to 5 slices: 123334455
   for (hal_index_t i = 0; i < length; ++i)
   {
     srcPos =  block->_srcStart + i;
@@ -645,76 +616,130 @@ void SGBuilder::mapBlockSnps(const Block* block,
       tgtPos = block->_tgtEnd - i;
       tgtVal = reverseComplement(tgtDNA[tgtDNA.size() - 1 - i]);
     }
-    bool snp = isSubstitution(srcVal, tgtVal);
-    if (snp == true)
-    {
-      cout << "snp " << srcVal << "->" << tgtVal << " at srcpos "
-           << srcPos << " tgt[ops " << tgtPos << " rev " << block->_reversed
-           <<endl;
-      cout << "srcDNA " << srcDNA << endl;
-      cout << "tgtDNA " << tgtDNA << endl;
+    bool snp = !_noSubMode && isSubstitution(srcVal, tgtVal);
 
-    }
-    assert(snp == false);
     if (i > 0 && snp != runningSnp)
     {
-      pair<SGSide, SGSide> fragEnds = mapSliceSnps(block, bp, i - 1, snp, hook,
-                                                   sgForwardMap, srcDNA,
-                                                   tgtDNA);
+      pair<SGSide, SGSide> sliceEnds = mapBlockSlice(block, blockEnds,
+                                                     bp, i - 1,
+                                                     snp, sgForwardMap, srcDNA,
+                                                     tgtDNA);
       if (bp == 0)
       {
-        blockEnds.first = fragEnds.first;
+        outBlockEnds.first = sliceEnds.first;
       }
-      hook = fragEnds.second;
+      else
+      {
+        createSGJoin(prevHook, sliceEnds.first);
+      }
+      prevHook = sliceEnds.second;
       bp = i;
     }
     if (i == length - 1)
     {
-      pair<SGSide, SGSide> fragEnds = mapSliceSnps(block, bp, i, snp, hook,
-                                                   sgForwardMap, srcDNA,
-                                                   tgtDNA);
+      pair<SGSide, SGSide> sliceEnds = mapBlockSlice(block, blockEnds, bp, i,
+                                                     snp, sgForwardMap, srcDNA,
+                                                     tgtDNA);
       if (bp == 0)
       {
-        blockEnds.first = fragEnds.first;
+        outBlockEnds.first = sliceEnds.first;
       }
-      blockEnds.second = fragEnds.second;
-      hook = fragEnds.second;
+      else
+      {
+        createSGJoin(prevHook, sliceEnds.first);
+      }
+      outBlockEnds.second = sliceEnds.second;
+      prevHook = sliceEnds.second;
     }
+    
     runningSnp = snp;
   }
+
+  return outBlockEnds;
 }
 
-pair<SGSide, SGSide> SGBuilder::mapSliceSnps(const Block* block,
-                                             hal_index_t srcStartOffset,
-                                             hal_index_t srcEndOffset,
-                                             bool snp, SGSide& hook,
-                                             bool sgForwardMap,
-                                             const string& srcDNA,
-                                             const string& tgtDNA)
+pair<SGSide, SGSide>
+SGBuilder::mapBlockSlice(const Block* block,
+                         const pair<SGSide, SGSide>& blockEnds,
+                         hal_index_t srcStartOffset,
+                         hal_index_t srcEndOffset,
+                         bool snp, 
+                         bool sgForwardMap,
+                         const string& srcDNA,
+                         const string& tgtDNA)
 {
   //cout << "slice " << srcStartOffset << " - " << srcEndOffset;
-  // todo: we need to handle snps here. 
+  // todo: we need to handle snps here.
 
-  SGSide start(hook);
-  SGPosition pos = start.getBase();
-  pos.setPos(pos.getPos() + (srcStartOffset == 0 ? 0 : 1));
-  start.setBase(pos);
-  pair<SGSide, SGSide> sliceEnds(start, start);
-  
-  if (sgForwardMap)
+  SGPosition srcHalPosition((sg_seqid_t)block->_srcSeq->getArrayIndex(),
+                            block->_srcStart + srcStartOffset);
+  SGPosition tgtHalPosition((sg_seqid_t)block->_tgtSeq->getArrayIndex(),
+                            block->_tgtStart + srcStartOffset);
+  sg_int_t blockLength = srcEndOffset - srcStartOffset + 1;
+
+  pair<SGSide, SGSide> outEnds = blockEnds;
+  bool reversed = blockEnds.second < blockEnds.first;
+
+  //if (snp == false)
   {
-    pos.setPos(pos.getPos() + (srcEndOffset - srcStartOffset));
+    SGPosition startPos = blockEnds.first.getBase();
+    SGPosition endPos = blockEnds.second.getBase();
+    cout << "startPos " << startPos << "  endPos " << endPos << endl;
+    if (reversed == false)
+    {
+      startPos.setPos(startPos.getPos() + srcStartOffset);
+      endPos.setPos(startPos.getPos() + blockLength - 1);
+    }
+    else
+    {
+      startPos.setPos(startPos.getPos() - srcStartOffset);
+      endPos.setPos(startPos.getPos() - blockLength + 1);
+    }
+    outEnds.first.setBase(startPos);
+    outEnds.second.setBase(endPos);
+
+    _lookup->addInterval(srcHalPosition, (reversed ? endPos : startPos),
+                         blockLength, block->_reversed);
   }
+/*
   else
   {
-    pos.setPos(pos.getPos() - (srcEndOffset - srcStartOffset));
-  }
-  sliceEnds.second.setBase(pos);
-  sliceEnds.second.setForward(sgForwardMap);
-  cout << " -> " << sliceEnds.second << endl;
-  return sliceEnds;
-}
+    //assert(false);
+  
+    pair<SGSide, SGSide> snpHooks = _snpHandler->createSNP(
+      srcDNA,
+      tgtDNA,
+      srcStartOffset,
+      srcEndOffset - srcStartOffset + 1,
+    
+      !sgForwardMap,
+      _lookup);
+    return snpHooks;
+                                                        
+  
 
+    SGSide start(hook);
+    SGPosition pos = start.getBase();
+    pos.setPos(pos.getPos() + (srcStartOffset == 0 ? 0 : 1));
+    start.setBase(pos);
+    pair<SGSide, SGSide> sliceEnds(start, start);
+  
+    if (sgForwardMap)
+    {
+      pos.setPos(pos.getPos() + (srcEndOffset - srcStartOffset));
+    }
+    else
+    {
+      pos.setPos(pos.getPos() - (srcEndOffset - srcStartOffset));
+    }
+    sliceEnds.second.setBase(pos);
+    sliceEnds.second.setForward(sgForwardMap);
+    cout << " -> " << sliceEnds.second << endl;
+
+  }
+*/
+  return outEnds;
+}
 
 
 

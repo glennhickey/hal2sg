@@ -529,6 +529,95 @@ void EmptySequenceTest::createCallBack(AlignmentPtr alignment)
   }
 }
 
+///////////////////////////////////////////////////////////////////////////
+//
+//            SNP TEST
+//
+///////////////////////////////////////////////////////////////////////////
+
+struct SNPTest : public AlignmentTest
+{
+   void createCallBack(hal::AlignmentPtr alignment);
+   void checkCallBack(hal::AlignmentConstPtr alignment);
+};
+
+void SNPTest::createCallBack(AlignmentPtr alignment)
+{
+  hal_size_t alignmentSize = alignment->getNumGenomes();
+  CuAssertTrue(_testCase, alignmentSize == 0);
+  
+  Genome* ancGenome = alignment->addRootGenome("AncGenome", 0);
+  Genome* leaf1Genome = alignment->addLeafGenome("Leaf1", "AncGenome", 0.1);
+
+  vector<Sequence::Info> seqVec(1);
+  seqVec[0] =Sequence::Info("AncSequence", 100, 0, 10);
+  ancGenome->setDimensions(seqVec);
+
+  seqVec[0] =Sequence::Info("LeafSequence", 100, 10, 0);
+  leaf1Genome->setDimensions(seqVec);
+
+  string dna = randDNA(ancGenome->getSequenceLength());
+  string leafdna = dna;
+  
+  // Spike in point mutation from A->C at position 5
+  dna[5] = 'A';
+  leafdna[5] = 'C';
+  
+  ancGenome->setString(dna);
+  leaf1Genome->setString(leafdna);
+
+  TopSegmentIteratorPtr top = leaf1Genome->getTopSegmentIterator();
+  BottomSegmentIteratorPtr bottom = ancGenome->getBottomSegmentIterator();
+
+  for (size_t i = 0; i < ancGenome->getNumBottomSegments(); ++i)
+  {
+    bottom->setTopParseIndex(NULL_INDEX);
+    bottom->setChildIndex(0, i);
+    bottom->setChildReversed(0, false);
+    bottom->setCoordinates(i * 10, 10);
+    top->setBottomParseIndex(NULL_INDEX);
+    top->setParentIndex(i);
+    top->setCoordinates(i * 10, 10);
+    top->setParentReversed(false);
+    top->setNextParalogyIndex(NULL_INDEX);
+    bottom->toRight();
+    top->toRight();
+  }
+}
+
+void SNPTest::checkCallBack(AlignmentConstPtr alignment)
+{
+  validateAlignment(alignment);
+
+  const Genome* ancGenome = alignment->openGenome("AncGenome");
+
+  SGBuilder sgBuild;
+  
+  sgBuild.init(alignment, ancGenome, false, false);
+  sgBuild.addGenome(ancGenome);
+  const Genome* leaf1Genome = alignment->openGenome("Leaf1");
+  sgBuild.addGenome(leaf1Genome);
+
+  const SideGraph* sg = sgBuild.getSideGraph();
+
+  cout << *sg << endl;
+
+}
+
+void sgBuilderSNPTest(CuTest *testCase)
+{
+  try
+  {
+    SNPTest tester;
+    tester.check(testCase);
+  }
+  catch (...) 
+  {
+    CuAssertTrue(testCase, false);
+  }
+}
+
+
 void EmptySequenceTest::checkCallBack(AlignmentConstPtr alignment)
 {
   validateAlignment(alignment);
@@ -582,5 +671,6 @@ CuSuite* sgBuildTestSuite(void)
   SUITE_ADD_TEST(suite, sgBuilderInversion2Test);
   SUITE_ADD_TEST(suite, sgBuilderInsertionTest);
   SUITE_ADD_TEST(suite, sgBuilderEmptySequenceTest);
+  SUITE_ADD_TEST(suite, sgBuilderSNPTest);
   return suite;
 }
