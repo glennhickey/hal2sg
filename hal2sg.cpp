@@ -15,7 +15,7 @@
 using namespace std;
 using namespace hal;
 
-
+static bool isCamelHal(AlignmentConstPtr aligment);
 
 static CLParserPtr initParser()
 {
@@ -129,6 +129,14 @@ int main(int argc, char** argv)
       throw hal_exception("hal alignmenet is empty");
     }
 
+    // TEMP
+    if (alignment->getNumGenomes() !=
+        alignment->getChildNames(alignment->getRootName()).size() + 1)
+    {
+       throw hal_exception("Only star HAL topologies are supported in this "
+                           "release");
+    }
+
     // root is specified either by the parameter or as the alignment root
     // by default
     const Genome* rootGenome = NULL;
@@ -226,8 +234,14 @@ int main(int argc, char** argv)
       }
     }
 
+    bool camelMode = isCamelHal(alignment);
+    if (camelMode)
+    {
+      cout << "CAMEL output detected.  Will infer root sequence "
+           << "from children" << endl;
+    }
     SGBuilder sgbuild;
-    sgbuild.init(alignment, rootGenome, false, true);
+    sgbuild.init(alignment, rootGenome, false, isCamelHal(alignment));
     // add the reference genome
     sgbuild.addGenome(refGenome, refSequence, start, length);
 
@@ -257,3 +271,28 @@ int main(int argc, char** argv)
   catch(int e) {}
   return 0;
 }
+
+/** CAMEL writes the root's DNA sequence as N's.  This screws up SNP detection
+ * in the conversion when the root is used as the first anchor.  So we run a
+ * check here to see if the root's all N's, if it is we set the camel flag
+ * in sgbuilder to tell it to infer the root from its children (possible as
+ * there are no substitutions in CAMEL HAL files */
+bool isCamelHal(AlignmentConstPtr alignment)
+{
+  const Genome* rootGenome = alignment->openGenome(alignment->getRootName());
+  if (rootGenome->getSequenceLength() == 0)
+  {
+    return false;
+  }
+  DNAIteratorConstPtr dnaIt = rootGenome->getDNAIterator();
+  DNAIteratorConstPtr end = rootGenome->getDNAEndIterator();
+  for (; !dnaIt->equals(end); dnaIt->toRight())
+  {
+    if (toupper(dnaIt->getChar()) != 'N')
+    {
+      return false;
+    }
+  }
+  return true;
+}
+

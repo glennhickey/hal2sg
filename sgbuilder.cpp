@@ -15,7 +15,7 @@ using namespace std;
 using namespace hal;
 
 SGBuilder::SGBuilder() : _sg(0), _root(0), _lookup(0), _mapMrca(0),
-                         _referenceDupes(true), _noSubMode(false),
+                         _referenceDupes(true), _camelMode(false),
                          _snpHandler(0)
 {
 
@@ -27,14 +27,14 @@ SGBuilder::~SGBuilder()
 }
 
 void SGBuilder::init(AlignmentConstPtr alignment, const Genome* root,
-                     bool referenceDupes, bool noSubMode)
+                     bool referenceDupes, bool camelMode)
 {
   clear();
   _alignment = alignment;
   _sg = new SideGraph();
   _root = root;
   _referenceDupes = referenceDupes;
-  _noSubMode = noSubMode;
+  _camelMode = camelMode;
   _snpHandler = new SNPHandler(_sg);
 }
 
@@ -73,7 +73,7 @@ size_t SGBuilder::getSequenceString(const SGSequence* sgSequence,
   const Sequence* halSeq = i->second.first;
   hal_index_t halPos = i->second.second;
   hal_index_t len = length == -1 ? sgSequence->getLength() : length;
-  if (_noSubMode == true && halSeq->getGenome()->getParent() == NULL)
+  if (_camelMode == true && halSeq->getGenome()->getParent() == NULL)
   {
     // adams root has not sequence. we infer it from children as a hack.
     getRootSubString(outString, halSeq, halPos + pos, len);
@@ -200,6 +200,8 @@ void SGBuilder::addGenome(const Genome* genome,
     if (curStart <= curEnd)
     {
       mapSequence(curSequence, curStart, curEnd, target);
+      cout << "SNP COUNT AFTER " << curSequence->getFullName()
+           << ": " << _snpHandler->getSNPCount() << endl;
       _halSequences.push_back(curSequence);
     }
   }
@@ -615,7 +617,7 @@ SGBuilder::mapBlockBody(const Block* block,
       tgtPos = block->_tgtEnd - i;
       tgtVal = reverseComplement(tgtDNA[tgtDNA.size() - 1 - i]);
     }
-    bool snp = !_noSubMode && isSubstitution(srcVal, tgtVal);
+    bool snp = !_camelMode && isSubstitution(srcVal, tgtVal);
 
     if (i > 0 && snp != runningSnp)
     {
@@ -816,7 +818,7 @@ bool SGBuilder::verifyPath(const Sequence* sequence,
     }
   }
 
-  if (_noSubMode == true && sequence->getGenome()->getParent() == NULL)
+  if (_camelMode == true && sequence->getGenome()->getParent() == NULL)
   {
     getRootSubString(buffer, sequence, 0, sequence->getSequenceLength());
   }

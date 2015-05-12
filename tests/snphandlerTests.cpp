@@ -264,8 +264,64 @@ void snpHandlerOverlapSNPTest(CuTest *tc)
   CuAssertTrue(tc, joinSet->size() == 3);
 }
 
-/** easiest case: we add a single SNP
+/** next case: we test reverse complement mapping
  */
+void snpHandlerInversionSNPTest(CuTest *tc)
+{
+  SideGraph sg;
+  sg.addSequence(new SGSequence(-1, 100, "Seq0"));
+  SGLookup lookup;
+  SNPHandler::SequenceMapBack mapBack;
+  const hal::Sequence* halSeq = NULL;
+  vector<string> seqNames;
+  seqNames.push_back("Seq0");
+  seqNames.push_back("Seq1");
+  seqNames.push_back("Seq2");
+  seqNames.push_back("Seq3");  
+  lookup.init(seqNames);
+  SNPHandler snpHandler(&sg);
+
+  // single SNP reverse map
+  SGPosition srcPos(1, 50);
+  SGPosition tgtPos(0, 50);
+  std::pair<SGSide, SGSide> ret1 = snpHandler.createSNP("A", "G", 0, 1, halSeq,
+                                                        srcPos, tgtPos, true,
+                                                        &lookup, &mapBack);
+  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,50), 'A').getSeqID() == 1);
+  // note: tgt position (input g) is reverse complemented in the structure
+  // and needs to be looked up as C
+  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,50), 'C').getSeqID() == 0);
+  // note: the snp sequence added is walked in the forward direction
+  // maybe something to change. 
+  CuAssertTrue(tc, ret1.first == SGSide(SGPosition(1, 0), false));
+  CuAssertTrue(tc, ret1.second == SGSide(SGPosition(1, 0), true));
+
+  // multi SNP reverse map
+  srcPos.setPos(60);
+  tgtPos.setPos(60);
+  std::pair<SGSide, SGSide> ret2 = snpHandler.createSNP("AACTTC", "CCGTTT", 2,
+                                                        3, halSeq,
+                                                        srcPos, tgtPos, true,
+                                                        &lookup, &mapBack);
+  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,60), 'C').getSeqID() == 2);
+  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,59), 'T').getSeqID() == 2);
+  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,58), 'T').getSeqID() == 2);
+
+  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,60), 'A').getSeqID() == 0);
+  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,59), 'C').getSeqID() == 0);
+  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,58), 'G').getSeqID() == 0);  
+  CuAssertTrue(tc, ret2.first == SGSide(SGPosition(2, 0), false));
+  CuAssertTrue(tc, ret2.second == SGSide(SGPosition(2, 2), true));
+
+  
+  // todo: add overlap cases
+  srcPos.setPos(62);
+  tgtPos.setPos(58);
+//  std::pair<SGSide, SGSide> ret2 = snpHandler.createSNP("AACTTC", "CCGTTT", 2,
+//                                                        3, halSeq,
+//                                                        srcPos, tgtPos, true,
+ //                                                       &lookup, &mapBack);
+}
 
 CuSuite* snpHandlerTestSuite(void) 
 {
@@ -274,5 +330,6 @@ CuSuite* snpHandlerTestSuite(void)
   SUITE_ADD_TEST(suite, snpHandlerSingleSNPTest);
   SUITE_ADD_TEST(suite, snpHandlerMultibaseSNPTest);
   SUITE_ADD_TEST(suite, snpHandlerOverlapSNPTest);
+  SUITE_ADD_TEST(suite, snpHandlerInversionSNPTest);
   return suite;
 }

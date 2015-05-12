@@ -25,20 +25,18 @@ To run the converter:
 
 * **None of the options except `--targetGenomes` (and the standard HAL caching options) work.**
 * Please ignore voluminous garbage printed to stdout.
-* SQL output needs work.  Obvious things are directly updating db; verifying use of references, variants etc.
 
-## sorry state of affairs (Update April 15)
+## sorry state of affairs (Update May 12)
 
 `hal2sg` only works on input of this form:
-* **Mutation free:** ie as produced by Adam's pipeline
 * **Root reference:** root genome used as initial side graph sequence.
-* **Star Tree**
+* **Star Tree** all other genomes children of root. 
 
 ## next updates
 
-* Cactus graphs.  Need to finish mutation support
-* Arbitrary topology and references and genome subselection.  Much is done, just need to generalize path code, and handle paralogies in insertions, and of course tests.
-
+* Non-star trees.  Only missing a unit test
+* Clean up debug output on stdout
+* Non-root reference.   There is a paralogy case that is not yet implemented that can arise when mapping up then down tree.  
 
 
 

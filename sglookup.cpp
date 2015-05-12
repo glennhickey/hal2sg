@@ -129,7 +129,7 @@ void SGLookup::getPath(const SGPosition& startPos,
   }
   // find marker >= halEnd (ie one-past what we iterate)
   PosMap::const_iterator j = pm.lower_bound(halEnd.getPos());
-  assert(j != pm.begin());
+  //assert(j != pm.begin());
   if (j->first == halEnd.getPos())
   {
     ++j;

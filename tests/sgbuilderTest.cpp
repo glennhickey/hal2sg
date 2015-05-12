@@ -775,8 +775,13 @@ void HarderSNPTest::createCallBack(AlignmentPtr alignment)
   leaf2dna[leaf2dna.length()-1] = mutate(leaf2dna[leaf2dna.length()-1], 2);
   
   // Make a reverse SNP in leaf1
-  //leaf1dna[12] = mutate(leaf1dna[12], 1);
-  //leaf1dna[13] = mutate(leaf1dna[13], 1);
+  leaf1dna[12] = mutate(leaf1dna[12], 1);
+  leaf1dna[13] = mutate(leaf1dna[13], 1);
+
+  // Overlap a SNP on leaf2
+  leaf2dna[37] = mutate(leaf2dna[37], 2);
+  leaf2dna[38] = mutate(leaf2dna[38], 2);
+  leaf2dna[39] = mutate(leaf2dna[39], 2);
   
   leaf1Genome->setString(leaf1dna);
   leaf2Genome->setString(leaf2dna);
@@ -804,6 +809,9 @@ void HarderSNPTest::checkCallBack(AlignmentConstPtr alignment)
   {
     vector<SGSegment> path;
     sgBuild.getHalSequencePath(halSequences[i], path);
+    cout << "PATH " << halSequences[i]->getFullName() << endl;
+    for (size_t temp = 0; temp < path.size(); ++temp)
+       cout << path[temp] << " ";
     CuAssertTrue(_testCase, sgBuild.verifyPath(halSequences[i], path) == true);
   }
 
@@ -814,20 +822,27 @@ void HarderSNPTest::checkCallBack(AlignmentConstPtr alignment)
   // sequence 2 : length 5 mutation in leaf1
   sequence = sg->getSequence(2);
   CuAssertTrue(_testCase, sequence->getLength() == 5);
-  // sequence 3 : length 1 mutation at leaf2[0]
+  // sequence 3 : length 2 mutation in snp in leaf1
   sequence = sg->getSequence(3);
-  CuAssertTrue(_testCase, sequence->getLength() == 1);
-  // sequence 4 : length 1 mutation at leaf2[3]
-  sequence = sg->getSequence(4);
-  CuAssertTrue(_testCase, sequence->getLength() == 1);
-  // sequence 5 : length 2 mutation at leaf2[5]
-  sequence = sg->getSequence(5);
   CuAssertTrue(_testCase, sequence->getLength() == 2);
-  // sequence 6 : length 10 mutation at leaf2[10]
-  sequence = sg->getSequence(6);
+  int l2o = 4;
+  // sequence l2o : length 1 mutation at leaf2[0]
+  sequence = sg->getSequence(l2o+0);
+  CuAssertTrue(_testCase, sequence->getLength() == 1);
+  // sequence l2o+1 : length 1 mutation at leaf2[3]
+  sequence = sg->getSequence(l2o+1);
+  CuAssertTrue(_testCase, sequence->getLength() == 1);
+  // sequence l2o+2 : length 2 mutation at leaf2[5]
+  sequence = sg->getSequence(l2o+2);
+  CuAssertTrue(_testCase, sequence->getLength() == 2);
+  // sequence l2o+3 : length 10 mutation at leaf2[10]
+  sequence = sg->getSequence(l2o+3);
   CuAssertTrue(_testCase, sequence->getLength() == 10);
-  // sequence 7 : length 1 mutation at leaf2[last]
-  sequence = sg->getSequence(7);
+  // sequence l2o+4 : length 3 mutation at leaf2[37]
+  sequence = sg->getSequence(l2o+4);
+  CuAssertTrue(_testCase, sequence->getLength() == 3);
+  // sequence l2o+5 : length 1 mutation at leaf2[last]
+  sequence = sg->getSequence(l2o+5);
   CuAssertTrue(_testCase, sequence->getLength() == 1);
 
   // Should test all joins here, but if path check goes through

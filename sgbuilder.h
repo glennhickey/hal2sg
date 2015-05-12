@@ -27,7 +27,7 @@ public:
     * Set the alignment
     */
    void init(hal::AlignmentConstPtr alignment, const hal::Genome* root = NULL,
-             bool referenceDupes = true, bool noSubMode = false);
+             bool referenceDupes = true, bool camelMode = false);
 
    /**
     * Erase everything
@@ -177,8 +177,8 @@ protected:
 
       /** We are anchoring on the root genome (at least for now).  But in
        * Adams output, the root sequence is Ns which is a problem.  We 
-       * use the function as an override to map a root sequence from its children
-       * using the knowledge that there are no substitutions */
+       * use the function as an override to map a root sequence from its 
+       * children using the knowledge that there are no substitutions */
       void getRootSubString(std::string& outDNA, const hal::Sequence* sequence,
                             hal_index_t pos, hal_index_t length) const;
 
@@ -197,7 +197,7 @@ protected:
       SGJoin* _lastJoin;
       bool _inferRootSeq;
       mutable std::string _rootString;
-      bool _noSubMode;
+      bool _camelMode;
       size_t _pathLength;
       std::string _firstGenomeName;
       std::vector<const hal::Sequence*> _halSequences;
@@ -242,7 +242,8 @@ protected:
         return false;
       }
 
-   inline std::ostream& operator<<(std::ostream& os, const SGBuilder::Block* block)
+   inline std::ostream& operator<<(std::ostream& os,
+                                   const SGBuilder::Block* block)
       {
         if (block == NULL)
         {

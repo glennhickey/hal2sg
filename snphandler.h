@@ -81,6 +81,10 @@ public:
     */
    const SGPosition& getNextSNP() const;
 
+   /** Get the total length of SNP sequence created (for debugging)
+    */
+   sg_int_t getSNPCount() const;
+
 protected:
 
    void getSNPName(const SGPosition& tgtPos, const std::string& dnaString,
@@ -105,11 +109,17 @@ protected:
    SNPMap::iterator _cacheIt;
    SGPosition _cachePos;
    SideGraph* _sg;
+   size_t _snpCount;
 };
 
 
 inline SNPHandler::SNP::SNP() {}
 inline SNPHandler::SNP::SNP(const SGPosition& pos, char nuc) :
   _pos(pos), _nuc(nuc){}
+
+inline sg_int_t SNPHandler::getSNPCount() const
+{
+  return _snpCount;
+}
 
 #endif
