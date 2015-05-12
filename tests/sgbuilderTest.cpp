@@ -8,6 +8,7 @@
 #include <sstream>
 #include <ctime>
 #include <cmath>
+#include <cstdio>
 #include "halAlignmentTest.h"
 #include "unitTests.h"
 #include "sgbuilder.h"
@@ -224,19 +225,28 @@ void Inversion2Test::createCallBack(AlignmentPtr alignment)
   
   Genome* ancGenome = alignment->addRootGenome("AncGenome", 0);
   Genome* leaf1Genome = alignment->addLeafGenome("Leaf1", "AncGenome", 0.1);
-
-  vector<Sequence::Info> seqVec(2);
-  seqVec[0] =Sequence::Info("DummySequence", 30, 0, 3);
-  seqVec[1] =Sequence::Info("AncSequence", 100, 0, 10);
+  // leaf2 only used in derived test HarderSNPTest
+  Genome* leaf2Genome = alignment->addLeafGenome("Leaf2", "AncGenome", 0.1);
+  
+  vector<Sequence::Info> seqVec;
+  seqVec.push_back(Sequence::Info("DummySequence", 30, 0, 3));
+  seqVec.push_back(Sequence::Info("AncSequence", 100, 0, 10));
   ancGenome->setDimensions(seqVec);
 
-  seqVec[0] =Sequence::Info("HeadSequence", 10, 1, 0);
-  seqVec[1] =Sequence::Info("LeafSequence", 100, 10, 0);
+  seqVec.clear();
+  seqVec.push_back(Sequence::Info("HeadSequence", 10, 1, 0));
+  seqVec.push_back(Sequence::Info("LeafSequence", 100, 10, 0));
   seqVec.push_back(Sequence::Info("TailSequence", 20, 2, 0));
   leaf1Genome->setDimensions(seqVec);
+  
+  seqVec.clear();
+  seqVec.push_back(Sequence::Info("DummySequence", 30, 3, 0));
+  seqVec.push_back(Sequence::Info("Leaf2Sequence", 100, 10, 0));
+  leaf2Genome->setDimensions(seqVec);
 
   string dna = randDNA(ancGenome->getSequenceLength());
   ancGenome->setString(dna);
+  leaf2Genome->setString(dna);
   string leafdna = dna.substr(0, 10);
   string temp = dna.substr(30, 10);
   reverseComplement(temp);
@@ -251,6 +261,7 @@ void Inversion2Test::createCallBack(AlignmentPtr alignment)
   leaf1Genome->setString(leafdna);
 
   TopSegmentIteratorPtr top = leaf1Genome->getTopSegmentIterator();
+  TopSegmentIteratorPtr top2 = leaf2Genome->getTopSegmentIterator();
   BottomSegmentIteratorPtr bottom = ancGenome->getBottomSegmentIterator();
 
   vector<size_t> downMap(ancGenome->getNumBottomSegments());
@@ -273,14 +284,22 @@ void Inversion2Test::createCallBack(AlignmentPtr alignment)
     bottom->setTopParseIndex(NULL_INDEX);
     bottom->setChildIndex(0, downMap[i]);
     bottom->setChildReversed(0, false);
+    bottom->setChildIndex(1, i);
+    bottom->setChildReversed(1, false);
     bottom->setCoordinates(i * 10, 10);
     top->setBottomParseIndex(NULL_INDEX);
     top->setParentIndex(upMap[i]);
     top->setCoordinates(i * 10, 10);
     top->setParentReversed(false);
     top->setNextParalogyIndex(NULL_INDEX);
+    top2->setBottomParseIndex(NULL_INDEX);
+    top2->setParentIndex(i);
+    top2->setCoordinates(i * 10, 10);
+    top2->setParentReversed(false);
+    top2->setNextParalogyIndex(NULL_INDEX);
     bottom->toRight();
     top->toRight();
+    top2->toRight();
   }
 
   // single inversion at segment [50,59] (in ancRefSequence)
@@ -681,6 +700,159 @@ void sgBuilderSNPTest(CuTest *testCase)
   }
 }
 
+///////////////////////////////////////////////////////////////////////////
+//
+//            MORE ELABORATE SNP TEST
+//
+///////////////////////////////////////////////////////////////////////////
+
+struct HarderSNPTest : public Inversion2Test
+{
+   void createCallBack(hal::AlignmentPtr alignment);
+   void checkCallBack(hal::AlignmentConstPtr alignment);
+};
+
+static char mutate(char c, int i = 1)
+{
+  assert(i > 0 && i < 4);
+  c = toupper(c);
+  int n;
+  switch (c) {
+  case 'A' : n = 0; break;
+  case 'C' : n = 1; break;
+  case 'G' : n = 2; break;
+  default : n = 3;
+  }
+  n = (n + i) % 4;
+  char v[4] = {'A', 'C', 'G', 'T'};
+  return v[n];
+}
+
+void HarderSNPTest::createCallBack(AlignmentPtr alignment)
+{
+  Inversion2Test::createCallBack(alignment);
+
+  Genome* ancGenome = alignment->openGenome("AncGenome");
+  Genome* leaf1Genome = alignment->openGenome("Leaf1");
+  Genome* leaf2Genome = alignment->openGenome("Leaf2");
+
+  string dna;
+  ancGenome->getString(dna);
+
+  // leaf1 has: Inversion between bottom(8) and top(6) [50,59]
+  //            Dupe between top(6) and top(12)
+  //            Inversion between bottom(3) and top(1)
+  // leaf2 has: same structure as ancestor. 
+
+  string leaf2dna;
+  leaf2Genome->getString(leaf2dna);
+  assert(leaf2dna == dna);
+  string leaf1dna;
+  leaf1Genome->getString(leaf1dna);
+
+  // Make a whole segment of snps in leaf2 at segment 1
+  for (size_t i = 10; i < 20; ++i)
+  {
+    leaf2dna[i] = mutate(leaf2dna[i], 2);
+  }
+
+  // Make a paritally overlapping (forward) snp region in both leaves
+  assert(dna.substr(0, 10) == leaf2dna.substr(0, 10));
+  assert(dna.substr(0, 10) == leaf1dna.substr(0, 10));
+  leaf2dna[3] = mutate(leaf2dna[3], 2);
+  leaf2dna[4] = mutate(leaf2dna[4], 2);
+  leaf2dna[5] = mutate(leaf2dna[5], 2);
+  leaf2dna[6] = mutate(leaf2dna[6], 2);
+  leaf2dna[7] = mutate(leaf2dna[7], 2);
+  leaf1dna[3] = mutate(leaf1dna[3], 1);
+  leaf1dna[4] = mutate(leaf1dna[4], 2);
+  leaf1dna[5] = mutate(leaf1dna[5], 1);
+  leaf1dna[6] = mutate(leaf1dna[6], 1);
+  leaf1dna[7] = mutate(leaf1dna[7], 2);
+
+  // Test edge cases : start and end of sequence
+  leaf2dna[0] = mutate(leaf2dna[0], 2);
+  leaf2dna[leaf2dna.length()-1] = mutate(leaf2dna[leaf2dna.length()-1], 2);
+  
+  // Make a reverse SNP in leaf1
+  //leaf1dna[12] = mutate(leaf1dna[12], 1);
+  //leaf1dna[13] = mutate(leaf1dna[13], 1);
+  
+  leaf1Genome->setString(leaf1dna);
+  leaf2Genome->setString(leaf2dna);
+}
+
+void HarderSNPTest::checkCallBack(AlignmentConstPtr alignment)
+{
+  validateAlignment(alignment);
+
+  const Genome* ancGenome = alignment->openGenome("AncGenome");
+  const Genome* leaf1Genome = alignment->openGenome("Leaf1");
+  const Genome* leaf2Genome = alignment->openGenome("Leaf2");
+
+  SGBuilder sgBuild;
+  
+  sgBuild.init(alignment, ancGenome, false, false);
+  sgBuild.addGenome(ancGenome);
+  sgBuild.addGenome(leaf1Genome);
+  sgBuild.addGenome(leaf2Genome);
+
+  const SideGraph* sg = sgBuild.getSideGraph();
+
+  const vector<const Sequence*>& halSequences = sgBuild.getHalSequences();
+  for (size_t i = 0; i < halSequences.size(); ++i)
+  {
+    vector<SGSegment> path;
+    sgBuild.getHalSequencePath(halSequences[i], path);
+    CuAssertTrue(_testCase, sgBuild.verifyPath(halSequences[i], path) == true);
+  }
+
+  cout << *sg << endl;
+   
+  // sequence 0,1: ancestral sequences
+  const SGSequence* sequence;
+  // sequence 2 : length 5 mutation in leaf1
+  sequence = sg->getSequence(2);
+  CuAssertTrue(_testCase, sequence->getLength() == 5);
+  // sequence 3 : length 1 mutation at leaf2[0]
+  sequence = sg->getSequence(3);
+  CuAssertTrue(_testCase, sequence->getLength() == 1);
+  // sequence 4 : length 1 mutation at leaf2[3]
+  sequence = sg->getSequence(4);
+  CuAssertTrue(_testCase, sequence->getLength() == 1);
+  // sequence 5 : length 2 mutation at leaf2[5]
+  sequence = sg->getSequence(5);
+  CuAssertTrue(_testCase, sequence->getLength() == 2);
+  // sequence 6 : length 10 mutation at leaf2[10]
+  sequence = sg->getSequence(6);
+  CuAssertTrue(_testCase, sequence->getLength() == 10);
+  // sequence 7 : length 1 mutation at leaf2[last]
+  sequence = sg->getSequence(7);
+  CuAssertTrue(_testCase, sequence->getLength() == 1);
+
+  // Should test all joins here, but if path check goes through
+  // then that's enough for now. 
+  //SGJoin join;
+  //join = SGJoin(SGSide(SGPosition(0, 4), true),
+  //              SGSide(SGPosition(1, 0), false));
+  //CuAssertTrue(_testCase, sg->getJoin(&join) != NULL);
+
+ 
+}
+
+void sgBuilderHarderSNPTest(CuTest *testCase)
+{
+  //try
+  {
+    HarderSNPTest tester;
+    tester.check(testCase);
+  }
+  //catch (...) 
+  {
+    //CuAssertTrue(testCase, false);
+  }
+}
+
 
 CuSuite* sgBuildTestSuite(void) 
 {
@@ -691,5 +863,6 @@ CuSuite* sgBuildTestSuite(void)
   SUITE_ADD_TEST(suite, sgBuilderInsertionTest);
   SUITE_ADD_TEST(suite, sgBuilderEmptySequenceTest);
   SUITE_ADD_TEST(suite, sgBuilderSNPTest);
+  SUITE_ADD_TEST(suite, sgBuilderHarderSNPTest);  
   return suite;
 }

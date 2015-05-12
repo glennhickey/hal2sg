@@ -67,7 +67,7 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& srcDNA,
     }
     cout << "findSNP " << tgt << "," << srcDNA[i + dnaOffset]
          << " = " << findSNP(tgt, srcDNA[i + dnaOffset])
-         << " i=" << i << ", tgtPos=" << tgtPos << endl;
+         << " i=" << i << ", tgtPos=" << tgtPos << " rm " << reverseMap << endl;
     sgPositions[i] = findSNP(tgt, srcDNA[i + dnaOffset]);
 
     // if empty slot, we add base from tgt but dont need to
@@ -168,6 +168,8 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& srcDNA,
       pair<const SGSequence*, pair<const Sequence*, hal_index_t> >(
         _sg->getSequence(sgPositions[i].getSeqID()),
         pair<const Sequence*, hal_index_t>(halSrcSequence, pos.getPos())));
+    
+    i = j - 1;
   }
   
   // return hooks at either end to be joined by calling code to rest of
@@ -247,6 +249,7 @@ void SNPHandler::getSNPName(const SGPosition& tgtPos, const string& srcDNA,
                             sg_int_t dnaOffset, bool reverseMap, sg_int_t i,
                             string& nameBuf) const
 {
+  // TODO: RENAME USING SRC INSTAEAD OF TARGET.  
   const SGSequence* seq = _sg->getSequence(tgtPos.getSeqID());
   stringstream ss;
   ss << seq->getName() << "_" << (tgtPos.getPos() + i)

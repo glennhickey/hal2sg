@@ -543,11 +543,9 @@ void SGBuilder::mapBlockEnds(Block* prevBlock,
     cout << "BE " << blockEnds.first << ", " << blockEnds.second << endl;
     cout << "TC " << mappedBlockEnds.first << ", " << mappedBlockEnds.second
          << endl;
-    assert(mappedBlockEnds == blockEnds);
+    //assert(mappedBlockEnds == blockEnds);
 
     _pathLength += blockLength;
-    assert(mappedBlockEnds.first.lengthTo(mappedBlockEnds.second) ==
-           blockLength);
     
     if (prevHook.getBase() != SideGraph::NullPos)
     {
@@ -639,7 +637,7 @@ SGBuilder::mapBlockBody(const Block* block,
     if (i == length - 1)
     {
       pair<SGSide, SGSide> sliceEnds = mapBlockSlice(block, blockEnds, bp, i,
-                                                     runningSnp, sgForwardMap,
+                                                     snp, sgForwardMap,
                                                      srcDNA, tgtDNA);
       if (bp == 0)
       {
@@ -708,7 +706,7 @@ SGBuilder::mapBlockSlice(const Block* block,
                                      block->_srcSeq,
                                      srcHalPosition,
                                      (reversed ? endPos : startPos),
-                                     !reversed,
+                                     reversed,
                                      _lookup,
                                      &_seqMapBack);
   }
@@ -832,7 +830,10 @@ bool SGBuilder::verifyPath(const Sequence* sequence,
     cout << sequence->getFullName() << endl;
     cout << "BUF " << buffer.length()   << endl;
     cout << "PAT " << pathString.length()  << endl;
-    
+
+    cout << "BUF " << buffer   << endl;
+    cout << "PAT " << pathString  << endl;
+
     for (size_t x = 0; x < buffer.length(); ++x)
     {
       if (buffer[x] != pathString[x])
