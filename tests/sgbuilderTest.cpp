@@ -809,13 +809,8 @@ void HarderSNPTest::checkCallBack(AlignmentConstPtr alignment)
   {
     vector<SGSegment> path;
     sgBuild.getHalSequencePath(halSequences[i], path);
-    cout << "PATH " << halSequences[i]->getFullName() << endl;
-    for (size_t temp = 0; temp < path.size(); ++temp)
-       cout << path[temp] << " ";
     CuAssertTrue(_testCase, sgBuild.verifyPath(halSequences[i], path) == true);
   }
-
-  cout << *sg << endl;
    
   // sequence 0,1: ancestral sequences
   const SGSequence* sequence;

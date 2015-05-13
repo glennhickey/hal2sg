@@ -81,8 +81,6 @@ void snpHandlerSingleSNPTest(CuTest *testCase)
                                                     halSeq, srcPos, tgtPos,
                                                     false, &lookup, &mapBack);
 
-  cout << "outhooks " << hooks.first << " , " << hooks.second << endl;
-  
   CuAssertTrue(testCase, hooks.first.getBase() == hooks.second.getBase());
   CuAssertTrue(testCase, hooks.first.getForward() == false);
   CuAssertTrue(testCase, hooks.second.getForward() == true);
@@ -123,8 +121,6 @@ void snpHandlerMultibaseSNPTest(CuTest *testCase)
                                                     srcPos, tgtPos,
                                                     false, &lookup, &mapBack);
 
-  cout << "outhooks " << hooks.first << " , " << hooks.second << endl;
-  
   CuAssertTrue(testCase, hooks.first.getForward() == false);
   CuAssertTrue(testCase, hooks.second.getForward() == true);
   CuAssertTrue(testCase, snpHandler.findSNP(tgtPos, 'C') ==
@@ -288,9 +284,7 @@ void snpHandlerInversionSNPTest(CuTest *tc)
                                                         srcPos, tgtPos, true,
                                                         &lookup, &mapBack);
   CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,50), 'A').getSeqID() == 1);
-  // note: tgt position (input g) is reverse complemented in the structure
-  // and needs to be looked up as C
-  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,50), 'C').getSeqID() == 0);
+  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,50), 'G').getSeqID() == 0);
   // note: the snp sequence added is walked in the forward direction
   // maybe something to change. 
   CuAssertTrue(tc, ret1.first == SGSide(SGPosition(1, 0), false));
@@ -299,7 +293,7 @@ void snpHandlerInversionSNPTest(CuTest *tc)
   // multi SNP reverse map
   srcPos.setPos(60);
   tgtPos.setPos(60);
-  std::pair<SGSide, SGSide> ret2 = snpHandler.createSNP("AACTTC", "CCGTTT", 2,
+  std::pair<SGSide, SGSide> ret2 = snpHandler.createSNP("AACTTC", "AAACGG", 2,
                                                         3, halSeq,
                                                         srcPos, tgtPos, true,
                                                         &lookup, &mapBack);

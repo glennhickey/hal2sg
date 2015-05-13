@@ -8,6 +8,7 @@
 #include <iostream>
 #include <cassert>
 #include <fstream>
+#include <deque>
 
 #include "sgbuilder.h"
 #include "sgsql.h"
@@ -16,6 +17,8 @@ using namespace std;
 using namespace hal;
 
 static bool isCamelHal(AlignmentConstPtr aligment);
+static void breadthFirstGenomeSearch(const Genome* root,
+                                     vector<const Genome*>& outTraversal);
 
 static CLParserPtr initParser()
 {
@@ -99,13 +102,13 @@ int main(int argc, char** argv)
   try
   {
     // TEMP
-    if (refGenomeName != "\"\"" || rootGenomeName != "\"\"" ||
+    if (refGenomeName != "\"\"" || targetGenomes != "\"\"" ||
         refSequenceName != "\"\"" ||
         start != 0 || length != 0 || noAncestors == true)
     {
       throw hal_exception("The following options are disabled in this release:"
-                          "\n--refGenome\n--rootGenome\n--refSeqeunce\n--start"
-                          "\n--length\n--noAncestors");
+                          "\n--refGenome\n--targetGenomes\n--refSeqeunce\n"
+                          "--start\n--length\n--noAncestors");
     }
     
     ofstream fastaStream(fastaPath.c_str());
@@ -127,14 +130,6 @@ int main(int argc, char** argv)
     if (alignment->getNumGenomes() == 0)
     {
       throw hal_exception("hal alignmenet is empty");
-    }
-
-    // TEMP
-    if (alignment->getNumGenomes() !=
-        alignment->getChildNames(alignment->getRootName()).size() + 1)
-    {
-       throw hal_exception("Only star HAL topologies are supported in this "
-                           "release");
     }
 
     // root is specified either by the parameter or as the alignment root
@@ -159,16 +154,7 @@ int main(int argc, char** argv)
     vector<const Genome*> targetVec;
     if (targetGenomes == "\"\"")
     {
-      set<const Genome*> targetSet;
-      getGenomesInSubTree(rootGenome, targetSet);
-      for (set<const Genome*>::iterator i = targetSet.begin();
-           i != targetSet.end(); ++i)
-      {
-        if (noAncestors == false || (*i)->getNumChildren() == 0)
-        {
-          targetVec.push_back(*i);
-        }
-      }
+      breadthFirstGenomeSearch(rootGenome, targetVec);
     }
     // target genomes pulled from list.  
     else
@@ -296,3 +282,19 @@ bool isCamelHal(AlignmentConstPtr alignment)
   return true;
 }
 
+void breadthFirstGenomeSearch(const Genome* root,
+                              vector<const Genome*>& outTraversal)
+{
+  deque<const Genome*> bfsQueue;
+  bfsQueue.push_back(root);
+  while (!bfsQueue.empty())
+  {
+    const Genome* genome = bfsQueue.front();
+    bfsQueue.pop_front();
+    outTraversal.push_back(genome);
+    for (hal_size_t i = 0; i < genome->getNumChildren(); ++i)
+    {
+      bfsQueue.push_back(genome->getChild(i));
+    }
+  }
+}

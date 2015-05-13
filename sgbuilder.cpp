@@ -14,7 +14,7 @@
 using namespace std;
 using namespace hal;
 
-SGBuilder::SGBuilder() : _sg(0), _root(0), _lookup(0), _mapMrca(0),
+SGBuilder::SGBuilder() : _sg(0), _root(0), _mapRoot(0), _lookup(0), _mapMrca(0),
                          _referenceDupes(true), _camelMode(false),
                          _snpHandler(0)
 {
@@ -33,6 +33,7 @@ void SGBuilder::init(AlignmentConstPtr alignment, const Genome* root,
   _alignment = alignment;
   _sg = new SideGraph();
   _root = root;
+  _mapRoot = root;
   _referenceDupes = referenceDupes;
   _camelMode = camelMode;
   _snpHandler = new SNPHandler(_sg);
@@ -119,7 +120,6 @@ void SGBuilder::addGenome(const Genome* genome,
                           hal_index_t start,
                           hal_index_t length)
 {
-  cout << "\n-----------\n" << "ADDING " << genome->getName() << endl;
   assert(_luMap.find(genome->getName()) == _luMap.end());
   if (_firstGenomeName.empty())
   {
@@ -183,9 +183,12 @@ void SGBuilder::addGenome(const Genome* genome,
     inputSet.insert(target);
     _mapMrca = getLowestCommonAncestor(inputSet);
     inputSet.clear();
-    inputSet.insert(_root);
+    // only path though root when self aligning. 
+    const Genome* pathStart = genome == target ? _root : genome;
+    inputSet.insert(pathStart);
     inputSet.insert(target);
     getGenomesInSpanningTree(inputSet, _mapPath);
+    _mapRoot = getLowestCommonAncestor(_mapPath);
   }
 
   // Convert sequence by sequence
@@ -200,8 +203,6 @@ void SGBuilder::addGenome(const Genome* genome,
     if (curStart <= curEnd)
     {
       mapSequence(curSequence, curStart, curEnd, target);
-      cout << "SNP COUNT AFTER " << curSequence->getFullName()
-           << ": " << _snpHandler->getSNPCount() << endl;
       _halSequences.push_back(curSequence);
     }
   }
@@ -262,8 +263,6 @@ SGSequence* SGBuilder::createSGSequence(const Sequence* sequence,
   // keep record in other direction (ie to map from hal into the side graph)
   sg_seqid_t halSequenceID = (sg_seqid_t)sequence->getArrayIndex();
   assert(halSequenceID >= 0);
-  cout << "Create Sequence " << *sgSeq << " from hal(" << halSequenceID
-       << ", " << startOffset << " l=" << length << endl;
 
   _lookup->addInterval(SGPosition(halSequenceID, startOffset),
                        SGPosition(sgSeq->getID(), 0),
@@ -296,7 +295,6 @@ void SGBuilder::mapSequence(const Sequence* sequence,
                             const Genome* target)
 {
   const Genome* genome = sequence->getGenome();
-  cout << "Map Sequence " << sequence->getFullName() << endl;
 
   // first genome added: it's the reference so we add sequences
   // directly. TODO: handle self-dupes
@@ -364,7 +362,7 @@ void SGBuilder::mapSequence(const Sequence* sequence,
            refSeg->getStartPosition() <= globalEnd)  
     {
       refSeg->getMappedSegments(mappedSegments, target, &_mapPath,
-                                true, 0, _root, _mapMrca);
+                                true, 0, _mapRoot, _mapMrca);
       refSeg->toRight(globalEnd);
     }
 
@@ -469,9 +467,9 @@ void SGBuilder::mapBlockEnds(Block* prevBlock,
     srcPos = sequenceEnd + 1;
   }
 
-  cout << endl << "PREV " << prevBlock << endl;
-  cout << "CUR  " << block << endl;
-  cout << "prevSrcPos " << prevSrcPos << " srcPos " << srcPos << endl;
+  // cout << endl << "PREV " << prevBlock << endl;
+  // cout << "CUR  " << block << endl;
+  // cout << "prevSrcPos " << prevSrcPos << " srcPos " << srcPos << endl;
 
   if (prevBlock == 0)
   {
@@ -542,10 +540,9 @@ void SGBuilder::mapBlockEnds(Block* prevBlock,
     // updated.
     pair<SGSide, SGSide> mappedBlockEnds =  mapBlockBody(block, blockEnds);
  
-    cout << "BE " << blockEnds.first << ", " << blockEnds.second << endl;
-    cout << "TC " << mappedBlockEnds.first << ", " << mappedBlockEnds.second
-         << endl;
-    //assert(mappedBlockEnds == blockEnds);
+    // cout << "BE " << blockEnds.first << ", " << blockEnds.second << endl;
+    // cout << "TC " << mappedBlockEnds.first << ", " << mappedBlockEnds.second
+    //      << endl;
 
     _pathLength += blockLength;
     
@@ -587,6 +584,10 @@ SGBuilder::mapBlockBody(const Block* block,
   string tgtDNA;
   block->_srcSeq->getSubString(srcDNA, block->_srcStart, length);
   block->_tgtSeq->getSubString(tgtDNA, block->_tgtStart, length);
+  if (block->_reversed == true)
+  {
+    reverseComplement(tgtDNA);
+  }
   pair<SGSide, SGSide> outBlockEnds = blockEnds;
 
   SGSide prevHook(blockEnds.first);
@@ -607,17 +608,9 @@ SGBuilder::mapBlockBody(const Block* block,
   {
     srcPos =  block->_srcStart + i;
     srcVal = srcDNA[i];
-    if (block->_reversed == false)
-    {
-      tgtPos = block->_tgtStart + i;
-      tgtVal = tgtDNA[i];
-    }
-    else
-    {
-      tgtPos = block->_tgtEnd - i;
-      tgtVal = reverseComplement(tgtDNA[tgtDNA.size() - 1 - i]);
-    }
-    bool snp = !_camelMode && isSubstitution(srcVal, tgtVal);
+    tgtVal = tgtDNA[i];
+    tgtPos = !block->_reversed ?  block->_tgtStart + i : block->_tgtEnd;
+    bool snp = !_camelMode && _snpHandler->isSub(srcVal, tgtVal);
 
     if (i > 0 && snp != runningSnp)
     {
@@ -680,7 +673,6 @@ SGBuilder::mapBlockSlice(const Block* block,
 
   SGPosition startPos = blockEnds.first.getBase();
   SGPosition endPos = blockEnds.second.getBase();
-  cout << "startPos " << startPos << "  endPos " << endPos << endl;
   if (reversed == false)
   {
     startPos.setPos(startPos.getPos() + srcStartOffset);
@@ -691,7 +683,11 @@ SGBuilder::mapBlockSlice(const Block* block,
     startPos.setPos(startPos.getPos() - srcStartOffset);
     endPos.setPos(startPos.getPos() - blockLength + 1);
   }
-
+  // cout << "mapBlockSlice(" << block << "\n"
+  //      << blockEnds.first << ", " << blockEnds.second << "\n"
+  //      << srcStartOffset << ", " << srcEndOffset << "\n"
+  //      << snp << "\n"
+  //      << sgForwardMap << "\n" << endl;
   if (snp == false)
   {
     outEnds.first.setBase(startPos);
@@ -782,8 +778,6 @@ SGBuilder::Block* SGBuilder::cutBlock(Block* prev, Block* cur)
     assert(cur->_srcStart <= cur->_srcEnd);
     assert(cur->_tgtStart <= cur->_tgtEnd);
   }
-  //cout << "cCuO " << (size_t)cur << " " << cur << endl;
-
   return cur;
 }
 
@@ -832,9 +826,6 @@ bool SGBuilder::verifyPath(const Sequence* sequence,
     cout << sequence->getFullName() << endl;
     cout << "BUF " << buffer.length()   << endl;
     cout << "PAT " << pathString.length()  << endl;
-
-    cout << "BUF " << buffer   << endl;
-    cout << "PAT " << pathString  << endl;
 
     for (size_t x = 0; x < buffer.length(); ++x)
     {

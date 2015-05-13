@@ -91,187 +91,188 @@ public:
    
 protected:
    
-      typedef std::map<std::string, SGLookup*> GenomeLUMap;
+   typedef std::map<std::string, SGLookup*> GenomeLUMap;
 
-      /** convenience structure for alignment block.  note hall coordinates
-       * are in forward strand relative to Segment (not genome).  */
-      struct Block {
-         hal_index_t _srcStart;
-         hal_index_t _srcEnd;
-         hal_index_t _tgtStart;
-         hal_index_t _tgtEnd;
-         const hal::Sequence* _srcSeq;
-         const hal::Sequence* _tgtSeq;
-         bool _reversed;
-      };
-      struct BlockPtrLess {
-         bool operator()(const Block* b1, const Block* b2) const;
-      };
-   
-   protected:
-
-      /** Find the nearest genome in the Side Graph to align to */
-      const hal::Genome* getTarget(const hal::Genome* genome);
-
-      /** Map a Sequence onto the Side Graph by aligning to target
-       */
-      void mapSequence(const hal::Sequence* sequence,
-                       hal_index_t globalStart,
-                       hal_index_t globalEnd,
-                       const hal::Genome* target);
-
-      /** Add a sequence (or part thereof to the sidegraph) and update
-       * lookup structures (but not joins) */
-      SGSequence* createSGSequence(const hal::Sequence* sequence,
-                                   hal_index_t startOffset,
-                                   hal_index_t length);
-
-      /** Add a join to the side graph */
-      const SGJoin* createSGJoin(const SGSide& side1, const SGSide& side2);
-
-      /** Add interval (from blockmapper machinery) to the side graph.  
-       * The interval maps from the new SOURCE genome to a TARGET genome
-       * that is already in the side graph. 
-       */
-      void mapBlockEnds(Block* prevBlock,
-                        Block* block,
-                        Block* nextBlock,
-                        SGSide& prevHook,
-                        const hal::Sequence* srcSequence,
-                        const hal::Genome* srcGenome,
-                        hal_index_t sequenceStart,
-                        hal_index_t sequenceEnd,
-                        const hal::Genome* tgtGenome);
-
-      /** Add a block, breaking apart for SNPs. only add joins that are
-       * contained in the block.  Update the endpoints if needed (as result of 
-       * snps) */
-      std::pair<SGSide, SGSide>
-      mapBlockBody(const Block*, const std::pair<SGSide, SGSide>& blockEnds);
-
-      /** Add a slice of a block.  Either every base is a snp (snp==true) or
-       * no bases are a snp.  hook on the previous hook. */
-      std::pair<SGSide, SGSide>
-      mapBlockSlice(const Block* block,
-                    const std::pair<SGSide, SGSide>& blockEnds,
-                    hal_index_t srcStartOffset,
-                    hal_index_t srcEndOffset,
-                    bool snp,
-                    bool sgForwardMap,
-                    const std::string& srcDNA,
-                    const std::string& tgtDNA);
-   
-      /**
-       * Don't want to deal with the mapped block fragments all the time. 
-       * code to read into struct here. 
-       */
-      void fragmentsToBlock(
-        const std::vector<hal::MappedSegmentConstPtr>& fragments,
-        Block& block) const;
-
-      /** check if block aligns something to itself */
-      bool isSelfBlock(const Block& block) const;
-
-      /** cut block against another */
-      Block* cutBlock(Block* prev, Block* cur);
-
-      /** We are anchoring on the root genome (at least for now).  But in
-       * Adams output, the root sequence is Ns which is a problem.  We 
-       * use the function as an override to map a root sequence from its 
-       * children using the knowledge that there are no substitutions */
-      void getRootSubString(std::string& outDNA, const hal::Sequence* sequence,
-                            hal_index_t pos, hal_index_t length) const;
-
-   
-   protected:
-
-      SideGraph* _sg;
-      const hal::Genome* _root;
-      hal::AlignmentConstPtr _alignment;
-      GenomeLUMap _luMap;
-      SGLookup* _lookup;
-      SequenceMapBack _seqMapBack;
-      std::set<const hal::Genome*> _mapPath;
-      const hal::Genome* _mapMrca;
-      bool _referenceDupes;
-      SGJoin* _lastJoin;
-      bool _inferRootSeq;
-      mutable std::string _rootString;
-      bool _camelMode;
-      size_t _pathLength;
-      std::string _firstGenomeName;
-      std::vector<const hal::Sequence*> _halSequences;
-      SNPHandler* _snpHandler;
-
-      friend std::ostream& operator<<(std::ostream& os, const Block* block);
-
+   /** convenience structure for alignment block.  note hall coordinates
+    * are in forward strand relative to Segment (not genome).  */
+   struct Block {
+      hal_index_t _srcStart;
+      hal_index_t _srcEnd;
+      hal_index_t _tgtStart;
+      hal_index_t _tgtEnd;
+      const hal::Sequence* _srcSeq;
+      const hal::Sequence* _tgtSeq;
+      bool _reversed;
    };
+   struct BlockPtrLess {
+      bool operator()(const Block* b1, const Block* b2) const;
+   };
+   
+protected:
 
-   std::ostream& operator<<(std::ostream& os, const SGBuilder::Block* block);
+   /** Find the nearest genome in the Side Graph to align to */
+   const hal::Genome* getTarget(const hal::Genome* genome);
 
-   inline bool SGBuilder::BlockPtrLess::operator()(const SGBuilder::Block* b1,
-                                                   const SGBuilder::Block* b2)
-     const
+   /** Map a Sequence onto the Side Graph by aligning to target
+    */
+   void mapSequence(const hal::Sequence* sequence,
+                    hal_index_t globalStart,
+                    hal_index_t globalEnd,
+                    const hal::Genome* target);
+
+   /** Add a sequence (or part thereof to the sidegraph) and update
+    * lookup structures (but not joins) */
+   SGSequence* createSGSequence(const hal::Sequence* sequence,
+                                hal_index_t startOffset,
+                                hal_index_t length);
+
+   /** Add a join to the side graph */
+   const SGJoin* createSGJoin(const SGSide& side1, const SGSide& side2);
+
+   /** Add interval (from blockmapper machinery) to the side graph.  
+    * The interval maps from the new SOURCE genome to a TARGET genome
+    * that is already in the side graph. 
+    */
+   void mapBlockEnds(Block* prevBlock,
+                     Block* block,
+                     Block* nextBlock,
+                     SGSide& prevHook,
+                     const hal::Sequence* srcSequence,
+                     const hal::Genome* srcGenome,
+                     hal_index_t sequenceStart,
+                     hal_index_t sequenceEnd,
+                     const hal::Genome* tgtGenome);
+
+   /** Add a block, breaking apart for SNPs. only add joins that are
+    * contained in the block.  Update the endpoints if needed (as result of 
+    * snps) */
+   std::pair<SGSide, SGSide>
+   mapBlockBody(const Block*, const std::pair<SGSide, SGSide>& blockEnds);
+
+   /** Add a slice of a block.  Either every base is a snp (snp==true) or
+    * no bases are a snp.  hook on the previous hook. */
+   std::pair<SGSide, SGSide>
+   mapBlockSlice(const Block* block,
+                 const std::pair<SGSide, SGSide>& blockEnds,
+                 hal_index_t srcStartOffset,
+                 hal_index_t srcEndOffset,
+                 bool snp,
+                 bool sgForwardMap,
+                 const std::string& srcDNA,
+                 const std::string& tgtDNA);
+   
+   /**
+    * Don't want to deal with the mapped block fragments all the time. 
+    * code to read into struct here. 
+    */
+   void fragmentsToBlock(
+     const std::vector<hal::MappedSegmentConstPtr>& fragments,
+     Block& block) const;
+
+   /** check if block aligns something to itself */
+   bool isSelfBlock(const Block& block) const;
+
+   /** cut block against another */
+   Block* cutBlock(Block* prev, Block* cur);
+
+   /** We are anchoring on the root genome (at least for now).  But in
+    * Adams output, the root sequence is Ns which is a problem.  We 
+    * use the function as an override to map a root sequence from its 
+    * children using the knowledge that there are no substitutions */
+   void getRootSubString(std::string& outDNA, const hal::Sequence* sequence,
+                         hal_index_t pos, hal_index_t length) const;
+
+   
+protected:
+
+   SideGraph* _sg;
+   const hal::Genome* _root;
+   const hal::Genome* _mapRoot;
+   hal::AlignmentConstPtr _alignment;
+   GenomeLUMap _luMap;
+   SGLookup* _lookup;
+   SequenceMapBack _seqMapBack;
+   std::set<const hal::Genome*> _mapPath;
+   const hal::Genome* _mapMrca;
+   bool _referenceDupes;
+   SGJoin* _lastJoin;
+   bool _inferRootSeq;
+   mutable std::string _rootString;
+   bool _camelMode;
+   size_t _pathLength;
+   std::string _firstGenomeName;
+   std::vector<const hal::Sequence*> _halSequences;
+   SNPHandler* _snpHandler;
+
+   friend std::ostream& operator<<(std::ostream& os, const Block* block);
+
+};
+
+std::ostream& operator<<(std::ostream& os, const SGBuilder::Block* block);
+
+inline bool SGBuilder::BlockPtrLess::operator()(const SGBuilder::Block* b1,
+                                                const SGBuilder::Block* b2)
+  const
+{
+  assert(b1->_srcSeq == b2->_srcSeq);
+  if (b1->_srcStart < b2->_srcStart)
+  {
+    return true;
+  }
+  else if (b1->_srcStart == b2->_srcStart)
+  {
+    if (b1->_srcEnd < b2->_srcEnd)
+    {
+      return true;
+    }
+    else if (b1->_srcEnd == b2->_srcEnd)
+    {
+      if (b1->_tgtStart < b2->_tgtStart)
       {
-        assert(b1->_srcSeq == b2->_srcSeq);
-        if (b1->_srcStart < b2->_srcStart)
+        return true;
+      }
+      else if (b1->_tgtStart == b2->_tgtStart)
+      {
+        if (b1->_tgtEnd < b2->_tgtEnd)
         {
           return true;
         }
-        else if (b1->_srcStart == b2->_srcStart)
-        {
-          if (b1->_srcEnd < b2->_srcEnd)
-          {
-            return true;
-          }
-          else if (b1->_srcEnd == b2->_srcEnd)
-          {
-            if (b1->_tgtStart < b2->_tgtStart)
-            {
-              return true;
-            }
-            else if (b1->_tgtStart == b2->_tgtStart)
-            {
-              if (b1->_tgtEnd < b2->_tgtEnd)
-              {
-                return true;
-              }
-            }
-          }
-        }
-        return false;
       }
+    }
+  }
+  return false;
+}
 
-   inline std::ostream& operator<<(std::ostream& os,
-                                   const SGBuilder::Block* block)
-      {
-        if (block == NULL)
-        {
-          os << "BLOCK(NULL)";
-        }
-        else
-        {
-          os << "BLOCK(" << block->_srcSeq->getName() << ": "
-             << block->_srcStart << "," << block->_srcEnd <<  ") TGT("
-             << block->_tgtSeq->getName() << ": "
-             << block->_tgtStart << "," << block->_tgtEnd << ") "
-             << block->_reversed;
-        }
-        return os;
-      }
+inline std::ostream& operator<<(std::ostream& os,
+                                const SGBuilder::Block* block)
+{
+  if (block == NULL)
+  {
+    os << "BLOCK(NULL)";
+  }
+  else
+  {
+    os << "BLOCK(" << block->_srcSeq->getName() << ": "
+       << block->_srcStart << "," << block->_srcEnd <<  ") TGT("
+       << block->_tgtSeq->getName() << ": "
+       << block->_tgtStart << "," << block->_tgtEnd << ") "
+       << block->_reversed;
+  }
+  return os;
+}
 
-   inline bool SGBuilder::isSelfBlock(const SGBuilder::Block& block) const
-      {
-        return block._srcStart == block._tgtStart &&
-           block._srcEnd == block._tgtEnd &&
-           block._srcSeq == block._tgtSeq;
-      }
+inline bool SGBuilder::isSelfBlock(const SGBuilder::Block& block) const
+{
+  return block._srcStart == block._tgtStart &&
+     block._srcEnd == block._tgtEnd &&
+     block._srcSeq == block._tgtSeq;
+}
 
-   inline bool SGBuilder::SeqLess::operator()(const hal::Sequence* s1,
-                                              const hal::Sequence* s2) const
-      {
-        return s1->getFullName() < s2->getFullName();
-      }
+inline bool SGBuilder::SeqLess::operator()(const hal::Sequence* s1,
+                                           const hal::Sequence* s2) const
+{
+  return s1->getFullName() < s2->getFullName();
+}
 
 
 #endif

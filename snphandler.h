@@ -85,6 +85,10 @@ public:
     */
    sg_int_t getSNPCount() const;
 
+   /** Compare two bases to test for snp (taking into account _caseSense)
+    */
+   bool isSub(char c1, char c2) const;
+
 protected:
 
    /** Make a name for the SNP using the coordinate in the SRC
@@ -125,4 +129,8 @@ inline sg_int_t SNPHandler::getSNPCount() const
   return _snpCount;
 }
 
+inline bool SNPHandler::isSub(char c1, char c2) const
+{
+  return _caseSens ? c1 != c2 : std::toupper(c1) != std::toupper(c2);
+}
 #endif
