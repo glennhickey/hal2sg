@@ -105,7 +105,7 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& srcDNA,
       sg_int_t j = i + 1;
       for (; j < dnaLength && sgPositions[j] == SideGraph::NullPos; ++j);
       --j;
-      getSNPName(tgtPos, srcDNA, dnaOffset, reverseMap, i, nameBuf);
+      getSNPName(halSrcSequence, srcPos, i, j - i + 1, reverseMap, nameBuf);
       const SGSequence* newSeq;
       newSeq = _sg->addSequence(new SGSequence(-1, j - i + 1, nameBuf));
       cout << "create snp seq " << *newSeq << endl;
@@ -264,14 +264,18 @@ void SNPHandler::addSNP(const SGPosition& pos, char nuc,
   }
 }
 
-void SNPHandler::getSNPName(const SGPosition& tgtPos, const string& srcDNA,
-                            sg_int_t dnaOffset, bool reverseMap, sg_int_t i,
-                            string& nameBuf) const
+void SNPHandler::getSNPName(const Sequence* halSrcSequence,
+                            const SGPosition& srcPos,
+                            sg_int_t offset, sg_int_t length,
+                            bool reverseMap, string& outName) const
 {
-  // TODO: RENAME USING SRC INSTAEAD OF TARGET.  
-  const SGSequence* seq = _sg->getSequence(tgtPos.getSeqID());
   stringstream ss;
-  ss << seq->getName() << "_" << (tgtPos.getPos() + i)
-     << "_SNP_" << srcDNA[dnaOffset + i];
-  nameBuf = ss.str();
+  if (halSrcSequence != NULL)
+  {
+    // unit tests sometimes dont bother with a hal sequence so we
+    // let it be optional here. 
+    ss << halSrcSequence->getFullName();    
+  }
+  ss << "_SNP_" << (srcPos.getPos() + offset) << "_" << length;
+  outName = ss.str();
 }

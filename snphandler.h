@@ -87,9 +87,12 @@ public:
 
 protected:
 
-   void getSNPName(const SGPosition& tgtPos, const std::string& dnaString,
-                   sg_int_t dnaOffset, bool reverseMap, sg_int_t i,
-                   std::string& nameBuf) const;
+   /** Make a name for the SNP using the coordinate in the SRC
+    * genome. */
+   void getSNPName(const hal::Sequence* halSrcSequence,
+                   const SGPosition& srcPos,
+                   sg_int_t offset, sg_int_t length,
+                   bool reverseMap, std::string& outName) const;
    
    struct SNP
    {
