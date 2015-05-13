@@ -1,9 +1,13 @@
 # hal2sg
-Prototype code for converting HAL to Side graph
+Prototype code for converting HAL to Side Graph SQL
 
 ## algorithm
 
 Iteratatively add genomes to side graph.  Each genome is aligned to nearest genome already in side graph.  This alignment is used to thread the genome onto the graph.
+
+### CAMEL Input
+
+The following logic is used to support CAMEL output:  If the root DNA sequence is all N's, then it will be inferred from the sequences of its children. 
 
 ## instructions
 
@@ -23,21 +27,13 @@ To run the converter:
 
 `output.sql` Output text file listing INSERT commands for Sequences, Joins and Paths (for each input sequence) in the graph.
 
-* **None of the options except `--targetGenomes` (and the standard HAL caching options) work.**
-* Please ignore voluminous garbage printed to stdout.
+## sorry state of affairs (Update May 13)
 
-## sorry state of affairs (Update May 12)
-
-`hal2sg` only works on input of this form:
-* **Root reference:** root genome used as initial side graph sequence.
-* **Star Tree** all other genomes children of root. 
+* **NOTE:** The only working option is `--rootGenome`.  This means that hal2sg will only process complete clades (including ancestors) in a top-down manner. 
 
 ## next updates
 
-* Non-star trees.  Only missing a unit test
-* Clean up debug output on stdout
-* Non-root reference.   There is a paralogy case that is not yet implemented that can arise when mapping up then down tree.  
-
+* Support bottom-up mappings in order to activate remaining genome selection options.  
 
 
 
