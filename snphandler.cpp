@@ -276,6 +276,6 @@ void SNPHandler::getSNPName(const Sequence* halSrcSequence,
     // let it be optional here. 
     ss << halSrcSequence->getFullName();    
   }
-  ss << "_SNP_" << (srcPos.getPos() + offset) << "_" << length;
+  ss << "_" << (srcPos.getPos() + offset) << "_" << length;
   outName = ss.str();
 }
