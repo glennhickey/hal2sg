@@ -269,7 +269,7 @@ void SGSQL::writePathInserts()
     _outStream << "INSERT INTO VariantSet VALUES ("
                << i << ", "
                << 0 << ", "
-               << "'hal2sg genome " <<halSeq->getGenome()->getName() << "');\n"; 
+               << "'" << halSeq->getGenome()->getName() << "');\n"; 
   }
   _outStream << endl;
 
