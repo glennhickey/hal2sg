@@ -252,7 +252,7 @@ void SGSQL::writePathInserts()
     if (ret.second == true)
     {
       _outStream << "INSERT INTO VariantSet VALUES ("
-                 << i << ", "
+                 << ret.first->second << ", "
                  << 0 << ", "
                  << "'" << halSeq->getGenome()->getName() << "');\n";
     }
