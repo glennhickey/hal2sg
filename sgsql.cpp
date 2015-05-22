@@ -246,12 +246,16 @@ void SGSQL::writePathInserts()
   for (size_t i = 0; i < halSequences.size(); ++i)
   {
     const Sequence* halSeq = halSequences[i];
-    genomeIdMap.insert(pair<const Genome*, size_t>(halSeq->getGenome(),
-                                                   genomeIdMap.size()));
-    _outStream << "INSERT INTO VariantSet VALUES ("
-               << i << ", "
-               << 0 << ", "
-               << "'" << halSeq->getGenome()->getName() << "');\n"; 
+    pair<map<const Genome*, size_t>::iterator, bool> ret = genomeIdMap.insert(
+      pair<const Genome*, size_t>(halSeq->getGenome(),
+                                  genomeIdMap.size()));
+    if (ret.second == true)
+    {
+      _outStream << "INSERT INTO VariantSet VALUES ("
+                 << i << ", "
+                 << 0 << ", "
+                 << "'" << halSeq->getGenome()->getName() << "');\n";
+    }
   }
   _outStream << endl;
 
