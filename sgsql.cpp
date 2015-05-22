@@ -144,21 +144,11 @@ CREATE TABLE Reference_ReferenceSet_Join (referenceID INTEGER NOT NULL,
 void SGSQL::writeReferenceInserts()
 {
   // make a single reference set
-  _refMap.clear();
-  _refMap.insert(pair<string, size_t>(_sgBuilder->getPrimaryGenomeName(), 0));
   _outStream << "INSERT INTO ReferenceSet VALUES "
              << "(0, NULL, "
              << "\'" << "hal2sg " << _halPath << "\'"
              << ", \'" << _sgBuilder->getPrimaryGenomeName() << "\'"
              << ", \'FALSE\');\n";
-
-  // keep _refMap around for now (though not necessary with just one
-  // reference set) in case we want to go back to one set per genome
-  for (sg_int_t i = 0; i < _sg->getNumSequences(); ++i)
-  {
-    const SGSequence* seq = _sg->getSequence(i);
-    _refMap.insert(pair<string, size_t>(_sgBuilder->getHalGenomeName(seq), 0));
-  }
   
   for (sg_int_t i = 0; i < _sg->getNumSequences(); ++i)
   {
@@ -170,7 +160,7 @@ void SGSQL::writeReferenceInserts()
                << "\'"<< seq->getName() << "\', "
                << "date(\'now\')" << ", "
                << seq->getID() << ", "
-               << _refMap.find(halGenomeName)->second << ", "
+               << 0 << ", "
                << "NULL " << ", "
                << "NULL " << ", "
                << "\'FALSE\'" << ", "
@@ -267,32 +257,35 @@ void SGSQL::writePathInserts()
   // For every sequence in a genome, we create one
   // Allele, and a list of Allele Path Items.
 
+  const vector<const Sequence*>& halSequences = _sgBuilder->getHalSequences();
+  map<const Genome*, size_t> genomeIdMap;
+
   // create a variant set for every genome
-  size_t i;
-  map<string, size_t>::const_iterator j;
-  for (i = 0, j = _refMap.begin(); j != _refMap.end(); ++j, ++i)
+  for (size_t i = 0; i < halSequences.size(); ++i)
   {
+    const Sequence* halSeq = halSequences[i];
+    genomeIdMap.insert(pair<const Genome*, size_t>(halSeq->getGenome(),
+                                                   genomeIdMap.size()));
     _outStream << "INSERT INTO VariantSet VALUES ("
                << i << ", "
-               << j->second << ", "
-               << "'hal2sg genome " <<j->first << "');\n"; 
+               << 0 << ", "
+               << "'hal2sg genome " <<halSeq->getGenome()->getName() << "');\n"; 
   }
   _outStream << endl;
 
   // create an allele for every sequence; 
-  const vector<const Sequence*>& halSequences = _sgBuilder->getHalSequences();
-  for (i = 0; i < halSequences.size(); ++i)
+  for (size_t i = 0; i < halSequences.size(); ++i)
   {
     _outStream << "INSERT INTO Allele VALUES ("
                << i << ", "
-               << _refMap.find(halSequences[i]->getGenome()->getName())->second
+               << genomeIdMap.find(halSequences[i]->getGenome())->second
                << ", NULL"
                << ");\n";
   }
   _outStream << endl;
 
   // create a path (AellePathItem) for every sequence
-  for (i = 0; i < halSequences.size(); ++i)
+  for (size_t i = 0; i < halSequences.size(); ++i)
   {
     _outStream << "-- PATH for HAL input sequence "
                << halSequences[i]->getFullName() << "\n";

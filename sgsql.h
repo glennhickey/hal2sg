@@ -63,8 +63,8 @@ protected:
     */
    void writeReferenceInserts();
 
-   /** write path INSERTs in my own invented format.  Note needs
-    * _refMap which is created by writeSequeneInserts
+   /** write path INSERTs (makes a VariantSet for each Genome and 
+    * an Allele for each sequence
     */
    void writePathInserts();
 
@@ -81,7 +81,6 @@ protected:
    std::ofstream _outStream;
    std::ofstream _faStream;
    std::map<sg_seqid_t, std::string> _checksumMap;
-   std::map<std::string, size_t> _refMap;
 };
 
 
