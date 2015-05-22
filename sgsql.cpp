@@ -217,39 +217,21 @@ void SGSQL::writeJoinInserts()
 }
 
 /*
--- Tables common to both site and allelic models
 CREATE TABLE VariantSet (ID INTEGER PRIMARY KEY,
-	referenceSetID INTEGER NOT NULL,
-	-- datasetID -- TODO: what is this? What table would it point to?
-	vcfURI TEXT NOT NULL,
-	FOREIGN KEY(referenceSetID) REFERENCES ReferenceSet(ID));
+	referenceSetID INTEGER NOT NULL REFERENCES ReferenceSet(ID),
+	name TEXT);
 
--- Site (classical) model tables 
--- We shouldn't be storing anything here besides what's needed for the Allele table join.
-CREATE TABLE Variant (ID INTEGER PRIMARY KEY, 
-	variantName TEXT NOT NULL, -- corresponding variant in the VCF, accessible via index?
-	variantSetID INTEGER NOT NULL,
-	FOREIGN KEY(variantSetID) REFERENCES VariantSet(ID)); -- any metadata needed here?
-
--- is the Call table even needed here? Can't it all be obtained from the VCF?
-CREATE TABLE Call (callSetID INTEGER, 
-	variantID INTEGER NOT NULL,
-	PRIMARY KEY(callSetID, variantID),
-	FOREIGN KEY(callSetID) REFERENCES CallSet(ID),
-	FOREIGN KEY(variantID) REFERENCES Variant(ID));
-
--- Allelic model tables
 CREATE TABLE Allele (ID INTEGER PRIMARY KEY, 
-	variantSetID INTEGER,  -- TODO: Can this be null? cf. Heng Li's question about Alleles and VariantSets
-	FOREIGN KEY(variantSetID) REFERENCES VariantSet(ID));
-
-CREATE TABLE AllelePathItem (alleleID INTEGER, 
-	pathItemIndex INTEGER NOT NULL, -- one-based index of this pathItem within the entire path
-	sequenceID INTEGER NOT NULL, start INTEGER NOT NULL,
-	length INTEGER NOT NULL, strandIsForward BOOLEAN NOT NULL,
-	PRIMARY KEY(alleleID, pathItemIndex),
-	FOREIGN KEY(alleleID) REFERENCES allele(ID),
-	FOREIGN KEY(sequenceID) REFERENCES Sequence(ID));
+	variantSetID INTEGER REFERENCES VariantSet(ID), 
+	name TEXT); -- Naming the allele is optional
+--
+CREATE TABLE AllelePathItem (alleleID INTEGER REFERENCES allele(ID), 
+	pathItemIndex INTEGER NOT NULL, -- zero-based index of this pathItem within the entire path
+	sequenceID INTEGER NOT NULL REFERENCES Sequence(ID), 
+	start INTEGER NOT NULL,
+	length INTEGER NOT NULL, 
+	strandIsForward BOOLEAN NOT NULL,
+	PRIMARY KEY(alleleID, pathItemIndex));
 */
 void SGSQL::writePathInserts()
 {
@@ -278,8 +260,8 @@ void SGSQL::writePathInserts()
   {
     _outStream << "INSERT INTO Allele VALUES ("
                << i << ", "
-               << genomeIdMap.find(halSequences[i]->getGenome())->second
-               << ", NULL"
+               << genomeIdMap.find(halSequences[i]->getGenome())->second << ", "
+               << "'" << halSequences[i]->getFullName() << "'" 
                << ");\n";
   }
   _outStream << endl;
