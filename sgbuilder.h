@@ -27,7 +27,8 @@ public:
     * Set the alignment
     */
    void init(hal::AlignmentConstPtr alignment, const hal::Genome* root = NULL,
-             bool referenceDupes = true, bool camelMode = false);
+             bool referenceDupes = true, bool camelMode = false,
+             bool onlySequenceNames = false);
 
    /**
     * Erase everything
@@ -79,6 +80,8 @@ public:
     * (and returns false).  May not be the fastest function.  */
    bool verifyPath(const hal::Sequence* sequence,
                    const std::vector<SGSegment>& path) const;
+
+   const std::string getHalSeqName(const hal::Sequence* halSeq) const;
    
 public:
 
@@ -203,6 +206,7 @@ protected:
    std::string _firstGenomeName;
    std::vector<const hal::Sequence*> _halSequences;
    SNPHandler* _snpHandler;
+   bool _onlySequenceNames;
 
    friend std::ostream& operator<<(std::ostream& os, const Block* block);
 
@@ -273,6 +277,13 @@ inline bool SGBuilder::SeqLess::operator()(const hal::Sequence* s1,
 {
   return s1->getFullName() < s2->getFullName();
 }
+
+inline const std::string SGBuilder::getHalSeqName(const hal::Sequence*
+                                                  halSeq) const
+{
+  return _onlySequenceNames ? halSeq->getName() : halSeq->getFullName();
+}
+
 
 
 #endif

@@ -14,8 +14,10 @@
 using namespace std;
 using namespace hal;
 
-SNPHandler::SNPHandler(SideGraph* sideGraph, bool caseSensitive)
-  :  _caseSens(caseSensitive), _sg(sideGraph), _snpCount(0)
+SNPHandler::SNPHandler(SideGraph* sideGraph, bool caseSensitive,
+                       bool onlySequenceNames)
+  :  _caseSens(caseSensitive), _sg(sideGraph), _snpCount(0),
+     _onlySequenceNames(onlySequenceNames)
 {
 
 }
@@ -272,7 +274,8 @@ void SNPHandler::getSNPName(const Sequence* halSrcSequence,
   {
     // unit tests sometimes dont bother with a hal sequence so we
     // let it be optional here. 
-    ss << halSrcSequence->getFullName();    
+    ss << (_onlySequenceNames ? halSrcSequence->getName() :
+           halSrcSequence->getFullName());    
   }
   ss << "_" << (srcPos.getPos() + offset) << "_" << length;
   outName = ss.str();

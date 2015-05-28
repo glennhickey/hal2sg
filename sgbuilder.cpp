@@ -16,7 +16,8 @@ using namespace hal;
 
 SGBuilder::SGBuilder() : _sg(0), _root(0), _mapRoot(0), _lookup(0), _mapMrca(0),
                          _referenceDupes(true), _camelMode(false),
-                         _snpHandler(0)
+                         _snpHandler(0),
+                         _onlySequenceNames(false)
 {
 
 }
@@ -27,7 +28,8 @@ SGBuilder::~SGBuilder()
 }
 
 void SGBuilder::init(AlignmentConstPtr alignment, const Genome* root,
-                     bool referenceDupes, bool camelMode)
+                     bool referenceDupes, bool camelMode,
+                     bool onlySequenceNames)
 {
   clear();
   _alignment = alignment;
@@ -36,7 +38,8 @@ void SGBuilder::init(AlignmentConstPtr alignment, const Genome* root,
   _mapRoot = root;
   _referenceDupes = referenceDupes;
   _camelMode = camelMode;
-  _snpHandler = new SNPHandler(_sg);
+  _snpHandler = new SNPHandler(_sg, false, onlySequenceNames);
+  _onlySequenceNames = onlySequenceNames;
 }
 
 void SGBuilder::clear()
@@ -245,7 +248,7 @@ SGSequence* SGBuilder::createSGSequence(const Sequence* sequence,
  
   // make a new Side Graph Sequence
   stringstream name;
-  name << sequence->getFullName();
+  name << getHalSeqName(sequence);
   if (length < (hal_index_t)sequence->getSequenceLength())
   {
     name << "_" << startOffset << "_" << length;
@@ -345,7 +348,7 @@ void SGBuilder::mapSequence(const Sequence* sequence,
     set<MappedSegmentConstPtr> mappedSegments;
 
     ///// DEBUG
-    cout << "Mapping " << sequence->getFullName() << " to "
+    cout << "Mapping " << getHalSeqName(sequence) << " to "
          << target->getName()
          << "; MRC = " << _mapMrca->getName()
          << "; ROOT = " << _root->getName()
@@ -823,7 +826,7 @@ bool SGBuilder::verifyPath(const Sequence* sequence,
 
   if (buffer != pathString)
   {
-    cout << sequence->getFullName() << endl;
+    cout << getHalSeqName(sequence) << endl;
     cout << "BUF " << buffer.length()   << endl;
     cout << "PAT " << pathString.length()  << endl;
 

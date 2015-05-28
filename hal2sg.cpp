@@ -55,6 +55,11 @@ static CLParserPtr initParser()
                                " to set a non-ancestral genome as the reference"
                                " because the default reference is the root.", 
                                false);
+  optionsParser->addOptionFlag("onlySequenceNames",
+                               "use only sequence names "
+                               "for output names.  By default, the UCSC convention of Genome.Sequence "
+                               "is used",
+                               false);
 
   optionsParser->setDescription("Convert hal database to GA4GH Side Graph");
   return optionsParser;
@@ -73,6 +78,7 @@ int main(int argc, char** argv)
   hal_index_t start;
   hal_size_t length;
   bool noAncestors;
+  bool onlySequenceNames;
   try
   {
     optionsParser->parseOptions(argc, argv);
@@ -86,7 +92,7 @@ int main(int argc, char** argv)
     start = optionsParser->getOption<hal_index_t>("start");
     length = optionsParser->getOption<hal_size_t>("length");
     noAncestors = optionsParser->getFlag("noAncestors");
-
+    onlySequenceNames = optionsParser->getFlag("onlySequenceNames");
     if (rootGenomeName != "\"\"" && targetGenomes != "\"\"")
     {
       throw hal_exception("--rootGenome and --targetGenomes options are "
@@ -227,7 +233,8 @@ int main(int argc, char** argv)
            << "from children" << endl;
     }
     SGBuilder sgbuild;
-    sgbuild.init(alignment, rootGenome, false, isCamelHal(alignment));
+    sgbuild.init(alignment, rootGenome, false, isCamelHal(alignment),
+                 onlySequenceNames);
     // add the reference genome
     sgbuild.addGenome(refGenome, refSequence, start, length);
 

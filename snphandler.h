@@ -39,7 +39,8 @@ public:
 
    typedef SGBuilder::SequenceMapBack SequenceMapBack;
    
-   SNPHandler(SideGraph* sideGraph = NULL, bool caseSensitive = false);
+   SNPHandler(SideGraph* sideGraph = NULL, bool caseSensitive = false,
+              bool onlySequenceNames = false);
    ~SNPHandler();
 
    /**
@@ -117,6 +118,7 @@ protected:
    SGPosition _cachePos;
    SideGraph* _sg;
    size_t _snpCount;
+   bool _onlySequenceNames;
 };
 
 

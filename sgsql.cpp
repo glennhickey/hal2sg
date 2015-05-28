@@ -265,7 +265,7 @@ void SGSQL::writePathInserts()
     _outStream << "INSERT INTO Allele VALUES ("
                << i << ", "
                << genomeIdMap.find(halSequences[i]->getGenome())->second << ", "
-               << "'" << halSequences[i]->getFullName() << "'" 
+               << "'" << _sgBuilder->getHalSeqName(halSequences[i]) << "'" 
                << ");\n";
   }
   _outStream << endl;
@@ -274,7 +274,7 @@ void SGSQL::writePathInserts()
   for (size_t i = 0; i < halSequences.size(); ++i)
   {
     _outStream << "-- PATH for HAL input sequence "
-               << halSequences[i]->getFullName() << "\n";
+               << _sgBuilder->getHalSeqName(halSequences[i]) << "\n";
     vector<SGSegment> path;
     _sgBuilder->getHalSequencePath(halSequences[i], path);
     for (size_t j = 0; j < path.size(); ++j)
