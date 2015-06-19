@@ -245,31 +245,107 @@ SGSequence* SGBuilder::createSGSequence(const Sequence* sequence,
   assert(sequence != NULL);
   assert(startOffset >= 0);
   assert(length > 0);
- 
+
+  // compute Dupes
+  vector<Block*> rawBlocks;
+  if (sequence->getGenome() != _mapRoot)
+  {
+    computeBlocks(sequence, sequence->getStartPosition() + startOffset,
+                  sequence->getStartPosition() + startOffset + length,
+                  NULL, rawBlocks);
+  }
+
+  // clean up weird overlap cases from self-dupe code (to revisit)
+  vector<Block*> blocks;
+  filterOverlaps(rawBlocks, blocks);
+
+  // for each block, a flag if it's collapsed or not
+  vector<bool> collapsed(blocks.size(), false);
+  getCollapsedFlags(blocks, collapsed);  
+
+  // We can optimize this out probably but one pass just to compute
+  // the length of the new sequence
+  hal_index_t newSeqLen = 0;
+  hal_index_t prev = -1;
+  for (size_t i = 0; i < blocks.size(); ++i)
+  {
+    Block* block = blocks[i];
+    hal_index_t delta = block->_srcStart - prev;
+    // add gap between blocks
+    if (delta > 1)
+    {
+      newSeqLen += delta - 1;
+    }
+    if (collapsed[i] == false)
+    {
+      newSeqLen += block->_srcEnd - block->_srcStart + 1;
+    }
+    prev = block->_srcEnd;
+  }
+  if (length -1 > prev)
+  {
+    newSeqLen += length - prev - 1;
+  }
+  assert(newSeqLen <= length);
+
   // make a new Side Graph Sequence
   stringstream name;
   name << getHalSeqName(sequence);
   if (length < (hal_index_t)sequence->getSequenceLength())
   {
-    name << "_" << startOffset << "_" << length;
+    name << "_" << startOffset << "_" << newSeqLen;
   }  
-  SGSequence* sgSeq = new SGSequence(-1, length, name.str());
+  SGSequence* sgSeq = new SGSequence(-1, newSeqLen, name.str());
 
   // add to the Side Graph
   _sg->addSequence(sgSeq);
+  
+  // 1 pass just to update map structures for uncollapsed
+  sg_seqid_t halSequenceID = (sg_seqid_t)sequence->getArrayIndex();
+  assert(halSequenceID >= 0);
+  prev = -1;
+  newSeqLen = 0;
+  for (size_t i = 0; i < blocks.size(); ++i)
+  {
+    Block* block = blocks[i];
+    hal_index_t delta = block->_srcStart - prev;
+
+    if (delta > 1)
+    {
+      // add gap between blocks [prev+1 -> srcStart-1]
+      _lookup->addInterval(SGPosition(halSequenceID, startOffset + prev + 1),
+                           SGPosition(sgSeq->getID(), newSeqLen),
+                           delta -1, false);  
+      newSeqLen += delta - 1;
+    }
+    if (collapsed[i] == false)
+    {
+      // add map of block source to sidegraph sequence
+      _lookup->addInterval(SGPosition(halSequenceID, block->_srcStart),
+                           SGPosition(sgSeq->getID(), newSeqLen),
+                           block->_srcEnd - block->_srcStart + 1, false);
+
+      
+      newSeqLen += block->_srcEnd - block->_srcStart + 1;
+    }
+    prev = block->_srcEnd;
+  }
+  if (length -1 > prev)
+  {
+    // add gap between blocks [prev+1 -> end]
+    _lookup->addInterval(SGPosition(halSequenceID, startOffset + prev + 1),
+                         SGPosition(sgSeq->getID(), newSeqLen),
+                         length - prev -1, false);  
+    newSeqLen += length - prev - 1;
+  }
+
+  // NEED TO FIX::
   // keep record of where it came from (ie to trace back from the side graph
   // to hal
   _seqMapBack.insert(
     pair<const SGSequence*, pair<const Sequence*, hal_index_t> >(
       sgSeq, pair<const Sequence*, hal_index_t>(sequence, startOffset)));
   
-  // keep record in other direction (ie to map from hal into the side graph)
-  sg_seqid_t halSequenceID = (sg_seqid_t)sequence->getArrayIndex();
-  assert(halSequenceID >= 0);
-
-  _lookup->addInterval(SGPosition(halSequenceID, startOffset),
-                       SGPosition(sgSeq->getID(), 0),
-                       length, false);
 
   return sgSeq;
 }
@@ -280,14 +356,14 @@ const SGJoin* SGBuilder::createSGJoin(const SGSide& side1, const SGSide& side2)
 
   // filter trivial join
 /*  if (abs(join->getSide1().getBase().getPos() -
-          join->getSide2().getBase().getPos()) == 1 &&
-      join->getSide1().getForward() !=
-      join->getSide2().getForward())
-  {
+    join->getSide2().getBase().getPos()) == 1 &&
+    join->getSide1().getForward() !=
+    join->getSide2().getForward())
+    {
     cout << "filter trivial " << *join << endl;
     delete join;
     return NULL;
-  }
+    }
 */
   return _sg->addJoin(join);
 }
@@ -312,85 +388,12 @@ void SGBuilder::mapSequence(const Sequence* sequence,
   // if (genome != _root && globalEnd > globalStart)
   else 
   {
-    if (target == NULL)
-    {
-      // map to self
-      target = genome;
-      _mapMrca = genome;
-    }
-    
-    // block mapping logic below largely taken from halBlockLiftover.cpp
-    SegmentIteratorConstPtr refSeg;
-    hal_index_t lastIndex;
-    if (genome->getNumTopSegments() > 0)
-    {
-      refSeg = genome->getTopSegmentIterator();
-      lastIndex = (hal_index_t)genome->getNumTopSegments();
-    }
-    else
-    {
-      refSeg = genome->getBottomSegmentIterator();
-      lastIndex = (hal_index_t)genome->getNumBottomSegments();      
-    }
-    
-    refSeg->toSite(globalStart, false);
-    hal_offset_t startOffset = globalStart - refSeg->getStartPosition();
-    hal_offset_t endOffset = 0;
-    if (globalEnd <= refSeg->getEndPosition())
-    {
-      endOffset = refSeg->getEndPosition() - globalEnd;
-    }
-    refSeg->slice(startOffset, endOffset);
-  
-    assert(refSeg->getStartPosition() ==  globalStart);
-    assert(refSeg->getEndPosition() <= globalEnd);
-    
-    set<MappedSegmentConstPtr> mappedSegments;
-
-    ///// DEBUG
-    cout << "Mapping " << getHalSeqName(sequence) << " to "
-         << target->getName()
-         << "; MRC = " << _mapMrca->getName()
-         << "; ROOT = " << _root->getName()
-         << "; PATH = ";
-    for (set<const Genome*>::iterator i = _mapPath.begin();
-         i != _mapPath.end(); ++i)
-    {
-      cout << (*i)->getName() << ", ";
-    }
-    cout << endl;
-    /////
-    
-    while (refSeg->getArrayIndex() < lastIndex &&
-           refSeg->getStartPosition() <= globalEnd)  
-    {
-      refSeg->getMappedSegments(mappedSegments, target, &_mapPath,
-                                true, 0, _mapRoot, _mapMrca);
-      refSeg->toRight(globalEnd);
-    }
-
     vector<Block*> blocks;
-    blocks.reserve(mappedSegments.size());
+    computeBlocks(sequence, globalStart, globalEnd, target, blocks);
+
     SGSide prevHook(SideGraph::NullPos, true);
-
-    vector<MappedSegmentConstPtr> fragments;
-    BlockMapper::MSSet emptySet;
-    set<hal_index_t> queryCutSet;
-    set<hal_index_t> targetCutSet;
-    for (set<MappedSegmentConstPtr>::iterator i = mappedSegments.begin();
-         i != mappedSegments.end(); ++i)
-    {
-      BlockMapper::extractSegment(i, emptySet, fragments, &mappedSegments, 
-                                  targetCutSet, queryCutSet);
-      Block* block = new Block();
-      fragmentsToBlock(fragments, *block);
-      blocks.push_back(block);
-    }
     _lastJoin = NULL;
-    // extractSegment() method above works in sorted order by target.
-    // we need sorted order by source (to detect insertions, for example).
-    sort(blocks.begin(), blocks.end(), BlockPtrLess());
-
+   
     // we will deal in sequence-relative (as opposed to hals wonky
     // genome-relative) coordinates from here on.
     hal_index_t sequenceStart = globalStart - sequence->getStartPosition();
@@ -438,6 +441,113 @@ void SGBuilder::mapSequence(const Sequence* sequence,
   }
 }
 
+void SGBuilder::computeBlocks(const Sequence* sequence,
+                              hal_index_t globalStart,
+                              hal_index_t globalEnd,
+                              const Genome* target,
+                              vector<Block*>& blocks)
+{
+  const Genome* genome = sequence->getGenome();
+
+  const Genome* currentMRCA = _mapMrca;
+  if (target == NULL)
+  {
+    // map to self
+    target = genome;
+    currentMRCA = genome;
+  }
+
+  // block mapping logic below largely taken from halBlockLiftover.cpp
+  SegmentIteratorConstPtr refSeg;
+  hal_index_t lastIndex;
+  if (genome->getNumTopSegments() > 0)
+  {
+    refSeg = genome->getTopSegmentIterator();
+    lastIndex = (hal_index_t)genome->getNumTopSegments();
+  }
+  else
+  {
+    refSeg = genome->getBottomSegmentIterator();
+    lastIndex = (hal_index_t)genome->getNumBottomSegments();      
+  }
+    
+  refSeg->toSite(globalStart, false);
+  hal_offset_t startOffset = globalStart - refSeg->getStartPosition();
+  hal_offset_t endOffset = 0;
+  if (globalEnd <= refSeg->getEndPosition())
+  {
+    endOffset = refSeg->getEndPosition() - globalEnd;
+  }
+  refSeg->slice(startOffset, endOffset);
+  
+  assert(refSeg->getStartPosition() ==  globalStart);
+  assert(refSeg->getEndPosition() <= globalEnd);
+    
+  set<MappedSegmentConstPtr> mappedSegments;
+
+  ///// DEBUG
+  cout << "Mapping " << getHalSeqName(sequence) << " to "
+       << target->getName()
+       << "; MRC = " << currentMRCA->getName()
+       << "; ROOT = " << _root->getName()
+       << "; PATH = ";
+  for (set<const Genome*>::iterator i = _mapPath.begin();
+       i != _mapPath.end(); ++i)
+  {
+    cout << (*i)->getName() << ", ";
+  }
+  cout << endl;
+  /////
+    
+  while (refSeg->getArrayIndex() < lastIndex &&
+         refSeg->getStartPosition() <= globalEnd)  
+  {
+    refSeg->getMappedSegments(mappedSegments, target, &_mapPath,
+                              true, 0, _mapRoot, currentMRCA);
+    refSeg->toRight(globalEnd);
+  }
+
+  blocks.clear();
+  blocks.reserve(mappedSegments.size());
+
+  vector<MappedSegmentConstPtr> fragments;
+  BlockMapper::MSSet emptySet;
+  set<hal_index_t> queryCutSet;
+  set<hal_index_t> targetCutSet;
+  cout << "BLIN " << endl;
+  for (set<MappedSegmentConstPtr>::iterator i = mappedSegments.begin();
+       i != mappedSegments.end(); ++i)
+  {
+    BlockMapper::extractSegment(i, emptySet, fragments, &mappedSegments, 
+                                targetCutSet, queryCutSet);
+    Block* block = new Block();
+    fragmentsToBlock(fragments, *block);
+    // todo: 0-len blocks come up seemingly only in original hal2sg unit tests
+    // now that dupe code added.  something about these cases don't
+    // play nice with blockmapping dupe option, but not issue with real
+    // data so we just filter out for now. 
+    if (block->_srcStart == block->_srcEnd ||
+        // filter trivial self alignments while at it
+        (block->_srcSeq == block->_tgtSeq &&
+         block->_srcStart == block->_tgtStart &&
+         block->_srcEnd == block->_tgtEnd))
+    {
+      delete block;
+      block = NULL;
+    }
+    else
+    {
+      blocks.push_back(block);
+    }
+    cout << block << endl;
+  }
+  cout << endl << endl;
+
+  // extractSegment() method above works in sorted order by target.
+  // we need sorted order by source (to detect insertions, for example).
+  
+  sort(blocks.begin(), blocks.end(), BlockPtrLess());
+}
 
 void SGBuilder::mapBlockEnds(Block* prevBlock,
                              Block* block,
@@ -755,7 +865,8 @@ void SGBuilder::fragmentsToBlock(const vector<MappedSegmentConstPtr>& fragments,
   block._reversed = srcFront->getReversed() != fragments.front()->getReversed();
 }
 
-SGBuilder::Block* SGBuilder::cutBlock(Block* prev, Block* cur)
+SGBuilder::Block* SGBuilder::cutBlock(Block* prev, Block* cur,
+                                      bool leaveExactOverlaps)
 {
   if (prev != NULL)
   {
@@ -764,7 +875,8 @@ SGBuilder::Block* SGBuilder::cutBlock(Block* prev, Block* cur)
     assert(prev->_srcStart <= prev->_srcEnd);
     assert(cur->_srcStart <= cur->_srcEnd);
     sg_int_t cutLen = prev->_srcEnd - cur->_srcStart + 1;
-    if (cutLen > 0)
+    if (cutLen > 0 && (!leaveExactOverlaps ||
+                       cutLen < cur->_srcEnd - cur->_srcStart + 1))
     {
       assert(false);
       cur->_srcStart += cutLen;
@@ -882,4 +994,66 @@ void SGBuilder::getRootSubString(string& outDNA, const Sequence* sequence,
 
   // do our query on this new root.
   outDNA = _rootString.substr(sequence->getStartPosition() + pos, length);
+}
+
+void SGBuilder::filterOverlaps(const vector<Block*>& rawBlocks,
+                               vector<Block*>& blocks)
+{
+  // filter out overlaps.  don't think they ever happens but
+  // need to revisit this logic.  Will certainly never come into
+  // play on a star tree, or cases where we don't cross crazy distance
+  // between output species (can restrict at higher level).  
+  Block* prev = NULL;
+  for (size_t i = 0; i < rawBlocks.size(); ++i)
+  {
+    Block* cur = cutBlock(prev, rawBlocks[i], true);
+    if (cur == NULL)
+    {
+      delete rawBlocks[i];
+    }
+    else
+    {
+      blocks.push_back(cur);
+      prev = cur;
+    }
+  }
+}
+
+void SGBuilder::getCollapsedFlags(const vector<Block*>& blocks,
+                                  vector<bool>& collapseBlock)
+{
+  // a temporary interval map, where we ignore sequence id.  
+  SGLookup locLook;
+  locLook.init(vector<string>(1, ""));
+  
+  // for each block, a flag if it's collapsed or not
+  for (size_t i = 0; i < blocks.size(); ++i)
+  {
+    Block* block = blocks[i];
+    hal_index_t blockLength = block->_srcEnd - block->_srcStart + 1;
+    SGPosition tgtHalPosition((sg_seqid_t)block->_tgtSeq->getArrayIndex(),
+                              block->_tgtStart);
+    // check if it's a duplication in a *different* side graph sequence
+    SGSide mapResult = _lookup->mapPosition(tgtHalPosition);
+    bool visited = mapResult.getBase() != SideGraph::NullPos;
+    // check if it's a duplication in the same side graph sequence
+    mapResult = locLook.mapPosition(SGPosition(0, block->_tgtStart));
+    bool tgtVis = mapResult.getBase() != SideGraph::NullPos;
+    mapResult = locLook.mapPosition(SGPosition(0, block->_srcStart));
+    bool srcVis = mapResult.getBase() != SideGraph::NullPos;
+
+    collapseBlock[i] = visited || tgtVis || srcVis;
+    if (!tgtVis)
+    {
+      locLook.addInterval(SGPosition(0, block->_tgtStart),
+                          SGPosition(0, block->_tgtStart),
+                          blockLength, false);
+    }
+    if (!srcVis)
+    {
+      locLook.addInterval(SGPosition(0, block->_srcStart),
+                          SGPosition(0, block->_srcStart),
+                          blockLength, false);      
+    }
+  }
 }

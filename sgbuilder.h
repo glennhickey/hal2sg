@@ -123,6 +123,14 @@ protected:
                     hal_index_t globalEnd,
                     const hal::Genome* target);
 
+   /** Compute the alignment blocks between a (sub)sequence and a 
+    * target genome */
+   void computeBlocks(const hal::Sequence* sequence,
+                      hal_index_t globalStart,
+                      hal_index_t globalEnd,
+                      const hal::Genome* target,
+                      std::vector<Block*>& blocks);
+
    /** Add a sequence (or part thereof to the sidegraph) and update
     * lookup structures (but not joins) */
    SGSequence* createSGSequence(const hal::Sequence* sequence,
@@ -176,7 +184,7 @@ protected:
    bool isSelfBlock(const Block& block) const;
 
    /** cut block against another */
-   Block* cutBlock(Block* prev, Block* cur);
+   Block* cutBlock(Block* prev, Block* cur, bool leaveExactOverlaps = false);
 
    /** We are anchoring on the root genome (at least for now).  But in
     * Adams output, the root sequence is Ns which is a problem.  We 
@@ -185,6 +193,18 @@ protected:
    void getRootSubString(std::string& outDNA, const hal::Sequence* sequence,
                          hal_index_t pos, hal_index_t length) const;
 
+   /** filter out overlaps.  don't think they ever happens but
+    * need to revisit this logic.  Will certainly never come into
+    * play on a star tree, or cases where we don't cross crazy distance
+    * between output species (can restrict at higher level).   */
+   void filterOverlaps(const std::vector<Block*>& rawBlocks,
+                       std::vector<Block*>& blocks);
+
+   /** When computing duplications on a self-alignment, we want to 
+    * pick out blocks that do not get collapsed out due to alignment,
+    * as they will be present in the new sequence */
+   void getCollapsedFlags(const std::vector<Block*>& blocks,
+                          std::vector<bool>& collapseBlock);
    
 protected:
 
