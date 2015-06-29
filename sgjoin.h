@@ -28,6 +28,8 @@ public:
    void setSide2(const SGSide& side2);
    /** swap side1 with side2 */
    void swap();
+   /** joins two consecutive sides */
+   bool isTrivial() const;
    
    bool operator<(const SGJoin& j2) const;
    bool operator==(const SGJoin& j2) const;

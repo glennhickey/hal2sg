@@ -156,7 +156,7 @@ protected:
     * The interval maps from the new SOURCE genome to a TARGET genome
     * that is already in the side graph. 
     */
-   void mapBlockEnds(Block* block, SGSide& prevHook);
+   std::pair<SGSide, SGSide> mapBlockEnds(const Block* block);
 
    /** Add a block, breaking apart for SNPs. only add joins that are
     * contained in the block.  Update the endpoints if needed (as result of 
@@ -229,13 +229,6 @@ protected:
     * not in the lookup are filtered */
    void filterRedundantDupeBlocks(std::vector<Block*>& blocks,
                                   const SGSequence* sgSeq);
-
-   /**  Use mapBlockEnds to add the duplication joins to the graph */
-   void addDupeJoins(const hal::Sequence* sequence,
-                hal_index_t startOffset,
-                hal_index_t length,
-                const std::vector<Block*>& blocks,                
-                const SGSequence* sgSeq);
    
 protected:
 

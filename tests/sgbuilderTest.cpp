@@ -846,23 +846,140 @@ void HarderSNPTest::checkCallBack(AlignmentConstPtr alignment)
   //join = SGJoin(SGSide(SGPosition(0, 4), true),
   //              SGSide(SGPosition(1, 0), false));
   //CuAssertTrue(_testCase, sg->getJoin(&join) != NULL);
-
- 
 }
 
 void sgBuilderHarderSNPTest(CuTest *testCase)
 {
-  //try
+  try
   {
     HarderSNPTest tester;
     tester.check(testCase);
   }
-  //catch (...) 
+  catch (...) 
   {
-    //CuAssertTrue(testCase, false);
+    CuAssertTrue(testCase, false);
   }
 }
 
+///////////////////////////////////////////////////////////////////////////
+//
+//            BASIC REFERENCE DUPE TEST
+//
+///////////////////////////////////////////////////////////////////////////
+
+struct RefDupeTest : public InversionTest
+{
+   void createCallBack(hal::AlignmentPtr alignment);
+   void checkCallBack(hal::AlignmentConstPtr alignment);
+};
+
+void RefDupeTest::createCallBack(AlignmentPtr alignment)
+{
+  InversionTest::createCallBack(alignment);
+
+  // note we inherit the following:
+  // ancestor and leaf are 10 x 10 blocks perfectly aligned except  
+  // single inversion at segment [50,59]
+
+  Genome* ancGenome = alignment->openGenome("AncGenome");
+  Genome* leaf1Genome = alignment->openGenome("Leaf1");
+
+  string dna;
+  ancGenome->getString(dna);
+  string leafdna;
+  leaf1Genome->getString(leafdna);
+
+  // add a couple dupes to the leaf
+  // 0-9 and 20-29: single forward dupe, no snps
+  TopSegmentIteratorPtr top = leaf1Genome->getTopSegmentIterator(2);
+  BottomSegmentIteratorPtr bottom = ancGenome->getBottomSegmentIterator();
+  bottom->toParent(top);
+  bottom->setChildIndex(0, NULL_INDEX);
+  top->setParentIndex(0);
+  top->setParentReversed(0);
+  top->setNextParalogyIndex(0);
+  top = leaf1Genome->getTopSegmentIterator(0);
+  top->setNextParalogyIndex(2);
+  for (size_t i = 0; i < 10; ++i)
+  {
+    leafdna[20 + i] = leafdna[i];
+  }
+ 
+  // 50,59, 60,69 90,99 : triple dupe where first is inverted
+  top = leaf1Genome->getTopSegmentIterator(5);
+  top->setNextParalogyIndex(6);
+  top = leaf1Genome->getTopSegmentIterator(6);
+  top->setParentIndex(5);
+  top->setParentReversed(false);
+  top->setNextParalogyIndex(9);
+  top = leaf1Genome->getTopSegmentIterator(9);
+  top->setParentIndex(5);
+  top->setParentReversed(false);
+  top->setNextParalogyIndex(5);
+  bottom = ancGenome->getBottomSegmentIterator(6);
+  bottom->setChildIndex(0, NULL_INDEX);
+  bottom = ancGenome->getBottomSegmentIterator(9);
+  bottom->setChildIndex(0, NULL_INDEX);
+  for (size_t i = 0; i < 10; ++i)
+  {
+    leafdna[60 + i] = dna[50 + i];
+    leafdna[90 + i] = dna[50 + i];
+  }
+  // pop in a couple snps
+
+  cout << "Anc50 " << dna.substr(50, 10) << endl;
+  cout << "lea60 " << leafdna.substr(60, 10) << endl;
+  cout << "lea50 " << leafdna.substr(50, 10) << endl;
+
+  leaf1Genome->setString(leafdna);
+}
+
+void RefDupeTest::checkCallBack(AlignmentConstPtr alignment)
+{
+  validateAlignment(alignment);
+
+  const Genome* ancGenome = alignment->openGenome("AncGenome");
+  const Genome* leaf1Genome = alignment->openGenome("Leaf1");
+
+  SGBuilder sgBuild;
+  
+  sgBuild.init(alignment, ancGenome, true, false);
+  sgBuild.addGenome(leaf1Genome);
+  sgBuild.addGenome(ancGenome);
+
+  const SideGraph* sg = sgBuild.getSideGraph();
+  cout << *sg << endl;
+//  CuAssertTrue(_testCase, sg->getNumSequences() == 2);
+  const SGSequence* leafSeq = sg->getSequence(0);
+  const SGSequence* ancSeq = sg->getSequence(1);
+  // 1 single dupe and 2 doubles:
+  CuAssertTrue(_testCase, leafSeq->getLength() == 70);
+  CuAssertTrue(_testCase, ancSeq->getLength() == 100);
+
+  const vector<const Sequence*>& halSequences = sgBuild.getHalSequences();
+  for (size_t i = 0; i < halSequences.size(); ++i)
+  {
+    vector<SGSegment> path;
+    sgBuild.getHalSequencePath(halSequences[i], path);
+    CuAssertTrue(_testCase, sgBuild.verifyPath(halSequences[i], path) == true);
+  }
+   
+}
+
+void sgBuilderRefDupeTest(CuTest *testCase)
+{
+  try
+  {
+    RefDupeTest tester;
+    tester.check(testCase);
+  }
+  catch (...) 
+  {
+    CuAssertTrue(testCase, false);
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////
 
 CuSuite* sgBuildTestSuite(void) 
 {
@@ -873,6 +990,7 @@ CuSuite* sgBuildTestSuite(void)
   SUITE_ADD_TEST(suite, sgBuilderInsertionTest);
   SUITE_ADD_TEST(suite, sgBuilderEmptySequenceTest);
   SUITE_ADD_TEST(suite, sgBuilderSNPTest);
-  SUITE_ADD_TEST(suite, sgBuilderHarderSNPTest);  
+  SUITE_ADD_TEST(suite, sgBuilderHarderSNPTest);
+  SUITE_ADD_TEST(suite, sgBuilderRefDupeTest);  
   return suite;
 }
