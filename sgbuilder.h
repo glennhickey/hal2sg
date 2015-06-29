@@ -10,6 +10,8 @@
 #include "hal.h"
 #include "sidegraph.h"
 #include "sglookup.h"
+#include "sglookback.h"
+
 class SNPHandler;
 
 
@@ -88,9 +90,6 @@ public:
    struct SeqLess {
       bool operator()(const hal::Sequence* s1, const hal::Sequence* s2) const;
    };
-
-   typedef std::map<const SGSequence*, std::pair<const hal::Sequence*,
-                                                 hal_index_t> > SequenceMapBack;
    
 protected:
    
@@ -133,26 +132,31 @@ protected:
 
    /** Add a sequence (or part thereof to the sidegraph) and update
     * lookup structures (but not joins) */
-   SGSequence* createSGSequence(const hal::Sequence* sequence,
-                                hal_index_t startOffset,
-                                hal_index_t length);
-
+   std::pair<SGSide, SGSide> createSGSequence(const hal::Sequence* sequence,
+                                              hal_index_t startOffset,
+                                              hal_index_t length);
+   
    /** Add a join to the side graph */
    const SGJoin* createSGJoin(const SGSide& side1, const SGSide& side2);
 
+   /** New function added to wrap mapBlockEnds, which can now be used
+    * for self-alignments and normal alignments with slightly different
+    * logic */
+   void visitBlock(Block* prevBlock,
+                   Block* block,
+                   Block* nextBlock,
+                   SGSide& prevHook,
+                   const hal::Sequence* srcSequence,
+                   const hal::Genome* srcGenome,
+                   hal_index_t sequenceStart,
+                   hal_index_t sequenceEnd,
+                   const hal::Genome* tgtGenome);
+   
    /** Add interval (from blockmapper machinery) to the side graph.  
     * The interval maps from the new SOURCE genome to a TARGET genome
     * that is already in the side graph. 
     */
-   void mapBlockEnds(Block* prevBlock,
-                     Block* block,
-                     Block* nextBlock,
-                     SGSide& prevHook,
-                     const hal::Sequence* srcSequence,
-                     const hal::Genome* srcGenome,
-                     hal_index_t sequenceStart,
-                     hal_index_t sequenceEnd,
-                     const hal::Genome* tgtGenome);
+   void mapBlockEnds(Block* block, SGSide& prevHook);
 
    /** Add a block, breaking apart for SNPs. only add joins that are
     * contained in the block.  Update the endpoints if needed (as result of 
@@ -193,6 +197,10 @@ protected:
    void getRootSubString(std::string& outDNA, const hal::Sequence* sequence,
                          hal_index_t pos, hal_index_t length) const;
 
+   
+   // Logic added only for collapsing new sequences (ie handling dupes
+   // in reference or insertions):
+   
    /** filter out overlaps.  don't think they ever happens but
     * need to revisit this logic.  Will certainly never come into
     * play on a star tree, or cases where we don't cross crazy distance
@@ -205,6 +213,29 @@ protected:
     * as they will be present in the new sequence */
    void getCollapsedFlags(const std::vector<Block*>& blocks,
                           std::vector<bool>& collapseBlock);
+
+   /** Add gaps and uncollapsed blocks to the lookup structure to 
+    * make sure the entire new sequence is covered */
+   void updateDupeBlockLookups(const hal::Sequence* sequence,
+                               hal_index_t startOffset,
+                               hal_index_t length,
+                               const std::vector<Block*>& blocks,
+                               const std::vector<bool>& collapsed,
+                               const SGSequence* sgSeq);
+
+   /** In-place filtering of self-alignment blocks that are not needed
+    * to construct the graph as their alignment is already covered 
+    * by some other block.  Logic used is that blocks with targets
+    * not in the lookup are filtered */
+   void filterRedundantDupeBlocks(std::vector<Block*>& blocks,
+                                  const SGSequence* sgSeq);
+
+   /**  Use mapBlockEnds to add the duplication joins to the graph */
+   void addDupeJoins(const hal::Sequence* sequence,
+                hal_index_t startOffset,
+                hal_index_t length,
+                const std::vector<Block*>& blocks,                
+                const SGSequence* sgSeq);
    
 protected:
 
@@ -214,7 +245,7 @@ protected:
    hal::AlignmentConstPtr _alignment;
    GenomeLUMap _luMap;
    SGLookup* _lookup;
-   SequenceMapBack _seqMapBack;
+   SGLookBack _lookBack;
    std::set<const hal::Genome*> _mapPath;
    const hal::Genome* _mapMrca;
    bool _referenceDupes;

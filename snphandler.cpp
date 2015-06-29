@@ -46,7 +46,7 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& srcDNA,
                                            const SGPosition& tgtPos,
                                            bool reverseMap,
                                            SGLookup* srcLookup,
-                                           SequenceMapBack* seqMapBack)
+                                           SGLookBack* seqMapBack)
 {
 //  cout << "\ncreateSNP " << srcDNA << " " << dnaOffset << "," << dnaLength
 //       << ",r=" << reverseMap  << endl;
@@ -96,6 +96,7 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& srcDNA,
   // cover them.  We create the sequences and joins here and add them
   // to the side graph.  We also update sgPositions with these new
   // coordinates.
+  set<sg_int_t> newSnpSeqs;
   SGSide prevHook;
   string nameBuf;
   
@@ -110,6 +111,7 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& srcDNA,
       const SGSequence* newSeq;
       newSeq = _sg->addSequence(new SGSequence(-1, j - i + 1, nameBuf));
       _snpCount += newSeq->getLength();
+      newSnpSeqs.insert(newSeq->getID());
       
       if (i > 0)
       {
@@ -181,13 +183,19 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& srcDNA,
     pos.setPos(srcPos.getPos() + i);
     srcLookup->addInterval(pos, sgPositions[i], j - i, false);
 
-    // keep record of where it came from (ie to trace back from the side graph
-    // to hal
-    seqMapBack->insert(
-      pair<const SGSequence*, pair<const Sequence*, hal_index_t> >(
-        _sg->getSequence(sgPositions[i].getSeqID()),
-        pair<const Sequence*, hal_index_t>(halSrcSequence, pos.getPos())));
-    
+    if (seqMapBack != NULL &&
+        newSnpSeqs.find(sgPositions[i].getSeqID()) != newSnpSeqs.end())
+    {
+      // keep record of where it came from (ie to trace back from the side
+      // graph to hal (only made optional to let unit tests skip this step
+      // if needed)
+      seqMapBack->addInterval(
+        SGPosition(sgPositions[i].getSeqID(), 0),
+        halSrcSequence,
+        pos.getPos(),
+        _sg->getSequence(sgPositions[i].getSeqID())->getLength(),
+        false);
+    }
     i = j - 1;
   }
   
@@ -275,7 +283,7 @@ void SNPHandler::getSNPName(const Sequence* halSrcSequence,
     // unit tests sometimes dont bother with a hal sequence so we
     // let it be optional here. 
     ss << (_onlySequenceNames ? halSrcSequence->getName() :
-           halSrcSequence->getFullName());    
+           halSrcSequence->getFullName());
   }
   ss << "_" << (srcPos.getPos() + offset) << "_" << length;
   outName = ss.str();

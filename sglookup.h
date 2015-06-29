@@ -34,6 +34,10 @@ public:
     */
    void init(const std::vector<std::string>& sequenceNames);
 
+   /** Allow interface (for sglookback) to add new sequences after init
+    */
+   void addSequence(const std::string& sequenceName);
+
    /** Add a mapping between a pair of intervals:
     * [inPos, inPos+length) -> [outPos, outPos+length) 
     * Note: this is a bijection, and we handle no overlaps.  every

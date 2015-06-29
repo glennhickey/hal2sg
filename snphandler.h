@@ -10,6 +10,7 @@
 #include <map>
 
 #include "sglookup.h"
+#include "sglookback.h"
 #include "sidegraph.h"
 #include "sgbuilder.h"
 /**
@@ -37,8 +38,6 @@ class SNPHandler
 {
 public:
 
-   typedef SGBuilder::SequenceMapBack SequenceMapBack;
-   
    SNPHandler(SideGraph* sideGraph = NULL, bool caseSensitive = false,
               bool onlySequenceNames = false);
    ~SNPHandler();
@@ -58,7 +57,7 @@ public:
                                        const SGPosition& tgtPos,
                                        bool reverseMap,
                                        SGLookup* srcLookup,
-                                       SequenceMapBack* seqMapBack);
+                                       SGLookBack* seqMapBack);
    
    /** Check to see if SNP present in Side Graph.  If it's not then
     * SideGraph::NullPos is returned */

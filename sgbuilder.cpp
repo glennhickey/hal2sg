@@ -53,7 +53,7 @@ void SGBuilder::clear()
   }
   _luMap.clear();
   _lookup = NULL;
-  _seqMapBack.clear();
+  _lookBack.clear();
   _mapPath.clear();
   _mapMrca = NULL;
   _firstGenomeName.erase();
@@ -72,20 +72,35 @@ size_t SGBuilder::getSequenceString(const SGSequence* sgSequence,
                                     sg_int_t pos,
                                     sg_int_t length) const
 {
-  SequenceMapBack::const_iterator i = _seqMapBack.find(sgSequence);
-  assert(i != _seqMapBack.end());
-  const Sequence* halSeq = i->second.first;
-  hal_index_t halPos = i->second.second;
+  outString.clear();
   hal_index_t len = length == -1 ? sgSequence->getLength() : length;
-  if (_camelMode == true && halSeq->getGenome()->getParent() == NULL)
+  vector<SGSegment> segPath;
+  vector<const Sequence*> halSeqPath;
+  _lookBack.getPath(SGPosition(sgSequence->getID(), pos),
+                    SGPosition(sgSequence->getID(), pos + len - 1),
+                    segPath, halSeqPath);
+  for (size_t i = 0; i < segPath.size(); ++i)
   {
-    // adams root has not sequence. we infer it from children as a hack.
-    getRootSubString(outString, halSeq, halPos + pos, len);
+    const Sequence* halSeq = halSeqPath[i];
+    const SGSegment& seg = segPath[i];
+    sg_int_t leftCoord = seg.getMinPos().getPos();
+    string buffer;
+    if (_camelMode == true && halSeq->getGenome()->getParent() == NULL)
+    {
+      // adams root has not sequence. we infer it from children as a hack.
+      getRootSubString(buffer, halSeq, leftCoord, seg.getLength());
+    }
+    else
+    {
+      halSeq->getSubString(buffer, leftCoord, seg.getLength());
+    }
+    if (seg.getSide().getForward() == false)
+    {
+      reverseComplement(buffer);
+    }
+    outString += buffer;
   }
-  else
-  {
-    halSeq->getSubString(outString, halPos + pos, len);
-  }
+  assert(outString.length() == len);
   return outString.length();
 }
 
@@ -96,10 +111,7 @@ const string& SGBuilder::getPrimaryGenomeName() const
 
 string SGBuilder::getHalGenomeName(const SGSequence* sgSequence) const
 {
-  SequenceMapBack::const_iterator i = _seqMapBack.find(sgSequence);
-  assert(i != _seqMapBack.end());
-  const Sequence* halSeq = i->second.first;
-  return halSeq->getGenome()->getName();
+  return _lookBack.getHalGenomeName(sgSequence);
 }
 
 const vector<const Sequence*>& SGBuilder::getHalSequences() const
@@ -238,9 +250,9 @@ const Genome* SGBuilder::getTarget(const Genome* genome)
   return best;
 }
 
-SGSequence* SGBuilder::createSGSequence(const Sequence* sequence,
-                                        hal_index_t startOffset,
-                                        hal_index_t length)
+pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
+                                                 hal_index_t startOffset,
+                                                 hal_index_t length)
 {
   assert(sequence != NULL);
   assert(startOffset >= 0);
@@ -250,14 +262,25 @@ SGSequence* SGBuilder::createSGSequence(const Sequence* sequence,
   vector<Block*> rawBlocks;
   if (sequence->getGenome() != _mapRoot)
   {
+    cout << "compute blocks " << sequence->getName() << " "
+         << startOffset  << ": " << length << endl;
     computeBlocks(sequence, sequence->getStartPosition() + startOffset,
-                  sequence->getStartPosition() + startOffset + length,
+                  sequence->getStartPosition() + startOffset + length - 1,
                   NULL, rawBlocks);
   }
 
   // clean up weird overlap cases from self-dupe code (to revisit)
   vector<Block*> blocks;
   filterOverlaps(rawBlocks, blocks);
+  if (blocks.size() > 0)
+  {
+    cout << "Dupe blocks found = ";
+    for (size_t i = 0; i < blocks.size(); ++i)
+    {
+      cout << blocks[i] << ", ";
+    }
+    cout << endl;
+  }
 
   // for each block, a flag if it's collapsed or not
   vector<bool> collapsed(blocks.size(), false);
@@ -299,55 +322,36 @@ SGSequence* SGBuilder::createSGSequence(const Sequence* sequence,
 
   // add to the Side Graph
   _sg->addSequence(sgSeq);
+
+  // update the _lookup structure for the entire new sequence
+  // (gaps and uncollapsed regions)
+  updateDupeBlockLookups(sequence, startOffset, length, blocks, collapsed,
+                         sgSeq);
   
-  // 1 pass just to update map structures for uncollapsed
+  // we have all pairwise alignment blocks in our list.  we only
+  // need blocks where the target range is uncollapsed.  filter
+  // everything else out here.
+  filterRedundantDupeBlocks(blocks, sgSeq);
+
+  // add all the joins and snps resulting from the duplication blocks
+  addDupeJoins(sequence, startOffset, length, blocks, sgSeq);
+    
+  // Hooks to the start and end of the input subsequence in the sidegraph.
+  // note to self: these two maps could conceivably be optimized out.
+  pair<SGSide, SGSide> outHooks;
   sg_seqid_t halSequenceID = (sg_seqid_t)sequence->getArrayIndex();
-  assert(halSequenceID >= 0);
-  prev = -1;
-  newSeqLen = 0;
-  for (size_t i = 0; i < blocks.size(); ++i)
-  {
-    Block* block = blocks[i];
-    hal_index_t delta = block->_srcStart - prev;
+  outHooks.first =  _lookup->mapPosition(SGPosition(halSequenceID,
+                                                    startOffset));
+  outHooks.second = _lookup->mapPosition(SGPosition(halSequenceID,
+                                                    startOffset + length-1));
+  // if not reversed : false
+  outHooks.first.setForward(!outHooks.first.getForward());
+  // if not revered : true
+  outHooks.second.setForward(outHooks.second.getForward());
+  assert(outHooks.first.getBase() != SideGraph::NullPos);
+  assert(outHooks.second.getBase() != SideGraph::NullPos);
 
-    if (delta > 1)
-    {
-      // add gap between blocks [prev+1 -> srcStart-1]
-      _lookup->addInterval(SGPosition(halSequenceID, startOffset + prev + 1),
-                           SGPosition(sgSeq->getID(), newSeqLen),
-                           delta -1, false);  
-      newSeqLen += delta - 1;
-    }
-    if (collapsed[i] == false)
-    {
-      // add map of block source to sidegraph sequence
-      _lookup->addInterval(SGPosition(halSequenceID, block->_srcStart),
-                           SGPosition(sgSeq->getID(), newSeqLen),
-                           block->_srcEnd - block->_srcStart + 1, false);
-
-      
-      newSeqLen += block->_srcEnd - block->_srcStart + 1;
-    }
-    prev = block->_srcEnd;
-  }
-  if (length -1 > prev)
-  {
-    // add gap between blocks [prev+1 -> end]
-    _lookup->addInterval(SGPosition(halSequenceID, startOffset + prev + 1),
-                         SGPosition(sgSeq->getID(), newSeqLen),
-                         length - prev -1, false);  
-    newSeqLen += length - prev - 1;
-  }
-
-  // NEED TO FIX::
-  // keep record of where it came from (ie to trace back from the side graph
-  // to hal
-  _seqMapBack.insert(
-    pair<const SGSequence*, pair<const Sequence*, hal_index_t> >(
-      sgSeq, pair<const Sequence*, hal_index_t>(sequence, startOffset)));
-  
-
-  return sgSeq;
+  return outHooks;
 }
 
 const SGJoin* SGBuilder::createSGJoin(const SGSide& side1, const SGSide& side2)
@@ -379,7 +383,7 @@ void SGBuilder::mapSequence(const Sequence* sequence,
   // directly. TODO: handle self-dupes
   if (target == NULL || genome == _root)
   {
-    SGSequence* ref = createSGSequence(
+    createSGSequence(
       sequence, globalStart - sequence->getStartPosition(),
       globalEnd - globalStart + 1);
   }
@@ -402,7 +406,7 @@ void SGBuilder::mapSequence(const Sequence* sequence,
     if (blocks.empty() == true)
     {
       // case with zero mapped blocks.  entire segment will be insertion. 
-      mapBlockEnds(NULL, NULL, NULL, prevHook, sequence,
+      visitBlock(NULL, NULL, NULL, prevHook, sequence,
                    genome, sequenceStart, sequenceEnd, target);
     }
     else
@@ -420,12 +424,12 @@ void SGBuilder::mapSequence(const Sequence* sequence,
         cutback = block == NULL ? cutback + 1 : 0;
         if (block != NULL)
         {
-          mapBlockEnds(prev, block, next, prevHook, sequence,
+          visitBlock(prev, block, next, prevHook, sequence,
                        genome, sequenceStart, sequenceEnd, target);
         }
       }
       // add insert at end / last step in path
-      mapBlockEnds(blocks.back(), NULL, NULL, prevHook, sequence,
+      visitBlock(blocks.back(), NULL, NULL, prevHook, sequence,
                    genome, sequenceStart, sequenceEnd, target);
     }
     for (size_t j = 0; j < blocks.size(); ++j)
@@ -514,7 +518,6 @@ void SGBuilder::computeBlocks(const Sequence* sequence,
   BlockMapper::MSSet emptySet;
   set<hal_index_t> queryCutSet;
   set<hal_index_t> targetCutSet;
-  cout << "BLIN " << endl;
   for (set<MappedSegmentConstPtr>::iterator i = mappedSegments.begin();
        i != mappedSegments.end(); ++i)
   {
@@ -522,15 +525,10 @@ void SGBuilder::computeBlocks(const Sequence* sequence,
                                 targetCutSet, queryCutSet);
     Block* block = new Block();
     fragmentsToBlock(fragments, *block);
-    // todo: 0-len blocks come up seemingly only in original hal2sg unit tests
-    // now that dupe code added.  something about these cases don't
-    // play nice with blockmapping dupe option, but not issue with real
-    // data so we just filter out for now. 
-    if (block->_srcStart == block->_srcEnd ||
-        // filter trivial self alignments while at it
-        (block->_srcSeq == block->_tgtSeq &&
+    // filter trivial self alignments while at it
+    if (block->_srcSeq == block->_tgtSeq &&
          block->_srcStart == block->_tgtStart &&
-         block->_srcEnd == block->_tgtEnd))
+         block->_srcEnd == block->_tgtEnd)
     {
       delete block;
       block = NULL;
@@ -539,9 +537,7 @@ void SGBuilder::computeBlocks(const Sequence* sequence,
     {
       blocks.push_back(block);
     }
-    cout << block << endl;
   }
-  cout << endl << endl;
 
   // extractSegment() method above works in sorted order by target.
   // we need sorted order by source (to detect insertions, for example).
@@ -549,15 +545,15 @@ void SGBuilder::computeBlocks(const Sequence* sequence,
   sort(blocks.begin(), blocks.end(), BlockPtrLess());
 }
 
-void SGBuilder::mapBlockEnds(Block* prevBlock,
-                             Block* block,
-                             Block* nextBlock,
-                             SGSide& prevHook,
-                             const Sequence* srcSequence,
-                             const Genome* srcGenome,
-                             hal_index_t sequenceStart,
-                             hal_index_t sequenceEnd,
-                             const Genome* tgtGenome)
+void SGBuilder::visitBlock(Block* prevBlock,
+                           Block* block,
+                           Block* nextBlock,
+                           SGSide& prevHook,
+                           const Sequence* srcSequence,
+                           const Genome* srcGenome,
+                           hal_index_t sequenceStart,
+                           hal_index_t sequenceEnd,
+                           const Genome* tgtGenome)
 {
   hal_index_t prevSrcPos;  // global hal coord of end of last block
   hal_index_t srcPos;  // global hal coord of beginning of block
@@ -580,9 +576,9 @@ void SGBuilder::mapBlockEnds(Block* prevBlock,
     srcPos = sequenceEnd + 1;
   }
 
-  // cout << endl << "PREV " << prevBlock << endl;
-  // cout << "CUR  " << block << endl;
-  // cout << "prevSrcPos " << prevSrcPos << " srcPos " << srcPos << endl;
+  cout << endl << "PREV " << prevBlock << endl;
+  cout << "CUR  " << block << endl;
+  cout << "prevSrcPos " << prevSrcPos << " srcPos " << srcPos << endl;
 
   if (prevBlock == 0)
   {
@@ -593,96 +589,100 @@ void SGBuilder::mapBlockEnds(Block* prevBlock,
   {    
     // handle insertion (source sequence not mapped to target)
     // insert new sequence for gap between prevBock and block
-    SGSequence* insertSeq = createSGSequence(srcSequence, prevSrcPos + 1, 
-                                             srcPos - prevSrcPos - 1);
+    pair<SGSide, SGSide> seqHooks = createSGSequence(srcSequence,
+                                                     prevSrcPos + 1, 
+                                                     srcPos - prevSrcPos - 1);
     
     // join it on end of last inserted side graph position
-    SGSide seqHook(SGPosition(insertSeq->getID(), 0), false);
     if (prevHook.getBase() != SideGraph::NullPos)
     {
-      createSGJoin(prevHook, seqHook);
+      createSGJoin(prevHook, seqHooks.first);
     }
 
     // our new hook is the end of this new sequence
-    prevHook.setBase(SGPosition(insertSeq->getID(),
-                                insertSeq->getLength() - 1));
-    prevHook.setForward(true);
+    prevHook = seqHooks.second;
     _pathLength += srcPos - prevSrcPos - 1;
   }
   if (block != NULL)
   {
-    sg_int_t blockLength = block->_srcEnd - block->_srcStart + 1;
+    mapBlockEnds(block, prevHook);
+  }
+}
 
-    // We want to find the two sides in our Side Graph where the current
-    // block's end points map to.  We have to be careful because it's a
-    // 2-step mapping (block.src -> block.tgt -> side graph), so need to
-    // account for double-reversal case.
-    pair<SGSide, SGSide> blockEnds;
+void SGBuilder::mapBlockEnds(Block* block,
+                             SGSide& prevHook)
+{
+  assert(block != NULL);
+  
+  sg_int_t blockLength = block->_srcEnd - block->_srcStart + 1;
 
-    // map from src to target (first mapping);
-    SGPosition halTgtFirst(
-      (sg_seqid_t)block->_tgtSeq->getArrayIndex(),
-      block->_reversed ? block->_tgtEnd : block->_tgtStart);
+  // We want to find the two sides in our Side Graph where the current
+  // block's end points map to.  We have to be careful because it's a
+  // 2-step mapping (block.src -> block.tgt -> side graph), so need to
+  // account for double-reversal case.
+  pair<SGSide, SGSide> blockEnds;
+
+  // map from src to target (first mapping);
+  SGPosition halTgtFirst(
+    (sg_seqid_t)block->_tgtSeq->getArrayIndex(),
+    block->_reversed ? block->_tgtEnd : block->_tgtStart);
     
-    // map from tgt to side graph (second mapping);
-    GenomeLUMap::iterator lui = _luMap.find(
-      block->_tgtSeq->getGenome()->getName());
-    assert(lui != _luMap.end());
-    blockEnds.first = lui->second->mapPosition(halTgtFirst);
-    bool sgMapReversed = !blockEnds.first.getForward();
-    blockEnds.second = blockEnds.first;
-    SGPosition secondPos = blockEnds.second.getBase();
-    if (sgMapReversed != block->_reversed)
-    {
-      secondPos.setPos(secondPos.getPos() - blockLength + 1);
-      blockEnds.second.setBase(secondPos);
-      blockEnds.first.setForward(true);
-      blockEnds.second.setForward(false);
-    }
-    else
-    {
-      secondPos.setPos(secondPos.getPos() + blockLength - 1);
-      blockEnds.second.setBase(secondPos);
-      blockEnds.first.setForward(false);
-      blockEnds.second.setForward(true);
-    }
-
-    // we've found how our block fits into the graph (blockEnds).  Now
-    // we need to map the inside of the block.  this means processing
-    // all the snps, as well as making sure the lookup structure is
-    // updated.
-    pair<SGSide, SGSide> mappedBlockEnds =  mapBlockBody(block, blockEnds);
- 
-    // cout << "BE " << blockEnds.first << ", " << blockEnds.second << endl;
-    // cout << "TC " << mappedBlockEnds.first << ", " << mappedBlockEnds.second
-    //      << endl;
-
-    _pathLength += blockLength;
-    
-    if (prevHook.getBase() != SideGraph::NullPos)
-    {
-      // we can have a case where a block aligns identical segments
-      // (only when looking for dupes in reference).  do not want to
-      // add such self joins here
-      if (isSelfBlock(*block) == false)
-      {
-        // we now know enough to join to prevBlock
-        createSGJoin(prevHook, mappedBlockEnds.first);
-      }
-    }
-      
-    // our new hook is the end of the last join
-    prevHook = mappedBlockEnds.second;
-  }    
-  if (block == NULL)
+  // map from tgt to side graph (second mapping);
+  GenomeLUMap::iterator lui = _luMap.find(
+    block->_tgtSeq->getGenome()->getName());
+  assert(lui != _luMap.end());
+  blockEnds.first = lui->second->mapPosition(halTgtFirst);
+  bool sgMapReversed = !blockEnds.first.getForward();
+  blockEnds.second = blockEnds.first;
+  SGPosition secondPos = blockEnds.second.getBase();
+  if (sgMapReversed != block->_reversed)
   {
-    // note to self, this shoudl be in createSGJoin or
-    // somehow centralized. 
-    if (_lastJoin != NULL)
+    secondPos.setPos(secondPos.getPos() - blockLength + 1);
+    blockEnds.second.setBase(secondPos);
+    blockEnds.first.setForward(true);
+    blockEnds.second.setForward(false);
+  }
+  else
+  {
+    secondPos.setPos(secondPos.getPos() + blockLength - 1);
+    blockEnds.second.setBase(secondPos);
+    blockEnds.first.setForward(false);
+    blockEnds.second.setForward(true);
+  }
+
+  // we've found how our block fits into the graph (blockEnds).  Now
+  // we need to map the inside of the block.  this means processing
+  // all the snps, as well as making sure the lookup structure is
+  // updated.
+  pair<SGSide, SGSide> mappedBlockEnds =  mapBlockBody(block, blockEnds);
+ 
+  // cout << "BE " << blockEnds.first << ", " << blockEnds.second << endl;
+  // cout << "TC " << mappedBlockEnds.first << ", " << mappedBlockEnds.second
+  //      << endl;
+
+  _pathLength += blockLength;
+    
+  if (prevHook.getBase() != SideGraph::NullPos)
+  {
+    // we can have a case where a block aligns identical segments
+    // (only when looking for dupes in reference).  do not want to
+    // add such self joins here
+    if (isSelfBlock(*block) == false)
     {
-      _sg->addJoin(_lastJoin);
-      _lastJoin = NULL;
+      // we now know enough to join to prevBlock
+      createSGJoin(prevHook, mappedBlockEnds.first);
     }
+  }
+      
+  // our new hook is the end of the last join
+  prevHook = mappedBlockEnds.second;
+      
+  // note to self, this shoudl be in createSGJoin or
+  // somehow centralized. 
+  if (_lastJoin != NULL)
+  {
+    _sg->addJoin(_lastJoin);
+    _lastJoin = NULL;
   }
 }
 
@@ -819,7 +819,7 @@ SGBuilder::mapBlockSlice(const Block* block,
                                      (reversed ? endPos : startPos),
                                      reversed,
                                      _lookup,
-                                     &_seqMapBack);
+                                     &_lookBack);
   }
 
   return outEnds;
@@ -901,7 +901,6 @@ bool SGBuilder::verifyPath(const Sequence* sequence,
 {
   string pathString;
   string buffer;
-  
   for (size_t i = 0; i < path.size(); ++i)
   {
     const SGSegment& seg = path[i];
@@ -941,6 +940,10 @@ bool SGBuilder::verifyPath(const Sequence* sequence,
     cout << getHalSeqName(sequence) << endl;
     cout << "BUF " << buffer.length()   << endl;
     cout << "PAT " << pathString.length()  << endl;
+
+    cout << "BUF " << buffer   << endl;
+    cout << "PAT " << pathString  << endl;
+
 
     for (size_t x = 0; x < buffer.length(); ++x)
     {
@@ -1056,4 +1059,85 @@ void SGBuilder::getCollapsedFlags(const vector<Block*>& blocks,
                           blockLength, false);      
     }
   }
+}
+
+void SGBuilder::updateDupeBlockLookups(const Sequence* sequence,
+                                       hal_index_t startOffset,
+                                       hal_index_t length,
+                                       const vector<Block*>& blocks,
+                                       const vector<bool>& collapsed,
+                                       const SGSequence* sgSeq)
+{
+  // 1 pass just to update map structures for uncollapsed
+  sg_seqid_t halSequenceID = (sg_seqid_t)sequence->getArrayIndex();
+  assert(halSequenceID >= 0);
+  hal_index_t prev = -1;
+  hal_index_t newSeqLen = 0;
+  for (size_t i = 0; i < blocks.size(); ++i)
+  {
+    Block* block = blocks[i];
+    hal_index_t delta = block->_srcStart - prev;
+
+    if (delta > 1)
+    {
+      // add gap between blocks [prev+1 -> srcStart-1]
+      _lookup->addInterval(SGPosition(halSequenceID, startOffset + prev + 1),
+                           SGPosition(sgSeq->getID(), newSeqLen),
+                           delta -1, false);  
+      newSeqLen += delta - 1;
+    }
+    if (collapsed[i] == false)
+    {
+      // add map of block source to sidegraph sequence
+      _lookup->addInterval(SGPosition(halSequenceID, block->_srcStart),
+                           SGPosition(sgSeq->getID(), newSeqLen),
+                           block->_srcEnd - block->_srcStart + 1, false);
+
+      
+      newSeqLen += block->_srcEnd - block->_srcStart + 1;
+    }
+    prev = block->_srcEnd;
+  }
+  if (length -1 > prev)
+  {
+    // add gap between blocks [prev+1 -> end]
+    _lookup->addInterval(SGPosition(halSequenceID, startOffset + prev + 1),
+                         SGPosition(sgSeq->getID(), newSeqLen),
+                         length - prev -1, false);  
+    newSeqLen += length - prev - 1;
+  }
+
+  // NEED TO FIX::
+  // keep record of where it came from (ie to trace back from the side graph
+  // to hal
+  _lookBack.addInterval(SGPosition(sgSeq->getID(), 0), sequence, startOffset,
+                       length, false);
+//  _seqMapBack.insert(
+//    pair<const SGSequence*, pair<const Sequence*, hal_index_t> >(
+//      sgSeq, pair<const Sequence*, hal_index_t>(sequence, startOffset)));
+
+}
+
+void SGBuilder::filterRedundantDupeBlocks(vector<Block*>& blocks,
+                                          const SGSequence* sgSeq)
+{
+  vector<Block*> filteredBlocks;
+  for (size_t i = 0; i < blocks.size(); ++i)
+  {
+    if (_lookup->mapPosition(SGPosition(0, blocks[i]->_tgtStart)).getBase() !=
+        SideGraph::NullPos)
+    {
+      filteredBlocks.push_back(blocks[i]);
+    }
+  }
+  swap(filteredBlocks, blocks);
+}
+
+void SGBuilder::addDupeJoins(const Sequence* sequence,
+                             hal_index_t startOffset,
+                             hal_index_t length,
+                             const vector<Block*>& blocks,                
+                             const SGSequence* sgSeq)
+{
+
 }
