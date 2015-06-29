@@ -51,7 +51,7 @@ public:
     * responsability for freeing memory of the join.
     * Duplicate joins are silently filtered and erased.  
     */
-   const SGJoin* addJoin(const SGJoin* join);
+   const SGJoin* addJoin(SGJoin* join);
 
    /** 
     * Get the join set, ie to iterate over or something
@@ -91,16 +91,31 @@ std::ostream& operator<<(std::ostream& os, const SideGraph& sg);
 
 inline const SGJoin* SideGraph::getJoin(const SGJoin* join) const
 {
-  JoinSet::const_iterator i = _joinSet.find(join);
+  JoinSet::const_iterator i;
+  // joins undirected, so we always ensure small side first
+  if (join->getSide2() < join->getSide1())
+  {
+    SGJoin tempJoin(join->getSide2(), join->getSide1());
+    i = _joinSet.find(&tempJoin);
+  }
+  else
+  {
+    i = _joinSet.find(join);
+  }
   return i != _joinSet.end() ? *i : NULL;
 }
 
-inline const SGJoin* SideGraph::addJoin(const SGJoin* join)
+inline const SGJoin* SideGraph::addJoin(SGJoin* join)
 {
   assert(join->getSide1().getBase().getSeqID() >= 0);
   assert(join->getSide2().getBase().getSeqID() >= 0);
   assert(getSequence(join->getSide1().getBase().getSeqID()) != NULL);
   assert(getSequence(join->getSide2().getBase().getSeqID()) != NULL);
+  // joins undirected, so we always ensure small side first
+  if (join->getSide2() < join->getSide1())
+  {
+    join->swap();
+  }
   std::pair<JoinSet::iterator, bool> r = _joinSet.insert(join);
   if (r.second == false)
   {
