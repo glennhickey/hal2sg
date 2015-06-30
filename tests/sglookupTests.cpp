@@ -174,7 +174,7 @@ void pathTest(CuTest *testCase)
   tgtSegments.push_back(SGSegment(SGSide(SGPosition(21, 10), false), 10));
 
   srcSegments.push_back(SGSegment(SGSide(SGPosition(0, 26), true), 10));
-  tgtSegments.push_back(SGSegment(SGSide(SGPosition(22, 30), false), 10));
+  tgtSegments.push_back(SGSegment(SGSide(SGPosition(22, 31), false), 10));
   
   srcSegments.push_back(SGSegment(SGSide(SGPosition(0, 36), true), 10));
   tgtSegments.push_back(SGSegment(SGSide(SGPosition(22, 20), false), 10));
@@ -196,7 +196,7 @@ void pathTest(CuTest *testCase)
   last.flip();
   lookup.getPath(srcSegments[0].getSide().getBase(), last.getSide().getBase(),
                  path);
-  
+
   CuAssertTrue(testCase, path == tgtSegments);
 
   

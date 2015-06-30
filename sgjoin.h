@@ -94,6 +94,12 @@ inline void SGJoin::swap()
   std::swap(_side1, _side2);
 }
 
+inline bool SGJoin::isTrivial() const
+{
+  return _side1.lengthTo(_side2) == 0 &&
+     _side1.getForward() != _side2.getForward();
+}
+
 inline bool SGJoin::operator<(const SGJoin& j2) const
 {
   return _side1 < j2._side1 || (_side1 == j2._side1 && _side2 < j2._side2);

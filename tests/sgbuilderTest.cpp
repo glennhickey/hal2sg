@@ -926,11 +926,10 @@ void RefDupeTest::createCallBack(AlignmentPtr alignment)
     leafdna[90 + i] = dna[50 + i];
   }
   // pop in a couple snps
-
-  cout << "Anc50 " << dna.substr(50, 10) << endl;
-  cout << "lea60 " << leafdna.substr(60, 10) << endl;
-  cout << "lea50 " << leafdna.substr(50, 10) << endl;
-
+  leafdna[65] = mutate(leafdna[65], 1);
+  leafdna[66] = mutate(leafdna[66], 1);
+  leafdna[99] = mutate(leafdna[99], 1);
+    
   leaf1Genome->setString(leafdna);
 }
 
@@ -948,10 +947,9 @@ void RefDupeTest::checkCallBack(AlignmentConstPtr alignment)
   sgBuild.addGenome(ancGenome);
 
   const SideGraph* sg = sgBuild.getSideGraph();
-  cout << *sg << endl;
-//  CuAssertTrue(_testCase, sg->getNumSequences() == 2);
+  CuAssertTrue(_testCase, sg->getNumSequences() == 4);
   const SGSequence* leafSeq = sg->getSequence(0);
-  const SGSequence* ancSeq = sg->getSequence(1);
+  const SGSequence* ancSeq = sg->getSequence(3);
   // 1 single dupe and 2 doubles:
   CuAssertTrue(_testCase, leafSeq->getLength() == 70);
   CuAssertTrue(_testCase, ancSeq->getLength() == 100);

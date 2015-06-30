@@ -403,16 +403,11 @@ const SGJoin* SGBuilder::createSGJoin(const SGSide& side1, const SGSide& side2)
   SGJoin* join = new SGJoin(side1, side2);
 
   // filter trivial join
-/*  if (abs(join->getSide1().getBase().getPos() -
-    join->getSide2().getBase().getPos()) == 1 &&
-    join->getSide1().getForward() !=
-    join->getSide2().getForward())
-    {
-    cout << "filter trivial " << *join << endl;
+  if (join->isTrivial())
+  {
     delete join;
     return NULL;
-    }
-*/
+  }
   return _sg->addJoin(join);
 }
 
@@ -1122,6 +1117,9 @@ void SGBuilder::updateDupeBlockLookups(const Sequence* sequence,
       _lookup->addInterval(SGPosition(halSequenceID, startOffset + prev + 1),
                            SGPosition(sgSeq->getID(), newSeqLen),
                            delta -1, false);
+      _lookBack.addInterval(SGPosition(sgSeq->getID(), newSeqLen),
+                            sequence, startOffset + prev + 1,
+                            delta -1, false);
       newSeqLen += delta - 1;
     }
     if (collapsed[i] == false)
@@ -1131,6 +1129,9 @@ void SGBuilder::updateDupeBlockLookups(const Sequence* sequence,
       _lookup->addInterval(SGPosition(halSequenceID, block->_srcStart),
                            SGPosition(sgSeq->getID(), newSeqLen),
                            block->_srcEnd - block->_srcStart + 1, false);
+      _lookBack.addInterval(SGPosition(sgSeq->getID(), newSeqLen),
+                            sequence, block->_srcStart,
+                            block->_srcEnd - block->_srcStart + 1, false);
       newSeqLen += block->_srcEnd - block->_srcStart + 1;
     }
     prev = block->_srcEnd;
@@ -1141,7 +1142,10 @@ void SGBuilder::updateDupeBlockLookups(const Sequence* sequence,
     cout << "case c) las :";
     _lookup->addInterval(SGPosition(halSequenceID, startOffset + prev + 1),
                          SGPosition(sgSeq->getID(), newSeqLen),
-                         length - prev -1, false);  
+                         length - prev -1, false);
+    _lookBack.addInterval(SGPosition(sgSeq->getID(), newSeqLen),
+                          sequence, startOffset + prev + 1,
+                          length - prev -1, false);
     newSeqLen += length - prev - 1;
   }
   cout << "NEWSEQLEN " << newSeqLen << endl;
@@ -1149,11 +1153,8 @@ void SGBuilder::updateDupeBlockLookups(const Sequence* sequence,
   // NEED TO FIX::
   // keep record of where it came from (ie to trace back from the side graph
   // to hal
-  _lookBack.addInterval(SGPosition(sgSeq->getID(), 0), sequence, startOffset,
-                       length, false);
-//  _seqMapBack.insert(
-//    pair<const SGSequence*, pair<const Sequence*, hal_index_t> >(
-//      sgSeq, pair<const Sequence*, hal_index_t>(sequence, startOffset)));
+//  _lookBack.addInterval(SGPosition(sgSeq->getID(), 0), sequence, startOffset,
+  //                      length, false);
 
 }
 
