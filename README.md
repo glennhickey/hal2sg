@@ -5,7 +5,7 @@ Prototype code for converting [HAL](https://github.com/glennhickey/hal) to [Side
 
 ## Algorithm
 
-Iteratatively add genomes to side graph.   The HAL alignment is used to thread each successive genome onto the nearest genome already in the graph.  
+Iteratatively add genomes to side graph.   The HAL alignment is used to thread each successive genome onto the nearest genome already in the graph.   Genomes are added in breadth-first search order starting from the reference (specifiable by option, root by default).
 
 ### CAMEL Input
 
