@@ -1,5 +1,5 @@
 # hal2sg
-Prototype code for converting [HAL]{https://github.com/glennhickey/hal} to [Side Graph SQL]{https://github.com/ga4gh/schemas/wiki/Human-Genome-Variation-Reference-(HGVR)-Pilot-Project#graph-format}
+Prototype code for converting [HAL](https://github.com/glennhickey/hal) to [Side Graph SQL](https://github.com/ga4gh/schemas/wiki/Human-Genome-Variation-Reference-(HGVR)-Pilot-Project#graph-format)
 
 ## Algorithm
 
