@@ -242,7 +242,6 @@ protected:
    std::set<const hal::Genome*> _mapPath;
    const hal::Genome* _mapMrca;
    bool _referenceDupes;
-   SGJoin* _lastJoin;
    bool _inferRootSeq;
    mutable std::string _rootString;
    bool _camelMode;

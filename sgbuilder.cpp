@@ -191,20 +191,22 @@ void SGBuilder::addGenome(const Genome* genome,
   const Genome* target = getTarget(genome);
   // Update the mapping structures.  Should verify with Joel what
   // these new parameters mean. 
+  set<const Genome*> inputSet;
+  inputSet.insert(genome);
+  _mapMrca = genome;
   if (target != NULL)
   {
-    set<const Genome*> inputSet;
-    inputSet.insert(genome);
     inputSet.insert(target);
     _mapMrca = getLowestCommonAncestor(inputSet);
-    inputSet.clear();
-    // only path though root when self aligning. 
-    const Genome* pathStart = genome == target ? _root : genome;
-    inputSet.insert(pathStart);
-    inputSet.insert(target);
-    getGenomesInSpanningTree(inputSet, _mapPath);
-    _mapRoot = getLowestCommonAncestor(_mapPath);
   }
+  inputSet.clear();
+  // only path though root when self aligning. 
+  const Genome* pathStart = genome == target ? _root : genome;
+  inputSet.insert(pathStart);
+  const Genome* pathEnd = target == NULL ? _root : target;
+  inputSet.insert(pathEnd);
+  getGenomesInSpanningTree(inputSet, _mapPath);
+  _mapRoot = getLowestCommonAncestor(_mapPath);
 
   ///// DEBUG
   cout << "Mapping " << genome->getName() << " to "
@@ -362,10 +364,12 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
       assert(block->_srcStart > 0);
       SGSide prevSide = _lookup->mapPosition(SGPosition(halSequenceID,
                                                         block->_srcStart - 1));
-      assert(prevSide.getBase() != SideGraph::NullPos);
-      // if not reversed : false
-      //prevSide.setForward(!prevSide.getForward());
-      createSGJoin(prevSide, blockHooks.first);
+      if (prevSide.getBase() != SideGraph::NullPos)
+      {
+        // if not reversed : false
+        //prevSide.setForward(!prevSide.getForward());
+        createSGJoin(prevSide, blockHooks.first);
+      }
     }
     if (i == blocks.size() - 1 &&
         outHooks.second.getBase() == SideGraph::NullPos)
@@ -378,9 +382,11 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
       assert(block->_srcEnd < startOffset + length-1);
       SGSide nextSide = _lookup->mapPosition(SGPosition(halSequenceID,
                                                         block->_srcEnd + 1));
-      assert(nextSide.getBase() != SideGraph::NullPos);
-      nextSide.setForward(!nextSide.getForward());
-      createSGJoin(blockHooks.second, nextSide);
+      if (nextSide.getBase() != SideGraph::NullPos)
+      {
+        nextSide.setForward(!nextSide.getForward());
+        createSGJoin(blockHooks.second, nextSide);
+      }
     }
   }
     
@@ -423,7 +429,6 @@ void SGBuilder::mapSequence(const Sequence* sequence,
     computeBlocks(sequence, globalStart, globalEnd, target, blocks);
 
     SGSide prevHook(SideGraph::NullPos, true);
-    _lastJoin = NULL;
    
     // we will deal in sequence-relative (as opposed to hals wonky
     // genome-relative) coordinates from here on.
@@ -463,12 +468,6 @@ void SGBuilder::mapSequence(const Sequence* sequence,
     {
       delete blocks[j];
     }
-
-    if (_lastJoin != NULL)
-    {
-      _sg->addJoin(_lastJoin);
-      _lastJoin = NULL;
-    }
   }
 }
 
@@ -480,12 +479,10 @@ void SGBuilder::computeBlocks(const Sequence* sequence,
 {
   const Genome* genome = sequence->getGenome();
 
-  const Genome* currentMRCA = _mapMrca;
   if (target == NULL)
   {
     // map to self
     target = genome;
-    currentMRCA = genome;
   }
 
   // block mapping logic below largely taken from halBlockLiftover.cpp
@@ -520,7 +517,7 @@ void SGBuilder::computeBlocks(const Sequence* sequence,
          refSeg->getStartPosition() <= globalEnd)  
   {
     refSeg->getMappedSegments(mappedSegments, target, &_mapPath,
-                              true, 0, _mapRoot, currentMRCA);
+                              true, 0, _mapRoot, _mapMrca);
     refSeg->toRight(globalEnd);
   }
 
@@ -679,14 +676,6 @@ pair<SGSide, SGSide> SGBuilder::mapBlockEnds(const Block* block)
 
   _pathLength += blockLength;
           
-  // note to self, this shoudl be in createSGJoin or
-  // somehow centralized. 
-  if (_lastJoin != NULL)
-  {
-    _sg->addJoin(_lastJoin);
-    _lastJoin = NULL;
-  }
-
   return mappedBlockEnds;
 }
 
