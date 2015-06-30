@@ -293,6 +293,14 @@ void SGSQL::writePathInserts()
                << _sgBuilder->getHalSeqName(halSequences[i]) << "\n";
     vector<SGSegment> path;
     _sgBuilder->getHalSequencePath(halSequences[i], path);
+    if (_sgBuilder->verifyPath(halSequences[i], path) == false)
+    {
+      stringstream ss;
+      ss << "Consistency check failed: Output path for sequence \""
+         << halSequences[i]->getFullName() << "\" does not match input"
+         << " HAL sequence. This likely due to a bug. Please report it!";
+      throw hal_exception(ss.str());
+    }
     for (size_t j = 0; j < path.size(); ++j)
     {
       _outStream << "INSERT INTO AllelePathItem VALUES ("
