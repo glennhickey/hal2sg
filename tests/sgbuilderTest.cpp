@@ -947,13 +947,18 @@ void RefDupeTest::checkCallBack(AlignmentConstPtr alignment)
   sgBuild.addGenome(ancGenome);
 
   const SideGraph* sg = sgBuild.getSideGraph();
-  CuAssertTrue(_testCase, sg->getNumSequences() == 4);
-  const SGSequence* leafSeq = sg->getSequence(0);
-  const SGSequence* ancSeq = sg->getSequence(3);
-  // 1 single dupe and 2 doubles:
-  CuAssertTrue(_testCase, leafSeq->getLength() == 70);
-  CuAssertTrue(_testCase, ancSeq->getLength() == 100);
-
+  
+  CuAssertTrue(_testCase, sg->getNumSequences() == 6);
+  // folded leaf
+  CuAssertTrue(_testCase, sg->getSequence(0)->getLength() == 70);
+  // 1 double dupe and 1 single:
+  CuAssertTrue(_testCase, sg->getSequence(1)->getLength() == 2);
+  CuAssertTrue(_testCase, sg->getSequence(2)->getLength() == 1);
+  // 3 10-base holes from anc
+  CuAssertTrue(_testCase, sg->getSequence(3)->getLength() == 10);
+  CuAssertTrue(_testCase, sg->getSequence(4)->getLength() == 10);
+  CuAssertTrue(_testCase, sg->getSequence(5)->getLength() == 10);
+  
   const vector<const Sequence*>& halSequences = sgBuild.getHalSequences();
   for (size_t i = 0; i < halSequences.size(); ++i)
   {

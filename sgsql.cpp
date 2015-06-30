@@ -9,7 +9,7 @@
 using namespace std;
 using namespace hal;
 
-SGSQL::SGSQL() : _sgBuilder(0), _sg(0)
+SGSQL::SGSQL() : _sgBuilder(0), _sg(0), _writeAncestralPaths(false)
 {
 }
 
@@ -18,7 +18,8 @@ SGSQL::~SGSQL()
 }
 
 void SGSQL::writeDb(const SGBuilder* sgBuilder, const string& sqlInsertPath,
-                    const string& fastaPath, const string& halPath)
+                    const string& fastaPath, const string& halPath,
+                    bool writeAncestralPaths)
 {
   _sgBuilder = sgBuilder;
   _sg = _sgBuilder->getSideGraph();
@@ -31,6 +32,7 @@ void SGSQL::writeDb(const SGBuilder* sgBuilder, const string& sqlInsertPath,
   assert(_faStream);
   _halPath = halPath;
   _checksumMap.clear();
+  _writeAncestralPaths = writeAncestralPaths;
 
   writeFasta();
   writeFastaInsert();
@@ -239,8 +241,22 @@ void SGSQL::writePathInserts()
   // For every sequence in a genome, we create one
   // Allele, and a list of Allele Path Items.
 
-  const vector<const Sequence*>& halSequences = _sgBuilder->getHalSequences();
+  vector<const Sequence*> halSequences = _sgBuilder->getHalSequences();
   map<const Genome*, size_t> genomeIdMap;
+
+  // filter out ancestral genomes if not wanted
+  if (_writeAncestralPaths == false)
+  {
+    vector<const Sequence*> leafSequences;
+    for (size_t i = 0; i < halSequences.size(); ++i)
+    {
+      if (halSequences[i]->getGenome()->getNumChildren() == 0)
+      {
+        leafSequences.push_back(halSequences[i]);
+      }
+    }
+    swap(halSequences, leafSequences);
+  }
 
   // create a variant set for every genome
   for (size_t i = 0; i < halSequences.size(); ++i)

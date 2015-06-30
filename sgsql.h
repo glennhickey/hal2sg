@@ -35,7 +35,8 @@ public:
    /** write out the graph as a database 
     */
    void writeDb(const SGBuilder* sgBuilder, const std::string& sqlInsertPath,
-                const std::string& fastaPath, const std::string& halPath);
+                const std::string& fastaPath, const std::string& halPath,
+                bool writeAncestralPaths = true);
 protected:
 
    /** write out the FASTA file by using the back map in sgBuilder
@@ -81,6 +82,7 @@ protected:
    std::ofstream _outStream;
    std::ofstream _faStream;
    std::map<sg_seqid_t, std::string> _checksumMap;
+   bool _writeAncestralPaths;
 };
 
 

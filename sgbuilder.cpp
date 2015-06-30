@@ -206,6 +206,20 @@ void SGBuilder::addGenome(const Genome* genome,
     _mapRoot = getLowestCommonAncestor(_mapPath);
   }
 
+  ///// DEBUG
+  cout << "Mapping " << genome->getName() << " to "
+       << (target ? target->getName() : genome->getName())
+       << "; MRCA = " << (target ? _mapMrca->getName() : genome->getName())
+       << "; ROOT = " << _root->getName()
+       << "; PATH = ";\
+  for (set<const Genome*>::iterator i = _mapPath.begin();
+       i != _mapPath.end(); ++i)
+  {
+    cout << (*i)->getName() << ", ";
+  }
+  cout << endl;
+  /////
+  
   // Convert sequence by sequence
   for (size_t i = 0; i < seqNames.size(); ++i)
   {
@@ -262,8 +276,6 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
   vector<Block*> rawBlocks;
   if (sequence->getGenome() != _mapRoot)
   {
-    cout << "compute blocks " << sequence->getName() << " "
-         << startOffset  << ": " << length << endl;
     computeBlocks(sequence, sequence->getStartPosition() + startOffset,
                   sequence->getStartPosition() + startOffset + length - 1,
                   NULL, rawBlocks);
@@ -272,12 +284,6 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
   // clean up weird overlap cases from self-dupe code (to revisit)
   vector<Block*> blocks;
   filterOverlaps(rawBlocks, blocks);
-  cout << "DUPE BLOCKS FOUND = ";
-  for (size_t i = 0; i < blocks.size(); ++i)
-  {
-    cout << blocks[i] << ", ";
-  }
-  cout << endl;
 
   // for each block, a flag if it's collapsed or not
   vector<bool> collapsed(blocks.size(), false);
@@ -316,28 +322,18 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
     name << "_" << startOffset << "_" << newSeqLen;
   }  
   SGSequence* sgSeq = new SGSequence(-1, newSeqLen, name.str());
-  cout << "up newselen " << newSeqLen << endl;
 
   // add to the Side Graph
   _sg->addSequence(sgSeq);
 
   // update the _lookup structure for the entire new sequence
   // (gaps and uncollapsed regions)
-  cout << "start lookup update" << endl;
   updateDupeBlockLookups(sequence, startOffset, length, blocks, collapsed,
                          sgSeq);
-  cout << "end lookup update" << endl;
   // we have all pairwise alignment blocks in our list.  we only
   // need blocks where the target range is uncollapsed.  filter
   // everything else out here.
   filterRedundantDupeBlocks(blocks, sgSeq);
-
-  cout << "FILTERED BLOCKS \n";
-  for (size_t i = 0; i < blocks.size(); ++i)
-  {
-    cout << " " << blocks[i] << "\n";
-  }
-  cout << endl;
 
   // add all the joins and snps resulting from the duplication blocks
   // (will update lookups for blocks too, which weren't done above)
@@ -370,8 +366,6 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
       // if not reversed : false
       //prevSide.setForward(!prevSide.getForward());
       createSGJoin(prevSide, blockHooks.first);
-      cout << "CREATE LEFT JOIN " << prevSide << "->" << blockHooks.first
-           << endl;
     }
     if (i == blocks.size() - 1 &&
         outHooks.second.getBase() == SideGraph::NullPos)
@@ -387,9 +381,6 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
       assert(nextSide.getBase() != SideGraph::NullPos);
       nextSide.setForward(!nextSide.getForward());
       createSGJoin(blockHooks.second, nextSide);
-      cout << "CREATE RIGHTT JOIN " << blockHooks.second << "->" << nextSide
-           << endl;
-
     }
   }
     
@@ -419,16 +410,13 @@ void SGBuilder::mapSequence(const Sequence* sequence,
   const Genome* genome = sequence->getGenome();
 
   // first genome added: it's the reference so we add sequences
-  // directly. TODO: handle self-dupes
-  if (target == NULL || genome == _root)
+  // directly.
+  if (genome->getName() == _firstGenomeName)
   {
     createSGSequence(
       sequence, globalStart - sequence->getStartPosition(),
       globalEnd - globalStart + 1);
   }
-  // only conintue if we're a second genome, or there's a possibility
-  // of self dupes in the root.
-  // if (genome != _root && globalEnd > globalStart)
   else 
   {
     vector<Block*> blocks;
@@ -527,20 +515,6 @@ void SGBuilder::computeBlocks(const Sequence* sequence,
   assert(refSeg->getEndPosition() <= globalEnd);
     
   set<MappedSegmentConstPtr> mappedSegments;
-
-  ///// DEBUG
-  cout << "Mapping " << getHalSeqName(sequence) << " to "
-       << target->getName()
-       << "; MRC = " << currentMRCA->getName()
-       << "; ROOT = " << _root->getName()
-       << "; PATH = ";
-  for (set<const Genome*>::iterator i = _mapPath.begin();
-       i != _mapPath.end(); ++i)
-  {
-    cout << (*i)->getName() << ", ";
-  }
-  cout << endl;
-  /////
     
   while (refSeg->getArrayIndex() < lastIndex &&
          refSeg->getStartPosition() <= globalEnd)  
@@ -615,9 +589,9 @@ void SGBuilder::visitBlock(Block* prevBlock,
     srcPos = sequenceEnd + 1;
   }
 
-  cout << endl << "PREV " << prevBlock << endl;
-  cout << "CUR  " << block << endl;
-  cout << "prevSrcPos " << prevSrcPos << " srcPos " << srcPos << endl;
+//  cout << endl << "PREV " << prevBlock << endl;
+//  cout << "CUR  " << block << endl;
+//  cout << "prevSrcPos " << prevSrcPos << " srcPos " << srcPos << endl;
 
   if (prevBlock == 0)
   {
@@ -906,7 +880,6 @@ SGBuilder::Block* SGBuilder::cutBlock(Block* prev, Block* cur,
     if (cutLen > 0 && (!leaveExactOverlaps ||
                        cutLen < cur->_srcEnd - cur->_srcStart + 1))
     {
-      assert(false);
       cur->_srcStart += cutLen;
       cur->_tgtStart += cutLen;
       
@@ -1113,7 +1086,6 @@ void SGBuilder::updateDupeBlockLookups(const Sequence* sequence,
     if (delta > 1)
     {
       // add gap between blocks [prev+1 -> srcStart-1]
-      cout << "case a) gap :";
       _lookup->addInterval(SGPosition(halSequenceID, startOffset + prev + 1),
                            SGPosition(sgSeq->getID(), newSeqLen),
                            delta -1, false);
@@ -1125,7 +1097,6 @@ void SGBuilder::updateDupeBlockLookups(const Sequence* sequence,
     if (collapsed[i] == false)
     {
       // add map of block source to sidegraph sequence
-      cout << "case b) blo :";
       _lookup->addInterval(SGPosition(halSequenceID, block->_srcStart),
                            SGPosition(sgSeq->getID(), newSeqLen),
                            block->_srcEnd - block->_srcStart + 1, false);
@@ -1139,7 +1110,6 @@ void SGBuilder::updateDupeBlockLookups(const Sequence* sequence,
   if (length -1 > prev)
   {
     // add gap between blocks [prev+1 -> end]
-    cout << "case c) las :";
     _lookup->addInterval(SGPosition(halSequenceID, startOffset + prev + 1),
                          SGPosition(sgSeq->getID(), newSeqLen),
                          length - prev -1, false);
@@ -1148,14 +1118,6 @@ void SGBuilder::updateDupeBlockLookups(const Sequence* sequence,
                           length - prev -1, false);
     newSeqLen += length - prev - 1;
   }
-  cout << "NEWSEQLEN " << newSeqLen << endl;
-
-  // NEED TO FIX::
-  // keep record of where it came from (ie to trace back from the side graph
-  // to hal
-//  _lookBack.addInterval(SGPosition(sgSeq->getID(), 0), sequence, startOffset,
-  //                      length, false);
-
 }
 
 void SGBuilder::filterRedundantDupeBlocks(vector<Block*>& blocks,

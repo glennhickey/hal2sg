@@ -17,7 +17,8 @@ using namespace std;
 using namespace hal;
 
 static bool isCamelHal(AlignmentConstPtr aligment);
-static void breadthFirstGenomeSearch(const Genome* root,
+static void breadthFirstGenomeSearch(const Genome* reference,
+                                     const vector<const Genome*>& targets,
                                      vector<const Genome*>& outTraversal);
 
 static CLParserPtr initParser()
@@ -27,41 +28,33 @@ static CLParserPtr initParser()
   optionsParser->addArgument("fastaFile", "Output FASTA sequences");
   optionsParser->addArgument("sqlFile", "SQL inserts written here");
   optionsParser->addOption("refGenome", 
-                           "name of reference genome (root if empty)", 
+                           "name of reference genome (HAL root if empty)", 
                            "\"\"");
-  optionsParser->addOption("refSequence",
-                           "name of reference sequence within reference genome"
-                           " (all sequences if empty)",
-                           "\"\"");
-  optionsParser->addOption("start",
-                           "coordinate within reference genome (or sequence"
-                           " if specified) to start at",
-                           0);
-  optionsParser->addOption("length",
-                           "length of the reference genome (or sequence"
-                           " if specified) to convert.  If set to 0,"
-                           " the entire thing is converted",
-                           0);
   optionsParser->addOption("rootGenome", 
-                           "name of root genome (none if empty)", 
+                           "process only genomes in clade with specified root"
+                           " (HAL root if empty)", 
                            "\"\"");
   optionsParser->addOption("targetGenomes",
                            "comma-separated (no spaces) list of target genomes "
                            "(others are excluded) (vist all if empty)",
                            "\"\"");
   optionsParser->addOptionFlag("noAncestors", 
-                               "don't write ancestral sequences. IMPORTANT: "
+                               "don't write ancestral paths. Note that "
+                               "ancestral *sequences* may still get written"
+                               " as they can be necessary for expressing"
+                               " some alignments. IMPORTANT: "
                                "Must be used in conjunction with --refGenome"
                                " to set a non-ancestral genome as the reference"
                                " because the default reference is the root.", 
                                false);
   optionsParser->addOptionFlag("onlySequenceNames",
-                               "use only sequence names "
-                               "for output names.  By default, the UCSC convention of Genome.Sequence "
-                               "is used",
+                               "use only sequence names for output names.  By "
+                               "default, the UCSC convention of "
+                               "Genome.Sequence is used",
                                false);
 
-  optionsParser->setDescription("Convert hal database to GA4GH Side Graph");
+  optionsParser->setDescription("Convert HAL alignment to GA4GH Side "
+                                "Graph SQL format");
   return optionsParser;
 }
 
@@ -74,9 +67,6 @@ int main(int argc, char** argv)
   string refGenomeName;
   string rootGenomeName;
   string targetGenomes;
-  string refSequenceName;
-  hal_index_t start;
-  hal_size_t length;
   bool noAncestors;
   bool onlySequenceNames;
   try
@@ -88,9 +78,6 @@ int main(int argc, char** argv)
     refGenomeName = optionsParser->getOption<string>("refGenome");
     rootGenomeName = optionsParser->getOption<string>("rootGenome");
     targetGenomes = optionsParser->getOption<string>("targetGenomes");
-    refSequenceName = optionsParser->getOption<string>("refSequence");    
-    start = optionsParser->getOption<hal_index_t>("start");
-    length = optionsParser->getOption<hal_size_t>("length");
     noAncestors = optionsParser->getFlag("noAncestors");
     onlySequenceNames = optionsParser->getFlag("onlySequenceNames");
     if (rootGenomeName != "\"\"" && targetGenomes != "\"\"")
@@ -107,16 +94,6 @@ int main(int argc, char** argv)
   }
   try
   {
-    // TEMP
-    if (refGenomeName != "\"\"" || targetGenomes != "\"\"" ||
-        refSequenceName != "\"\"" ||
-        start != 0 || length != 0 || noAncestors == true)
-    {
-      throw hal_exception("The following options are disabled in this release:"
-                          "\n--refGenome\n--targetGenomes\n--refSeqeunce\n"
-                          "--start\n--length\n--noAncestors");
-    }
-    
     ofstream fastaStream(fastaPath.c_str());
     if (!fastaStream)
     {
@@ -155,12 +132,21 @@ int main(int argc, char** argv)
                           ", not found in alignment");
     }
 
-    // target genomes pulled from tree traversal (using optional root
-    // parameter)
+    // if target set not specified we default to all leaves under the
+    // given root. 
     vector<const Genome*> targetVec;
     if (targetGenomes == "\"\"")
     {
-      breadthFirstGenomeSearch(rootGenome, targetVec);
+      set<const Genome*> allGenomes;
+      getGenomesInSubTree(rootGenome, allGenomes);
+      for (set<const Genome*>::iterator i = allGenomes.begin();
+           i != allGenomes.end(); ++i)
+      {
+        if ((*i)->getNumChildren() == 0)
+        {
+          targetVec.push_back(*i);
+        }
+      }
     }
     // target genomes pulled from list.  
     else
@@ -176,7 +162,6 @@ int main(int argc, char** argv)
         }
         targetVec.push_back(tgtGenome);
       }
-      
     }
 
     // open the reference genome (root genome if unspecified)
@@ -202,19 +187,6 @@ int main(int argc, char** argv)
       refGenome = rootGenome;
     }
 
-    // optionally specify a sequence in the ref genome
-    const Sequence* refSequence = NULL;
-    if (refSequenceName != "\"\"")
-    {
-      refSequence = refGenome->getSequence(refSequenceName);
-      if (refSequence == NULL)
-      {
-        throw hal_exception(string("Reference sequence, ") + refSequenceName + 
-                            ", not found in reference genome, " + 
-                            refGenome->getName());
-      }
-    }
-
     // make sure refGenome not in target genomes
     for (vector<const Genome*>::iterator i = targetVec.begin();
          i != targetVec.end(); ++i)
@@ -226,6 +198,12 @@ int main(int argc, char** argv)
       }
     }
 
+    // get a breadth-first ordering of all target genomes
+    // starting at the reference and including any ancestors
+    // that need to get walked across
+    vector<const Genome*> breadthFirstOrdering;
+    breadthFirstGenomeSearch(refGenome, targetVec, breadthFirstOrdering);
+
     bool camelMode = isCamelHal(alignment);
     if (camelMode)
     {
@@ -235,19 +213,18 @@ int main(int argc, char** argv)
     SGBuilder sgbuild;
     sgbuild.init(alignment, rootGenome, false, isCamelHal(alignment),
                  onlySequenceNames);
-    // add the reference genome
-    sgbuild.addGenome(refGenome, refSequence, start, length);
-
-    // add the other genomes
-    for (size_t i = 0; i < targetVec.size(); ++i)
+    
+    // add the genomes in the breadth first order
+    for (size_t i = 0; i < breadthFirstOrdering.size(); ++i)
     {
-      sgbuild.addGenome(targetVec[i]);
+      sgbuild.addGenome(breadthFirstOrdering[i]);
     }
     
     //cout << *sgbuild.getSideGraph() << endl;
 
     SGSQL sqlWriter;
-    sqlWriter.writeDb(&sgbuild, sqlPath, fastaPath, halPath);
+    sqlWriter.writeDb(&sgbuild, sqlPath, fastaPath, halPath,
+                      !noAncestors);
 
   }
 /*  catch(hal_exception& e)
@@ -289,19 +266,48 @@ bool isCamelHal(AlignmentConstPtr alignment)
   return true;
 }
 
-void breadthFirstGenomeSearch(const Genome* root,
+void breadthFirstGenomeSearch(const Genome* reference,
+                              const vector<const Genome*>& targets,
                               vector<const Genome*>& outTraversal)
 {
+  // find all genomes we need to visit
+  set<const Genome*> inputSet;
+  inputSet.insert(reference);
+  for (size_t i = 0; i < targets.size(); ++i)
+  {
+    inputSet.insert(targets[i]);
+  }
+  set<const Genome*> visitSet;
+  getGenomesInSpanningTree(inputSet, visitSet);
+
+  // find our breadth first order through the visit set, starting at
+  // reference.
+  set<const Genome*> flagged;
   deque<const Genome*> bfsQueue;
-  bfsQueue.push_back(root);
+  bfsQueue.push_back(reference);
   while (!bfsQueue.empty())
   {
     const Genome* genome = bfsQueue.front();
     bfsQueue.pop_front();
     outTraversal.push_back(genome);
+    vector<const Genome*> neighbours;
     for (hal_size_t i = 0; i < genome->getNumChildren(); ++i)
     {
-      bfsQueue.push_back(genome->getChild(i));
+      neighbours.push_back(genome->getChild(i));
     }
+    if (genome->getParent() != NULL)
+    {
+      neighbours.push_back(genome->getParent());
+    }
+    for (hal_size_t i = 0; i < neighbours.size(); ++i)
+    {
+      const Genome* neighbour = neighbours[i];
+      if (visitSet.find(neighbour) != visitSet.end() &&
+          flagged.find(neighbour) == flagged.end())
+      {
+        bfsQueue.push_back(neighbour);
+      }
+    }
+    flagged.insert(genome);
   }
 }
