@@ -85,11 +85,6 @@ int main(int argc, char** argv)
       throw hal_exception("--rootGenome and --targetGenomes options are "
                           "mutually exclusive");
     }
-    // temp
-    if (refGenomeName != "\"\"")
-    {
-      throw hal_exception("--refGenome option temporarily out of service");
-    }
   }
   catch(exception& e)
   {
