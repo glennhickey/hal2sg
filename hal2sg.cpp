@@ -219,6 +219,10 @@ int main(int argc, char** argv)
     {
       sgbuild.addGenome(breadthFirstOrdering[i]);
     }
+
+    // compute all the joins in second pass (and do sanity check
+    // on every path in graph)
+    sgbuild.computeJoins(!noAncestors);
     
     //cout << *sgbuild.getSideGraph() << endl;
 

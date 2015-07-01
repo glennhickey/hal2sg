@@ -239,6 +239,20 @@ void SGBuilder::addGenome(const Genome* genome,
   }
 }
 
+void SGBuilder::computeJoins(bool doAncestralJoins)
+{
+  for (size_t i = 0; i < _halSequences.size(); ++i)
+  {
+    vector<SGSegment> path;
+    getHalSequencePath(_halSequences[i], path);
+    if (doAncestralJoins ||
+        _halSequences[i]->getGenome()->getNumChildren() == 0)
+    {
+      addPathJoins(_halSequences[i], path);
+    }
+  }
+}
+
 const Genome* SGBuilder::getTarget(const Genome* genome)
 {
   // This code may be too dumb to be any more than a placeholder, but
@@ -337,7 +351,7 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
   // everything else out here.
   filterRedundantDupeBlocks(blocks, sgSeq);
 
-  // add all the joins and snps resulting from the duplication blocks
+  // add all the snps resulting from the duplication blocks
   // (will update lookups for blocks too, which weren't done above)
   // also keep tracks of hooks at the edges of the sequence (outhooks)
   // which get returned.
@@ -358,35 +372,10 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
     {
       outHooks.first = blockHooks.first;
     }
-    else
-    {
-      // stitch block left
-      assert(block->_srcStart > 0);
-      SGSide prevSide = _lookup->mapPosition(SGPosition(halSequenceID,
-                                                        block->_srcStart - 1));
-      if (prevSide.getBase() != SideGraph::NullPos)
-      {
-        // if not reversed : false
-        //prevSide.setForward(!prevSide.getForward());
-        createSGJoin(prevSide, blockHooks.first);
-      }
-    }
     if (i == blocks.size() - 1 &&
         outHooks.second.getBase() == SideGraph::NullPos)
     {
       outHooks.second = blockHooks.second;
-    }
-    else
-    {
-      // stitch block right
-      assert(block->_srcEnd < startOffset + length-1);
-      SGSide nextSide = _lookup->mapPosition(SGPosition(halSequenceID,
-                                                        block->_srcEnd + 1));
-      if (nextSide.getBase() != SideGraph::NullPos)
-      {
-        nextSide.setForward(!nextSide.getForward());
-        createSGJoin(blockHooks.second, nextSide);
-      }
     }
   }
     
@@ -603,12 +592,6 @@ void SGBuilder::visitBlock(Block* prevBlock,
                                                      prevSrcPos + 1, 
                                                      srcPos - prevSrcPos - 1);
     
-    // join it on end of last inserted side graph position
-    if (prevHook.getBase() != SideGraph::NullPos)
-    {
-      createSGJoin(prevHook, seqHooks.first);
-    }
-
     // our new hook is the end of this new sequence
     prevHook = seqHooks.second;
     _pathLength += srcPos - prevSrcPos - 1;
@@ -616,10 +599,6 @@ void SGBuilder::visitBlock(Block* prevBlock,
   if (block != NULL)
   {
     pair<SGSide, SGSide> blockHooks = mapBlockEnds(block);
-    if (prevHook.getBase() != SideGraph::NullPos)
-    {
-      createSGJoin(prevHook, blockHooks.first);
-    }
     prevHook = blockHooks.second;
   }
 }
@@ -728,10 +707,6 @@ SGBuilder::mapBlockBody(const Block* block,
       {
         outBlockEnds.first = sliceEnds.first;
       }
-      else
-      {
-        createSGJoin(prevHook, sliceEnds.first);
-      }
       prevHook = sliceEnds.second;
       bp = i;
     }
@@ -743,10 +718,6 @@ SGBuilder::mapBlockBody(const Block* block,
       if (bp == 0)
       {
         outBlockEnds.first = sliceEnds.first;
-      }
-      else
-      {
-        createSGJoin(prevHook, sliceEnds.first);
       }
       outBlockEnds.second = sliceEnds.second;
       prevHook = sliceEnds.second;
@@ -789,11 +760,19 @@ SGBuilder::mapBlockSlice(const Block* block,
     startPos.setPos(startPos.getPos() - srcStartOffset);
     endPos.setPos(startPos.getPos() - blockLength + 1);
   }
-  // cout << "mapBlockSlice(" << block << "\n"
-  //      << blockEnds.first << ", " << blockEnds.second << "\n"
-  //      << srcStartOffset << ", " << srcEndOffset << "\n"
-  //      << snp << "\n"
-  //      << sgForwardMap << "\n" << endl;
+/*
+   cout << "mapBlockSlice(" << block << "\n"
+        << blockEnds.first << ", " << blockEnds.second << "\n"
+        << "srcRange " << srcStartOffset << "-" << srcEndOffset
+        << " (" << (block->_srcStart + srcStartOffset)
+        << "-" << (block->_srcStart + srcEndOffset) << ")\n"
+        << "srcPos=" << srcHalPosition << endl
+        << "staPos=" << startPos << endl
+        << "endPos=" << endPos << endl
+        << "tgtPos=" << (reversed ? endPos : startPos) << endl
+        << snp << "\n"
+        << sgForwardMap << "\n" << endl;
+*/
   if (snp == false)
   {
     outEnds.first.setBase(startPos);
@@ -809,7 +788,7 @@ SGBuilder::mapBlockSlice(const Block* block,
                                      blockLength,
                                      block->_srcSeq,
                                      srcHalPosition,
-                                     (reversed ? endPos : startPos),
+                                     startPos,
                                      reversed,
                                      _lookup,
                                      &_lookBack);
@@ -886,8 +865,8 @@ SGBuilder::Block* SGBuilder::cutBlock(Block* prev, Block* cur,
   return cur;
 }
 
-bool SGBuilder::verifyPath(const Sequence* sequence,
-                           const vector<SGSegment>& path) const
+void SGBuilder::addPathJoins(const Sequence* sequence,
+                             const vector<SGSegment>& path)
 {
   string pathString;
   string buffer;
@@ -906,17 +885,7 @@ bool SGBuilder::verifyPath(const Sequence* sequence,
     {
       SGSide srcSide = path[i-1].getOutSide();
       SGSide tgtSide = seg.getInSide();
-      SGJoin queryJoin(srcSide, tgtSide);      
-      const SGJoin* join = _sg->getJoin(&queryJoin);
-      if (join == NULL)
-      {
-        cout << "MISSING " << queryJoin << endl;
-      }
-      assert(join != NULL);
-      if (join == NULL)
-      {
-        return false;
-      }
+      createSGJoin(srcSide, tgtSide);
     }
   }
 
@@ -928,6 +897,8 @@ bool SGBuilder::verifyPath(const Sequence* sequence,
   {
     sequence->getString(buffer);
   }
+  transform(buffer.begin(), buffer.end(), buffer.begin(), ::toupper);
+  transform(pathString.begin(), pathString.end(), pathString.begin(),::toupper);
 
   if (buffer != pathString)
   {
@@ -935,27 +906,26 @@ bool SGBuilder::verifyPath(const Sequence* sequence,
     cout << "BUF " << buffer.length()   << endl;
     cout << "PAT " << pathString.length()  << endl;
 
-    cout << "BUF " << buffer   << endl;
-    cout << "PAT " << pathString  << endl;
-
-
     for (size_t x = 0; x < buffer.length(); ++x)
     {
       if (buffer[x] != pathString[x])
       {
-        cout << x << " " << buffer[x] << "->" << pathString[x] << endl;
-        break;
+        for (size_t y = max(0UL, x-10); y < min(x+10, buffer.length()-1); ++y)
+        {
+          if (y == x) cout << "*";
+          cout << y << " " << buffer[y] << "->" << pathString[y] << endl;
+        }
+        x += 9;
       }
     }
     cout << endl;
+    stringstream ss;
+    ss << "Consistency check failed: Output path for sequence \""
+       << sequence->getFullName() << "\" does not match input"
+       << " HAL sequence. This likely due to a bug. Please report it!";
+    throw hal_exception(ss.str());
+    
   }
-  assert(buffer == pathString);
-  if (buffer != pathString)
-  {
-    return false;
-  }
-
-  return true;
 }
 
 

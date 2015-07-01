@@ -234,27 +234,6 @@ void snpHandlerOverlapSNPTest(CuTest *tc)
 
   // spot check position:
   CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,12), 'A').getPos() == 5);
-
-  // the different overlaps should result in joins added to the graph as
-  // new SNP sequences hook into existing SNP sequences.  we make sure these
-  // (and only these) joins are in the Side Graph
-  //
-  // 11...2...333.
-  // 4...5x6....77
-  // xx....x888888
-
-  SGJoin join;
-  
-  join = SGJoin(SGSide(SGPosition(5,0), true), SGSide(SGPosition(2,0), false));
-  CuAssertTrue(tc, sg.getJoin(&join) != NULL);
-  join = SGJoin(SGSide(SGPosition(2,0), true), SGSide(SGPosition(6,0), false));
-  CuAssertTrue(tc, sg.getJoin(&join) != NULL);
-
-  join = SGJoin(SGSide(SGPosition(6,0), true), SGSide(SGPosition(8,0), false));
-  CuAssertTrue(tc, sg.getJoin(&join) != NULL);
-
-  const SideGraph::JoinSet* joinSet = sg.getJoinSet();
-  CuAssertTrue(tc, joinSet->size() == 3);
 }
 
 /** next case: we test reverse complement mapping
@@ -280,7 +259,9 @@ void snpHandlerInversionSNPTest(CuTest *tc)
                                                         srcPos, tgtPos, true,
                                                         &lookup, NULL);
   CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,50), 'A').getSeqID() == 1);
-  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,50), 'G').getSeqID() == 0);
+  // we added the reverse comp. of G because snps for target always forward
+  // for now
+  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,50), 'C').getSeqID() == 0);
   // note: the snp sequence added is walked in the forward direction
   // maybe something to change. 
   CuAssertTrue(tc, ret1.first == SGSide(SGPosition(1, 0), false));
@@ -297,9 +278,9 @@ void snpHandlerInversionSNPTest(CuTest *tc)
   CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,59), 'T').getSeqID() == 2);
   CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,58), 'T').getSeqID() == 2);
 
-  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,60), 'A').getSeqID() == 0);
-  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,59), 'C').getSeqID() == 0);
-  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,58), 'G').getSeqID() == 0);  
+  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,60), 'T').getSeqID() == 0);
+  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,59), 'G').getSeqID() == 0);
+  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,58), 'C').getSeqID() == 0);  
   CuAssertTrue(tc, ret2.first == SGSide(SGPosition(2, 0), false));
   CuAssertTrue(tc, ret2.second == SGSide(SGPosition(2, 2), true));
 

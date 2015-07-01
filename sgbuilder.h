@@ -38,12 +38,19 @@ public:
    void clear();
 
    /**
-    * Add Genome to the Side Graph.  Can optionally add only a sub-region
+    * Add Genome to the Side Graph. sequence, start and length parameters
+    * should always be their defaults for now. 
     */
    void addGenome(const hal::Genome* genome,
                   const hal::Sequence* sequence = NULL,
                   hal_index_t start = 0,
                   hal_index_t length = 0);
+
+   /**
+    * Joins are computed in a second pass, after all genomes have been
+    * added.  This pass will also performa a sanity check to make sure
+    * the graph contains a path for each input sequence */
+   void computeJoins(bool doAncestralJoins = true);
 
    /**
     * Get the Side Graph
@@ -76,12 +83,6 @@ public:
     */
    void getHalSequencePath(const hal::Sequence* halSeq,
                            std::vector<SGSegment>& outPath) const;
-
-   /** Check to make sure the path exactly covers the sequence and 
-    * all the joins exist.  Assertion triggered if something's amiss
-    * (and returns false).  May not be the fastest function.  */
-   bool verifyPath(const hal::Sequence* sequence,
-                   const std::vector<SGSegment>& path) const;
 
    const std::string getHalSeqName(const hal::Sequence* halSeq) const;
    
@@ -189,6 +190,11 @@ protected:
 
    /** cut block against another */
    Block* cutBlock(Block* prev, Block* cur, bool leaveExactOverlaps = false);
+
+   /** Add joins (and do sanity check) for one path corresponding to
+    * one input hal sequence */
+   void addPathJoins(const hal::Sequence* sequence,
+                     const std::vector<SGSegment>& path);
 
    /** We are anchoring on the root genome (at least for now).  But in
     * Adams output, the root sequence is Ns which is a problem.  We 
@@ -303,7 +309,8 @@ inline std::ostream& operator<<(std::ostream& os,
        << block->_srcStart << "," << block->_srcEnd <<  ") TGT("
        << block->_tgtSeq->getName() << ": "
        << block->_tgtStart << "," << block->_tgtEnd << ") "
-       << block->_reversed;
+       << "len=" << (block->_srcEnd - block->_srcStart + 1)
+       << " rev=" << block->_reversed;
   }
   return os;
 }
