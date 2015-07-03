@@ -87,8 +87,13 @@ void SGLookup::addInterval(const SGPosition& inPos,
   li->second = SGSide(outPos, !reversed);
 }
 
-SGSide SGLookup::mapPosition(const SGPosition& inPos) const
+SGSide SGLookup::mapPosition(const SGPosition& inPos, sg_int_t* outDist,
+                             bool outDistReversed) const
 {
+  if (outDist != NULL)
+  {
+    *outDist = -1;
+  }
   const PosMap& pm = _mapVec.at(inPos.getSeqID());
   PosMap::const_iterator i = pm.lower_bound(inPos.getPos());
   assert(i != pm.end());
@@ -109,14 +114,28 @@ SGSide SGLookup::mapPosition(const SGPosition& inPos) const
   SGSide outSide(i->second);
   SGPosition outPos(outSide.getBase());
   outPos.setPos(outPos.getPos() + offset);
+  PosMap::const_iterator j = i;
+  ++j;
   if (outSide.getForward() == false)
   {
-    PosMap::const_iterator j = i;
-    ++j;
     sg_int_t transform = j->first - offset - i->first - 1 - offset;
     outPos.setPos(outPos.getPos() + transform);
   }
   outSide.setBase(outPos);
+  if (outDist != NULL)
+  {
+    // forward
+    if (!outDistReversed)
+    {
+      *outDist = j->first - 1 - inPos.getPos();
+    }
+    // reversed
+    else
+    {
+      *outDist = inPos.getPos() - i->first;
+    }
+    assert(outDist >= 0);
+  }
   return outSide;
 }
 

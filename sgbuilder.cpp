@@ -67,6 +67,7 @@ const SideGraph* SGBuilder::getSideGraph() const
   return _sg;
 }
 
+bool blin = false;
 size_t SGBuilder::getSequenceString(const SGSequence* sgSequence,
                                     string& outString,
                                     sg_int_t pos,
@@ -85,6 +86,7 @@ size_t SGBuilder::getSequenceString(const SGSequence* sgSequence,
     const SGSegment& seg = segPath[i];
     sg_int_t leftCoord = seg.getMinPos().getPos();
     string buffer;
+    if (blin) cout << "seg is " << halSeq->getFullName() << " " << leftCoord << ": " << seg.getLength() << endl;
     if (_camelMode == true && halSeq->getGenome()->getParent() == NULL)
     {
       // adams root has not sequence. we infer it from children as a hack.
@@ -200,13 +202,10 @@ void SGBuilder::addGenome(const Genome* genome,
     _mapMrca = getLowestCommonAncestor(inputSet);
   }
   inputSet.clear();
-  // only path though root when self aligning. 
-  const Genome* pathStart = genome == target ? _root : genome;
-  inputSet.insert(pathStart);
-  const Genome* pathEnd = target == NULL ? _root : target;
-  inputSet.insert(pathEnd);
+  inputSet.insert(_mapMrca);
+  inputSet.insert(target != NULL ? target : genome);
   getGenomesInSpanningTree(inputSet, _mapPath);
-  _mapRoot = getLowestCommonAncestor(_mapPath);
+  _mapRoot = target != NULL ? getLowestCommonAncestor(_mapPath) : _root;
 
   ///// DEBUG
   cout << "Mapping " << genome->getName() << " to "
@@ -351,6 +350,15 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
   // everything else out here.
   filterRedundantDupeBlocks(blocks, sgSeq);
 
+  if (blocks.size() > 0)
+  {
+    cout << "DUPE BLOCKS " ;
+    for (size_t i =0 ;i < blocks.size(); ++i)
+    {
+      cout << blocks[i] << ", ";
+    }
+  }
+
   // add all the snps resulting from the duplication blocks
   // (will update lookups for blocks too, which weren't done above)
   // also keep tracks of hooks at the edges of the sequence (outhooks)
@@ -366,7 +374,6 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
   
   for (size_t i = 0; i < blocks.size(); ++i)
   {
-    const Block* block = blocks[i];
     pair<SGSide, SGSide> blockHooks = mapBlockEnds(blocks[i]);
     if (i == 0 && outHooks.first.getBase() == SideGraph::NullPos)
     {
@@ -506,7 +513,7 @@ void SGBuilder::computeBlocks(const Sequence* sequence,
          refSeg->getStartPosition() <= globalEnd)  
   {
     refSeg->getMappedSegments(mappedSegments, target, &_mapPath,
-                              true, 0, _mapRoot, _mapMrca);
+                            true, 0, _mapRoot, _mapMrca);
     refSeg->toRight(globalEnd);
   }
 
@@ -575,9 +582,9 @@ void SGBuilder::visitBlock(Block* prevBlock,
     srcPos = sequenceEnd + 1;
   }
 
-//  cout << endl << "PREV " << prevBlock << endl;
-//  cout << "CUR  " << block << endl;
-//  cout << "prevSrcPos " << prevSrcPos << " srcPos " << srcPos << endl;
+  cout << endl << "PREV " << prevBlock << endl;
+  cout << "CUR  " << block << endl;
+  cout << "prevSrcPos " << prevSrcPos << " srcPos " << srcPos << endl;
 
   if (prevBlock == 0)
   {
@@ -613,49 +620,109 @@ pair<SGSide, SGSide> SGBuilder::mapBlockEnds(const Block* block)
   // block's end points map to.  We have to be careful because it's a
   // 2-step mapping (block.src -> block.tgt -> side graph), so need to
   // account for double-reversal case.
-  pair<SGSide, SGSide> blockEnds;
 
-  // map from src to target (first mapping);
-  SGPosition halTgtFirst(
-    (sg_seqid_t)block->_tgtSeq->getArrayIndex(),
-    block->_reversed ? block->_tgtEnd : block->_tgtStart);
-    
-  // map from tgt to side graph (second mapping);
+  // note to self, now that joins are done using path pass at the end,
+  // there is no need to return block ends in most of these functions.
+  // should refactor as we can get rid of some awkward logic...
+  pair<SGSide, SGSide> outBlockEnds;
+
+
+
   GenomeLUMap::iterator lui = _luMap.find(
     block->_tgtSeq->getGenome()->getName());
   assert(lui != _luMap.end());
-  blockEnds.first = lui->second->mapPosition(halTgtFirst);
-  bool sgMapReversed = !blockEnds.first.getForward();
-  blockEnds.second = blockEnds.first;
-  SGPosition secondPos = blockEnds.second.getBase();
-  if (sgMapReversed != block->_reversed)
-  {
-    secondPos.setPos(secondPos.getPos() - blockLength + 1);
-    blockEnds.second.setBase(secondPos);
-    blockEnds.first.setForward(true);
-    blockEnds.second.setForward(false);
-  }
-  else
-  {
-    secondPos.setPos(secondPos.getPos() + blockLength - 1);
-    blockEnds.second.setBase(secondPos);
-    blockEnds.first.setForward(false);
-    blockEnds.second.setForward(true);
-  }
 
-  // we've found how our block fits into the graph (blockEnds).  Now
-  // we need to map the inside of the block.  this means processing
-  // all the snps, as well as making sure the lookup structure is
-  // updated.
-  pair<SGSide, SGSide> mappedBlockEnds =  mapBlockBody(block, blockEnds);
+  sg_int_t covered = 0;
+  // we split up the block based on the lookup map.  each fragment
+  // is the maximal stretch of source that can span tgt's lookup
+  // map without rearrangement.  
+  while (covered < blockLength)
+  {
+ // map from src to target (first mapping);
+    SGPosition halTgtFirst(
+      (sg_seqid_t)block->_tgtSeq->getArrayIndex(),
+      block->_reversed ? block->_tgtEnd - covered : block->_tgtStart + covered);
+    
+    sg_int_t ludist = -1;
+    pair<SGSide, SGSide> blockEnds;
+
+    cout << "haltgtfirst " << halTgtFirst << endl;
+    //cout << *lui->second;
+    // map from tgt to side graph (second mapping);
+    blockEnds.first = lui->second->mapPosition(halTgtFirst, &ludist,
+                                               block->_reversed);
+    cout << "mapped=" << blockEnds.first << endl;
+    cout << "ludist=" << ludist << endl;
+    ludist = min(ludist, blockLength - covered - 1);
+    // disable ludist on self=alignments as they are insertions
+    assert(ludist >= 0);
+    //if (block->_srcSeq == block->_tgtSeq)
+    {
+      //ludist = block->_srcEnd - block->_srcStart;
+    }
+    cout << "ludist=" << ludist << " blocklength=" << blockLength << " covered=" << covered << endl;
+
+    // make block segment that spans [covered, covered+ludist)
+    Block blockSeg = *block;
+    blockSeg._srcStart += covered;
+    blockSeg._srcEnd = blockSeg._srcStart + ludist;
+    if (blockSeg._reversed == false)
+    {
+      blockSeg._tgtStart += covered;
+      blockSeg._tgtEnd = blockSeg._tgtStart + ludist;
+    }
+    else
+    {
+      blockSeg._tgtEnd -= covered;
+      blockSeg._tgtStart = blockSeg._tgtEnd - ludist;
+    }
+    cout << "block    " << block << endl;
+    cout << "blockSeg " << &blockSeg << endl;
+//    assert (blockSeg._srcStart == block->_srcStart);
+//    assert (blockSeg._srcEnd == block->_srcEnd);
+//    assert (blockSeg._tgtStart == block->_tgtStart);
+//    assert (blockSeg._tgtEnd == block->_tgtEnd);
+    
+    bool sgMapReversed = !blockEnds.first.getForward();
+    blockEnds.second = blockEnds.first;
+    SGPosition secondPos = blockEnds.second.getBase();
+    cout << "sgMapReversed " << sgMapReversed << " blockRev" << blockSeg._reversed << endl;
+    if (sgMapReversed != blockSeg._reversed)
+    {
+      secondPos.setPos(secondPos.getPos() - blockLength + 1);
+      blockEnds.second.setBase(secondPos);
+      blockEnds.first.setForward(true);
+      blockEnds.second.setForward(false);
+      assert(blockEnds.second < blockEnds.first);
+    }
+    else
+    {
+      secondPos.setPos(secondPos.getPos() + blockLength - 1);
+      blockEnds.second.setBase(secondPos);
+      blockEnds.first.setForward(false);
+      blockEnds.second.setForward(true);
+    }
+    
+    // we've found how our block fits into the graph (blockEnds).  Now
+    // we need to map the inside of the block.  this means processing
+    // all the snps, as well as making sure the lookup structure is
+    // updated.
+    pair<SGSide, SGSide> mappedBlockEnds =  mapBlockBody(&blockSeg, blockEnds);
+    if (covered == 0)
+    {
+      outBlockEnds.first = mappedBlockEnds.first;
+    }
+    outBlockEnds.second = mappedBlockEnds.second;
  
-  // cout << "BE " << blockEnds.first << ", " << blockEnds.second << endl;
-  // cout << "TC " << mappedBlockEnds.first << ", " << mappedBlockEnds.second
-  //      << endl;
+    cout << "BE " << blockEnds.first << ", " << blockEnds.second << endl;
+    // cout << "TC " << mappedBlockEnds.first << ", " << mappedBlockEnds.second
+    //      << endl;
 
-  _pathLength += blockLength;
-          
-  return mappedBlockEnds;
+    _pathLength += blockLength;
+    covered += ludist + 1;
+  }
+  
+  return outBlockEnds;
 }
 
 pair<SGSide, SGSide>
@@ -777,8 +844,11 @@ SGBuilder::mapBlockSlice(const Block* block,
   {
     outEnds.first.setBase(startPos);
     outEnds.second.setBase(endPos);
+    cout << "add interval " << srcHalPosition << " "
+         <<  (reversed ? endPos : startPos)
+         << " len=" << blockLength << "rev = " << reversed << endl;
     _lookup->addInterval(srcHalPosition, (reversed ? endPos : startPos),
-                         blockLength, block->_reversed);
+                         blockLength, reversed);
   }
   else
   {
@@ -870,11 +940,13 @@ void SGBuilder::addPathJoins(const Sequence* sequence,
 {
   string pathString;
   string buffer;
+  cout << endl << "PATH " << sequence->getName() << endl;
   for (size_t i = 0; i < path.size(); ++i)
   {
     const SGSegment& seg = path[i];
     const SGSequence* seq = _sg->getSequence(
       seg.getSide().getBase().getSeqID());
+    blin = i < 10;
     getSequenceString(seq, buffer, seg.getMinPos().getPos(), seg.getLength());
     if (seg.getSide().getForward() == false)
     {
@@ -906,18 +978,36 @@ void SGBuilder::addPathJoins(const Sequence* sequence,
     cout << "BUF " << buffer.length()   << endl;
     cout << "PAT " << pathString.length()  << endl;
 
+    cout << "BUF " << buffer   << endl;
+    cout << "PAT " << pathString  << endl;
+    cout <<"    ";
+    for (size_t x = 0; x < buffer.length() ; ++x)
+    {
+      if (buffer[x] != pathString[x]) cout << "^";
+      else cout <<" ";
+    }
+    cout << endl;
+    cout <<"    ";
+    for (size_t x = 0; x < buffer.length() ; ++x)
+    {
+      if (buffer[x] != pathString[x]) {cout << x;break;}
+      else cout <<" ";
+    }
+    cout << endl;
+
+    
+
+    size_t numDiffs = 0;
     for (size_t x = 0; x < buffer.length(); ++x)
     {
       if (buffer[x] != pathString[x])
       {
-        for (size_t y = max(0UL, x-10); y < min(x+10, buffer.length()-1); ++y)
-        {
-          if (y == x) cout << "*";
-          cout << y << " " << buffer[y] << "->" << pathString[y] << endl;
-        }
-        x += 9;
+        ++numDiffs;
+        if (numDiffs < 5)
+        cout << x << " " << buffer[x] << "->" << pathString[x] << endl;
       }
     }
+    cout << "total diffs " << numDiffs << " / " << buffer.length() << endl;
     cout << endl;
     stringstream ss;
     ss << "Consistency check failed: Output path for sequence \""

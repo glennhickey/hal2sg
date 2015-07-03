@@ -22,7 +22,7 @@ sidegraph.o : sidegraph.cpp ${sidegraphInc}
 sglookup.o : sglookup.cpp sglookup.h ${sidegraphInc}
 	${cpp} ${cppflags} -I . sglookup.cpp -c
 
-sglookback.o : sglookback.cpp sglookback.h ${sidegraphInc}
+sglookback.o : sglookback.cpp sglookback.h sglookup.h ${sidegraphInc}
 	${cpp} ${cppflags} -I . sglookback.cpp -c
 
 snphandler.o : snphandler.cpp snphandler.h sglookback.h sglookup.h ${sidegraphInc}

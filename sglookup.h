@@ -48,8 +48,13 @@ public:
                     sg_int_t length, bool reversed);
 
    /** Find the position of a genome coordinate in the sequence 
-    * graph */
-   SGSide mapPosition(const SGPosition& inPos) const;
+    * graph.  If outDist is specified, it will return the distance
+    * between the output position, and the next waypoint in the 
+    * lookup table (how long the interval can extend before potentially
+    * spanning a rearrangement on the target) */
+   SGSide mapPosition(const SGPosition& inPos,
+                      sg_int_t* outDist = NULL,
+                      bool outDistReversed = false) const;
 
    /** Get a path of an inclusive range in a single HAL sequence
     * through the side graph.   
@@ -79,6 +84,32 @@ protected:
    PosMapVec _mapVec;
    SeqNameMap _seqNameToId;
    SeqIdMap _seqIdToName;
+
+   friend std::ostream& operator<<(std::ostream& os, const SGLookup& sg);
 };
+
+
+inline std::ostream& operator<<(std::ostream& os, const SGLookup& sg)
+{
+  os << "SGLookup:\n";
+  for (size_t i = 0; i < sg._mapVec.size(); ++i)
+  {
+    os << i << ": ";
+    for (std::map<sg_int_t, SGSide>::const_iterator j = sg._mapVec[i].begin();
+         j != sg._mapVec[i].end(); ++j)
+    {
+      os << j->first;
+      if (j->second.getForward() == false)
+      {
+        os << "r";
+      }
+      os << ", ";
+    }
+    os << "\n";
+  }
+  return os;
+}
+
+
 
 #endif

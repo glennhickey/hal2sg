@@ -267,11 +267,60 @@ void pathTest(CuTest *testCase)
 
 }
 
+/** 
+ * Test the outDist parameter added to mapInterval function.. 
+ */
+void outDistTest(CuTest *testCase)
+{
+  vector<string> seqNames;
+  seqNames.push_back("seq");
+  SGLookup lookup;
+  lookup.init(seqNames);
+  
+  vector<SGSegment> srcSegments;
+  vector<SGSegment> tgtSegments;
+
+  srcSegments.push_back(SGSegment(SGSide(SGPosition(0, 0), true), 10));
+  tgtSegments.push_back(SGSegment(SGSide(SGPosition(100, 10), true), 10));
+
+  srcSegments.push_back(SGSegment(SGSide(SGPosition(0, 10), true), 7));
+  tgtSegments.push_back(SGSegment(SGSide(SGPosition(100, 50), false), 7));
+  
+  srcSegments.push_back(SGSegment(SGSide(SGPosition(0, 17), true), 15));
+  tgtSegments.push_back(SGSegment(SGSide(SGPosition(100, 80), true), 15));
+
+  for (size_t i = 0; i < srcSegments.size(); ++i)
+  {
+    SGPosition halPos = srcSegments[i].getSide().getBase();
+    sg_int_t length = srcSegments[i].getLength();
+    SGPosition leftTgtPos = tgtSegments[i].getMinPos();
+    bool reversed = tgtSegments[i].getSide().getForward() == false;
+    lookup.addInterval(halPos, leftTgtPos, length, reversed);
+  }
+
+  for (size_t i = 0; i < srcSegments.size(); ++i)
+  {
+    sg_int_t length = srcSegments[i].getLength();
+    for (size_t j = 0; j < length; ++j)
+    {
+      sg_int_t dist = -1;
+      SGPosition halPos = srcSegments[i].getSide().getBase();
+      halPos.setPos(halPos.getPos() + j);
+      SGSide result = lookup.mapPosition(halPos, &dist, false);
+      CuAssertTrue(testCase, dist == length - j - 1);
+
+      result = lookup.mapPosition(halPos, &dist, true);
+      CuAssertTrue(testCase, dist == j);
+    }    
+  }
+}
+
 CuSuite* sgLookupTestSuite(void) 
 {
   CuSuite* suite = CuSuiteNew();
   SUITE_ADD_TEST(suite, simpleTest);
   SUITE_ADD_TEST(suite, mapTest);
   SUITE_ADD_TEST(suite, pathTest);
+  SUITE_ADD_TEST(suite, outDistTest);
   return suite;
 }
