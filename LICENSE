@@ -20,3 +20,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+***
+
+This software uses the RSA Data Security, Inc. MD5 Message-Digest Algorithm.
+Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All rights reserved.
+(more details at top of md5.h)
+
