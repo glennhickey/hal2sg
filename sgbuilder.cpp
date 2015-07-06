@@ -67,7 +67,6 @@ const SideGraph* SGBuilder::getSideGraph() const
   return _sg;
 }
 
-bool blin = false;
 size_t SGBuilder::getSequenceString(const SGSequence* sgSequence,
                                     string& outString,
                                     sg_int_t pos,
@@ -86,7 +85,6 @@ size_t SGBuilder::getSequenceString(const SGSequence* sgSequence,
     const SGSegment& seg = segPath[i];
     sg_int_t leftCoord = seg.getMinPos().getPos();
     string buffer;
-    if (blin) cout << "seg is " << halSeq->getFullName() << " " << leftCoord << ": " << seg.getLength() << endl;
     if (_camelMode == true && halSeq->getGenome()->getParent() == NULL)
     {
       // adams root has not sequence. we infer it from children as a hack.
@@ -350,15 +348,6 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
   // everything else out here.
   filterRedundantDupeBlocks(blocks, sgSeq);
 
-  if (blocks.size() > 0)
-  {
-    cout << "DUPE BLOCKS " ;
-    for (size_t i =0 ;i < blocks.size(); ++i)
-    {
-      cout << blocks[i] << ", ";
-    }
-  }
-
   // add all the snps resulting from the duplication blocks
   // (will update lookups for blocks too, which weren't done above)
   // also keep tracks of hooks at the edges of the sequence (outhooks)
@@ -582,9 +571,9 @@ void SGBuilder::visitBlock(Block* prevBlock,
     srcPos = sequenceEnd + 1;
   }
 
-  cout << endl << "PREV " << prevBlock << endl;
-  cout << "CUR  " << block << endl;
-  cout << "prevSrcPos " << prevSrcPos << " srcPos " << srcPos << endl;
+//  cout << endl << "PREV " << prevBlock << endl;
+//  cout << "CUR  " << block << endl;
+//  cout << "prevSrcPos " << prevSrcPos << " srcPos " << srcPos << endl;
 
   if (prevBlock == 0)
   {
@@ -645,22 +634,11 @@ pair<SGSide, SGSide> SGBuilder::mapBlockEnds(const Block* block)
     
     sg_int_t ludist = -1;
     pair<SGSide, SGSide> blockEnds;
-
-    cout << "haltgtfirst " << halTgtFirst << endl;
-    //cout << *lui->second;
     // map from tgt to side graph (second mapping);
     blockEnds.first = lui->second->mapPosition(halTgtFirst, &ludist,
                                                block->_reversed);
-    cout << "mapped=" << blockEnds.first << endl;
-    cout << "ludist=" << ludist << endl;
     ludist = min(ludist, blockLength - covered - 1);
-    // disable ludist on self=alignments as they are insertions
     assert(ludist >= 0);
-    //if (block->_srcSeq == block->_tgtSeq)
-    {
-      //ludist = block->_srcEnd - block->_srcStart;
-    }
-    cout << "ludist=" << ludist << " blocklength=" << blockLength << " covered=" << covered << endl;
 
     // make block segment that spans [covered, covered+ludist)
     Block blockSeg = *block;
@@ -676,17 +654,10 @@ pair<SGSide, SGSide> SGBuilder::mapBlockEnds(const Block* block)
       blockSeg._tgtEnd -= covered;
       blockSeg._tgtStart = blockSeg._tgtEnd - ludist;
     }
-    cout << "block    " << block << endl;
-    cout << "blockSeg " << &blockSeg << endl;
-//    assert (blockSeg._srcStart == block->_srcStart);
-//    assert (blockSeg._srcEnd == block->_srcEnd);
-//    assert (blockSeg._tgtStart == block->_tgtStart);
-//    assert (blockSeg._tgtEnd == block->_tgtEnd);
-    
+
     bool sgMapReversed = !blockEnds.first.getForward();
     blockEnds.second = blockEnds.first;
     SGPosition secondPos = blockEnds.second.getBase();
-    cout << "sgMapReversed " << sgMapReversed << " blockRev" << blockSeg._reversed << endl;
     if (sgMapReversed != blockSeg._reversed)
     {
       secondPos.setPos(secondPos.getPos() - blockLength + 1);
@@ -714,7 +685,7 @@ pair<SGSide, SGSide> SGBuilder::mapBlockEnds(const Block* block)
     }
     outBlockEnds.second = mappedBlockEnds.second;
  
-    cout << "BE " << blockEnds.first << ", " << blockEnds.second << endl;
+//    cout << "BE " << blockEnds.first << ", " << blockEnds.second << endl;
     // cout << "TC " << mappedBlockEnds.first << ", " << mappedBlockEnds.second
     //      << endl;
 
@@ -844,9 +815,6 @@ SGBuilder::mapBlockSlice(const Block* block,
   {
     outEnds.first.setBase(startPos);
     outEnds.second.setBase(endPos);
-    cout << "add interval " << srcHalPosition << " "
-         <<  (reversed ? endPos : startPos)
-         << " len=" << blockLength << "rev = " << reversed << endl;
     _lookup->addInterval(srcHalPosition, (reversed ? endPos : startPos),
                          blockLength, reversed);
   }
@@ -940,13 +908,11 @@ void SGBuilder::addPathJoins(const Sequence* sequence,
 {
   string pathString;
   string buffer;
-  cout << endl << "PATH " << sequence->getName() << endl;
   for (size_t i = 0; i < path.size(); ++i)
   {
     const SGSegment& seg = path[i];
     const SGSequence* seq = _sg->getSequence(
       seg.getSide().getBase().getSeqID());
-    blin = i < 10;
     getSequenceString(seq, buffer, seg.getMinPos().getPos(), seg.getLength());
     if (seg.getSide().getForward() == false)
     {
@@ -994,8 +960,6 @@ void SGBuilder::addPathJoins(const Sequence* sequence,
       else cout <<" ";
     }
     cout << endl;
-
-    
 
     size_t numDiffs = 0;
     for (size_t x = 0; x < buffer.length(); ++x)

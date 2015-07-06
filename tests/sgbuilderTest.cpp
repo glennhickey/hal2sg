@@ -807,14 +807,14 @@ void HarderSNPTest::checkCallBack(AlignmentConstPtr alignment)
 
 void sgBuilderHarderSNPTest(CuTest *testCase)
 {
-  try
+//  try
   {
     HarderSNPTest tester;
     tester.check(testCase);
   }
-  catch (...) 
+  // catch (...) 
   {
-    CuAssertTrue(testCase, false);
+//    CuAssertTrue(testCase, false);
   }
 }
 
@@ -905,8 +905,6 @@ void RefDupeTest::checkCallBack(AlignmentConstPtr alignment)
   sgBuild.computeJoins();
 
   const SideGraph* sg = sgBuild.getSideGraph();
-
-  cout << *sg << endl;
 
   CuAssertTrue(_testCase, sg->getNumSequences() == 6);
   // folded leaf
@@ -1063,7 +1061,6 @@ void TransInversionTest::checkCallBack(AlignmentConstPtr alignment)
 
    do
    {
-     cout << endl << endl << endl;
      SGBuilder sgBuild;
      sgBuild.init(alignment, ancGenome);
      for (size_t i = 0; i < 4; ++i)
