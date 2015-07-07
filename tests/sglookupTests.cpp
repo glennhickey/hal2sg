@@ -315,6 +315,44 @@ void outDistTest(CuTest *testCase)
   }
 }
 
+/** 
+ * Add this test to help debug crash on what seems to be a fairly 
+ * straightwoard case...
+ */
+void path2Test(CuTest *testCase)
+{
+  vector<string> seqNames;
+  seqNames.push_back("seq0");
+  seqNames.push_back("seq1");
+  seqNames.push_back("seq2");
+  seqNames.push_back("seq3");
+  SGLookup lookup;
+  lookup.init(seqNames);
+
+  lookup.addInterval(SGPosition(0, 0), SGPosition(0,63130), 16458, 1);
+  vector<SGSegment> path;
+  lookup.getPath(SGPosition(0, 0), SGPosition(0, 16457), path);
+
+  // problem seems to be bug in case where path maps to single segment
+  // in reverse strand.  now fixed.
+  
+  CuAssertTrue(testCase, path.size() == 1);
+  CuAssertTrue(testCase, path[0].getLength() == 16458);
+  CuAssertTrue(testCase, path[0].getSide().getBase() ==
+               SGPosition(0, 63130 + 16458 - 1));
+  CuAssertTrue(testCase, path[0].getSide().getForward() == false);
+
+  lookup.addInterval(SGPosition(1, 0), SGPosition(1,63130), 16458, 0);
+  path.clear();
+  lookup.getPath(SGPosition(1, 0), SGPosition(1, 16457), path);
+
+  CuAssertTrue(testCase, path.size() == 1);
+  CuAssertTrue(testCase, path[0].getLength() == 16458);
+  CuAssertTrue(testCase, path[0].getSide().getBase() ==
+               SGPosition(1, 63130));
+  CuAssertTrue(testCase, path[0].getSide().getForward() == true);  
+}
+
 CuSuite* sgLookupTestSuite(void) 
 {
   CuSuite* suite = CuSuiteNew();
@@ -322,5 +360,6 @@ CuSuite* sgLookupTestSuite(void)
   SUITE_ADD_TEST(suite, mapTest);
   SUITE_ADD_TEST(suite, pathTest);
   SUITE_ADD_TEST(suite, outDistTest);
+  SUITE_ADD_TEST(suite, path2Test);
   return suite;
 }

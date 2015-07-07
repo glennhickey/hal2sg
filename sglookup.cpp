@@ -220,7 +220,9 @@ void SGLookup::getPath(const SGPosition& startPos,
 
   sg_int_t segLen = halEnd.getPos() - prevHalPos + 1;
   assert(segLen > 0);
-  if (prevSgSide.getForward() == false)
+  if (prevSgSide.getForward() == false
+      // gack, only need to flip if loop entered.  this is ugly but fixes:
+      && i != j)
   {
     prevSgSide.setBase(SGPosition(prevSgSide.getBase().getSeqID(),
                                   prevSgSide.getBase().getPos() + segLen -1));
@@ -228,10 +230,7 @@ void SGLookup::getPath(const SGPosition& startPos,
   outPath.push_back(SGSegment(prevSgSide, segLen));
   pathLength += segLen;
   (void)pathLength;
-  if (halStart < halEnd)
-  {
-    assert(pathLength == halEnd.getPos() - halStart.getPos() + 1);
-  }
+  assert(pathLength == halEnd.getPos() - halStart.getPos() + 1);
 
   // we really wanted our path in the other direction.  flip the
   // order of the vector, and the orientation of every segment. 

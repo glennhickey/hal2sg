@@ -419,35 +419,37 @@ void SGBuilder::mapSequence(const Sequence* sequence,
     // genome-relative) coordinates from here on.
     hal_index_t sequenceStart = globalStart - sequence->getStartPosition();
     hal_index_t sequenceEnd = globalEnd - sequence->getStartPosition();
-    
-    if (blocks.empty() == true)
+
+    if (blocks.empty() == false)
     {
-      // case with zero mapped blocks.  entire segment will be insertion. 
-      visitBlock(NULL, NULL, NULL, prevHook, sequence,
+      vector<Block*> cutBlocks;
+      Block* prev = NULL;
+      for (size_t i = 0; i < blocks.size(); ++i)
+      {
+        Block* block = cutBlock(prev, blocks[i]);
+        if (block != NULL)
+        {
+          cutBlocks.push_back(block);
+          prev = block;
+        }
+      }
+      for (size_t i = 0; i < cutBlocks.size(); ++i)
+      {
+        prev = i == 0 ? NULL : cutBlocks[i-1];
+        Block* next = i == cutBlocks.size() - 1 ? NULL : cutBlocks[i+1];
+        Block* block = cutBlocks[i];
+        visitBlock(prev, block, next, prevHook, sequence,
                    genome, sequenceStart, sequenceEnd, target);
+      }
+      // add insert at end / last step in path
+      visitBlock(cutBlocks.back(), NULL, NULL, prevHook, sequence,
+                 genome, sequenceStart, sequenceEnd, target);
     }
     else
     {
-      // we filter blocks out with cutBlock.  this offset keeps track of prev.
-      // todo: we need to put BlockMapper machinery to cut and self-map
-      // to handle the reference/insertion paralogy case (maybe).
-      size_t cutback = 0;
-      for (size_t j = 0; j < blocks.size(); ++j)
-      {
-        Block* prev = j == 0 ? NULL : blocks[j-1-cutback];
-        Block* next = j == blocks.size() - 1 ? NULL : blocks[j+1];
-        Block* block = cutBlock(prev, blocks[j]);
-
-        cutback = block == NULL ? cutback + 1 : 0;
-        if (block != NULL)
-        {
-          visitBlock(prev, block, next, prevHook, sequence,
-                       genome, sequenceStart, sequenceEnd, target);
-        }
-      }
-      // add insert at end / last step in path
-      visitBlock(blocks.back(), NULL, NULL, prevHook, sequence,
-                   genome, sequenceStart, sequenceEnd, target);
+      // case with zero mapped blocks.  entire segment will be insertion. 
+      visitBlock(NULL, NULL, NULL, prevHook, sequence,
+                 genome, sequenceStart, sequenceEnd, target);
     }
     for (size_t j = 0; j < blocks.size(); ++j)
     {
@@ -570,11 +572,9 @@ void SGBuilder::visitBlock(Block* prevBlock,
   {
     srcPos = sequenceEnd + 1;
   }
-
-//  cout << endl << "PREV " << prevBlock << endl;
-//  cout << "CUR  " << block << endl;
+    //cout << endl << "PREV " << prevBlock << endl;
+    //cout << "CUR  " << block << endl;
 //  cout << "prevSrcPos " << prevSrcPos << " srcPos " << srcPos << endl;
-
   if (prevBlock == 0)
   {
     _pathLength = 0;
@@ -798,7 +798,7 @@ SGBuilder::mapBlockSlice(const Block* block,
     startPos.setPos(startPos.getPos() - srcStartOffset);
     endPos.setPos(startPos.getPos() - blockLength + 1);
   }
-/*
+  /*
    cout << "mapBlockSlice(" << block << "\n"
         << blockEnds.first << ", " << blockEnds.second << "\n"
         << "srcRange " << srcStartOffset << "-" << srcEndOffset
@@ -810,13 +810,13 @@ SGBuilder::mapBlockSlice(const Block* block,
         << "tgtPos=" << (reversed ? endPos : startPos) << endl
         << snp << "\n"
         << sgForwardMap << "\n" << endl;
-*/
+  */
   if (snp == false)
   {
     outEnds.first.setBase(startPos);
     outEnds.second.setBase(endPos);
     _lookup->addInterval(srcHalPosition, (reversed ? endPos : startPos),
-                         blockLength, reversed);
+                         blockLength, reversed);    
   }
   else
   {
@@ -913,6 +913,7 @@ void SGBuilder::addPathJoins(const Sequence* sequence,
     const SGSegment& seg = path[i];
     const SGSequence* seq = _sg->getSequence(
       seg.getSide().getBase().getSeqID());
+    assert(seg.getMaxPos().getPos() < seq->getLength());
     getSequenceString(seq, buffer, seg.getMinPos().getPos(), seg.getLength());
     if (seg.getSide().getForward() == false)
     {

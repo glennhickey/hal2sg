@@ -103,7 +103,7 @@ inline std::ostream& operator<<(std::ostream& os, const SGLookup& sg)
       {
         os << "r";
       }
-      os << ", ";
+      os << "[" << j->second << "], ";
     }
     os << "\n";
   }

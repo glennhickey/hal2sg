@@ -45,7 +45,7 @@ public:
     */
    SGPosition getMinPos() const;
 
-   /** get the minimum value endpoint
+   /** get the maximum value endpoint
     */
    SGPosition getMaxPos() const;
 
