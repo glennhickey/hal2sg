@@ -286,17 +286,13 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
   assert(length > 0);
 
   // compute Dupes
-  vector<Block*> rawBlocks;
+  vector<Block*> blocks;
   if (sequence->getGenome() != _mapRoot)
   {
     computeBlocks(sequence, sequence->getStartPosition() + startOffset,
                   sequence->getStartPosition() + startOffset + length - 1,
-                  NULL, rawBlocks);
+                  NULL, blocks);
   }
-
-  // clean up weird overlap cases from self-dupe code (to revisit)
-  vector<Block*> blocks;
-  filterOverlaps(rawBlocks, blocks);
 
   // for each block, a flag if it's collapsed or not
   vector<bool> collapsed(blocks.size(), false);
@@ -422,27 +418,16 @@ void SGBuilder::mapSequence(const Sequence* sequence,
 
     if (blocks.empty() == false)
     {
-      vector<Block*> cutBlocks;
-      Block* prev = NULL;
       for (size_t i = 0; i < blocks.size(); ++i)
       {
-        Block* block = cutBlock(prev, blocks[i]);
-        if (block != NULL)
-        {
-          cutBlocks.push_back(block);
-          prev = block;
-        }
-      }
-      for (size_t i = 0; i < cutBlocks.size(); ++i)
-      {
-        prev = i == 0 ? NULL : cutBlocks[i-1];
-        Block* next = i == cutBlocks.size() - 1 ? NULL : cutBlocks[i+1];
-        Block* block = cutBlocks[i];
+        Block* prev = i == 0 ? NULL : blocks[i-1];
+        Block* next = i == blocks.size() - 1 ? NULL : blocks[i+1];
+        Block* block = blocks[i];
         visitBlock(prev, block, next, prevHook, sequence,
                    genome, sequenceStart, sequenceEnd, target);
       }
       // add insert at end / last step in path
-      visitBlock(cutBlocks.back(), NULL, NULL, prevHook, sequence,
+      visitBlock(blocks.back(), NULL, NULL, prevHook, sequence,
                  genome, sequenceStart, sequenceEnd, target);
     }
     else
@@ -536,10 +521,10 @@ void SGBuilder::computeBlocks(const Sequence* sequence,
     }
   }
 
-  // extractSegment() method above works in sorted order by target.
-  // we need sorted order by source (to detect insertions, for example).
-  
-  sort(blocks.begin(), blocks.end(), BlockPtrLess());
+  // do clipping to make sure no overlaps
+  // (but leave exact overlaps if self alignment)
+  // This also sorts blocks on SRC which is extremely important
+  cutBlocks(blocks, target == genome);
 }
 
 void SGBuilder::visitBlock(Block* prevBlock,
@@ -875,32 +860,132 @@ void SGBuilder::fragmentsToBlock(const vector<MappedSegmentConstPtr>& fragments,
   block._reversed = srcFront->getReversed() != fragments.front()->getReversed();
 }
 
-SGBuilder::Block* SGBuilder::cutBlock(Block* prev, Block* cur,
-                                      bool leaveExactOverlaps)
+void SGBuilder::cutBlocks(vector<Block*>& blocks, bool leaveExactOverlaps)
 {
-  if (prev != NULL)
+  set<hal_index_t> cutPoints;
+  for (size_t i = 0; i < blocks.size(); ++i)
   {
-    assert(prev->_srcStart <= prev->_srcEnd);
-    assert(cur->_srcStart <= cur->_srcEnd);
-    sg_int_t cutLen = prev->_srcEnd - cur->_srcStart + 1;
-    if (cutLen > 0 && (!leaveExactOverlaps ||
-                       cutLen < cur->_srcEnd - cur->_srcStart + 1))
+    cutPoints.insert(blocks[i]->_srcStart);
+    // by convention we will let cutPoints be all
+    // valid starting points for blocks (why we add one here). 
+    cutPoints.insert(blocks[i]->_srcEnd + 1);
+    if (blocks[i]->_srcSeq == blocks[i]->_tgtSeq)
     {
-      cur->_srcStart += cutLen;
-      cur->_tgtStart += cutLen;
-      
-      if (cur->_srcStart > cur->_srcEnd)
+      cutPoints.insert(blocks[i]->_tgtStart);
+      cutPoints.insert(blocks[i]->_tgtEnd + 1);      
+    }
+  }
+  cutPoints.insert(numeric_limits<hal_index_t>::max());
+  vector<Block*> outBlocks;
+
+  for (size_t i = 0; i < blocks.size(); ++i)
+  {
+    set<hal_index_t>::iterator j = cutPoints.upper_bound(blocks[i]->_srcStart);
+    // not cut
+    if (*j > blocks[i]->_srcEnd)
+    {
+      outBlocks.push_back(blocks[i]);
+    }
+    // cut
+    else
+    {
+      hal_index_t prev = blocks[i]->_srcStart;
+      hal_index_t curLen = 0;
+      hal_index_t blockLen = blocks[i]->_srcEnd - blocks[i]->_srcStart + 1;
+      for (set<hal_index_t>::iterator k = j; curLen < blockLen; ++k)
       {
-        cur = NULL;
+        hal_index_t pos = min(*k, blocks[i]->_srcEnd + 1);
+        Block* block = new Block();
+        block->_srcSeq = blocks[i]->_srcSeq;
+        block->_tgtSeq = blocks[i]->_tgtSeq;
+        block->_srcStart = prev;
+        block->_srcEnd = pos - 1;
+        block->_reversed = blocks[i]->_reversed;
+        hal_index_t thisLen = block->_srcEnd - block->_srcStart + 1;
+        assert(thisLen > 0);
+        if (block->_reversed == false)
+        {
+          block->_tgtStart = blocks[i]->_tgtStart + curLen;
+        }
+        else
+        {
+          block->_tgtStart = blocks[i]->_tgtEnd - curLen - thisLen + 1;
+        }
+        block->_tgtEnd = block->_tgtStart + thisLen - 1;
+        curLen += thisLen;
+        assert(block->_srcEnd - block->_srcStart  ==
+               block->_tgtEnd - block->_tgtStart);
+        assert(cutPoints.find(block->_srcStart) != cutPoints.end());
+        assert(cutPoints.find(block->_srcEnd + 1) != cutPoints.end());
+        /*
+        for (hal_index_t temp = block->_srcStart + 1; temp <= block->_srcEnd;
+             ++temp)
+        {
+          assert(cutPoints.find(temp) == cutPoints.end());
+        }
+        */
+        prev = block->_srcEnd + 1;
+        outBlocks.push_back(block);
+      }
+      (void)blockLen;
+      assert(blockLen == curLen);
+      delete blocks[i];
+    }
+  }
+
+  // sort the clipped blocks based on src coordinates. 
+  sort(outBlocks.begin(), outBlocks.end(), BlockPtrLess());
+
+  if (leaveExactOverlaps == true)
+  {
+    swap(outBlocks, blocks);
+  }
+  else
+  {
+    // filter exact (src) overlaps
+    blocks.clear();
+    for (size_t i = 0; i < outBlocks.size(); ++i)
+    {
+      if (blocks.empty()|| outBlocks[i]->_srcStart != blocks.back()->_srcStart)
+      {
+        blocks.push_back(outBlocks[i]);
+      }
+      else
+      {
+        assert(blocks.back()->_srcEnd == outBlocks[i]->_srcEnd);
+        delete outBlocks[i];
       }
     }
   }
-  if (cur != NULL)
+  // debug  (long long verify)
+  /*
+  for (int i = 0; i < blocks.size(); ++i)
   {
-    assert(cur->_srcStart <= cur->_srcEnd);
-    assert(cur->_tgtStart <= cur->_tgtEnd);
+    for (size_t j = max(0, i-100); j < min((int)blocks.size(), i+100); ++j)
+    {
+      if (i != j)  
+      {
+      bool exactOverlap = blocks[i]->_srcStart == blocks[j]->_srcStart &&
+         blocks[i]->_srcEnd == blocks[j]->_srcEnd;
+      bool overlap = blocks[i]->_srcStart <= blocks[j]->_srcEnd &&
+         blocks[i]->_srcEnd >= blocks[j]->_srcStart;
+      overlap = overlap || blocks[j]->_srcStart <= blocks[i]->_srcEnd &&
+         blocks[j]->_srcEnd >= blocks[i]->_srcStart;
+      if (leaveExactOverlaps == true)
+      {
+        if (overlap != exactOverlap)
+        {
+          cout << "blocki " << blocks[i] << endl
+               << "blockj " <<blocks[j] << endl;
+        }
+        assert (overlap == exactOverlap);
+      }
+      else
+         assert (overlap == false && exactOverlap == false);
+    }
+    }
   }
-  return cur;
+  */
 }
 
 void SGBuilder::addPathJoins(const Sequence* sequence,
@@ -1016,29 +1101,6 @@ void SGBuilder::getRootSubString(string& outDNA, const Sequence* sequence,
 
   // do our query on this new root.
   outDNA = _rootString.substr(sequence->getStartPosition() + pos, length);
-}
-
-void SGBuilder::filterOverlaps(const vector<Block*>& rawBlocks,
-                               vector<Block*>& blocks)
-{
-  // filter out overlaps.  don't think they ever happens but
-  // need to revisit this logic.  Will certainly never come into
-  // play on a star tree, or cases where we don't cross crazy distance
-  // between output species (can restrict at higher level).  
-  Block* prev = NULL;
-  for (size_t i = 0; i < rawBlocks.size(); ++i)
-  {
-    Block* cur = cutBlock(prev, rawBlocks[i], true);
-    if (cur == NULL)
-    {
-      delete rawBlocks[i];
-    }
-    else
-    {
-      blocks.push_back(cur);
-      prev = cur;
-    }
-  }
 }
 
 void SGBuilder::getCollapsedFlags(const vector<Block*>& blocks,

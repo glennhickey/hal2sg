@@ -188,8 +188,9 @@ protected:
    /** check if block aligns something to itself */
    bool isSelfBlock(const Block& block) const;
 
-   /** cut block against another */
-   Block* cutBlock(Block* prev, Block* cur, bool leaveExactOverlaps = false);
+   /** cut sorted blocks list so blocks either dont overlap or completely
+    * overlap (all based on src coordinates) */
+   void cutBlocks(std::vector<Block*>&, bool leaveExactOverlaps = false);
 
    /** Add joins (and do sanity check) for one path corresponding to
     * one input hal sequence */
@@ -207,12 +208,6 @@ protected:
    // Logic added only for collapsing new sequences (ie handling dupes
    // in reference or insertions):
    
-   /** filter out overlaps.  don't think they ever happens but
-    * need to revisit this logic.  Will certainly never come into
-    * play on a star tree, or cases where we don't cross crazy distance
-    * between output species (can restrict at higher level).   */
-   void filterOverlaps(const std::vector<Block*>& rawBlocks,
-                       std::vector<Block*>& blocks);
 
    /** When computing duplications on a self-alignment, we want to 
     * pick out blocks that do not get collapsed out due to alignment,
