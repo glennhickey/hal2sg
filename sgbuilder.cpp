@@ -777,9 +777,7 @@ SGBuilder::mapBlockSlice(const Block* block,
     startPos.setPos(startPos.getPos() - srcStartOffset);
     endPos.setPos(startPos.getPos() - blockLength + 1);
   }
-  if (block->_srcStart + srcStartOffset <= 794727 &&
-      block->_srcStart + srcEndOffset >= 794727)
-  {
+  /*
    cout << "mapBlockSlice(" << block << "\n"
         << sgBlockEnds.first << ", " << sgBlockEnds.second << "\n"
         << "srcRange " << srcStartOffset << "-" << srcEndOffset
@@ -792,7 +790,7 @@ SGBuilder::mapBlockSlice(const Block* block,
         << snp << "\n"
         << sgForwardMap << "\n" 
         << reversed << endl;
-  }
+  */
   
   if (snp == false)
   {
