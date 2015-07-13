@@ -54,8 +54,9 @@ public:
                                        size_t dnaLength,
                                        const hal::Sequence* halSrcSequence,
                                        const SGPosition& srcPos,
-                                       const SGPosition& tgtPos,
-                                       bool reverseMap,
+                                       const SGPosition& sgPos,
+                                       bool blockReverseMap,
+                                       bool sgReverseMap,
                                        SGLookup* srcLookup,
                                        SGLookBack* seqMapBack);
    

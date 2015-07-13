@@ -78,7 +78,8 @@ void snpHandlerSingleSNPTest(CuTest *testCase)
 
   pair<SGSide, SGSide> hooks = snpHandler.createSNP(srcDNA, tgtDNA, 0, 1,
                                                     halSeq, srcPos, tgtPos,
-                                                    false, &lookup, NULL);
+                                                    false, false, &lookup,
+                                                    NULL);
 
   CuAssertTrue(testCase, hooks.first.getBase() == hooks.second.getBase());
   CuAssertTrue(testCase, hooks.first.getForward() == false);
@@ -117,7 +118,8 @@ void snpHandlerMultibaseSNPTest(CuTest *testCase)
   pair<SGSide, SGSide> hooks = snpHandler.createSNP(srcDNA, tgtDNA, 2, 3,
                                                     halSeq,
                                                     srcPos, tgtPos,
-                                                    false, &lookup, NULL);
+                                                    false, false,
+                                                    &lookup, NULL);
 
   CuAssertTrue(testCase, hooks.first.getForward() == false);
   CuAssertTrue(testCase, hooks.second.getForward() == true);
@@ -155,44 +157,47 @@ void snpHandlerOverlapSNPTest(CuTest *tc)
   // this will be our test case here: adding snps from three sequences
   // from the bottom row up:
   string dna0 = "AC...T...CCC.";
-  string dna1 = "T...ATA....TT";
+  string dna1 = "T123ATA7890TT";
   string dna2 = "TC....AGGGGGA";
   string dnaTgt = "GGGGGGGTTTTAG";
-  
+
+  cout << "\n ROW 1" << endl;
   SGPosition srcPos(1, 0);
   SGPosition tgtPos(0, 0);
   snpHandler.createSNP(dna0, dnaTgt, 0, 2, halSeq, srcPos, tgtPos, false,
-                       &lookup, NULL);
+                       false, &lookup, NULL);
   srcPos.setPos(5);
   tgtPos.setPos(5);
   snpHandler.createSNP(dna0, dnaTgt, 5, 1, halSeq, srcPos, tgtPos, false,
-                       &lookup, NULL);
+                       false, &lookup, NULL);
   srcPos.setPos(9);
   tgtPos.setPos(9);
   snpHandler.createSNP(dna0, dnaTgt, 9, 3, halSeq, srcPos, tgtPos, false,
-                       &lookup, NULL);
+                       false, &lookup, NULL);
 
+  cout << "\n ROW 2" << endl;
   srcPos = SGPosition(2, 0);
   tgtPos = SGPosition(0, 0);
   snpHandler.createSNP(dna1, dnaTgt, 0, 1, halSeq, srcPos, tgtPos, false,
-                       &lookup, NULL);
+                       false, &lookup, NULL);
   srcPos.setPos(4);
   tgtPos.setPos(4);
   snpHandler.createSNP(dna1, dnaTgt, 4, 3, halSeq, srcPos, tgtPos, false,
-                       &lookup, NULL);
+                       false, &lookup, NULL);
   srcPos.setPos(11);
   tgtPos.setPos(11);
   snpHandler.createSNP(dna1, dnaTgt, 11, 2, halSeq, srcPos, tgtPos, false,
-                       &lookup, NULL);
+                       false, &lookup, NULL);
 
+  cout << "\n ROW 3" << endl;
   srcPos = SGPosition(3, 0);
   tgtPos = SGPosition(0, 0);
   snpHandler.createSNP(dna2, dnaTgt, 0, 2, halSeq, srcPos, tgtPos, false,
-                       &lookup, NULL);
+                       false, &lookup, NULL);
   srcPos.setPos(6);
   tgtPos.setPos(6);
   snpHandler.createSNP(dna2, dnaTgt, 6, 7, halSeq, srcPos, tgtPos, false,
-                       &lookup, NULL);
+                       false, &lookup, NULL);
 
   // the snps were added in this order (x's for duplicates).  so we
   // expect the sequence ids that were created to correspond to these
@@ -255,43 +260,149 @@ void snpHandlerInversionSNPTest(CuTest *tc)
   // single SNP reverse map
   SGPosition srcPos(1, 50);
   SGPosition tgtPos(0, 50);
-  std::pair<SGSide, SGSide> ret1 = snpHandler.createSNP("A", "G", 0, 1, halSeq,
-                                                        srcPos, tgtPos, true,
-                                                        &lookup, NULL);
-  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,50), 'A').getSeqID() == 1);
-  // we added the reverse comp. of G because snps for target always forward
-  // for now
-  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,50), 'C').getSeqID() == 0);
-  // note: the snp sequence added is walked in the forward direction
-  // maybe something to change. 
-  CuAssertTrue(tc, ret1.first == SGSide(SGPosition(1, 0), false));
-  CuAssertTrue(tc, ret1.second == SGSide(SGPosition(1, 0), true));
+  snpHandler.createSNP("A", "G", 0, 1, halSeq,
+                       srcPos, tgtPos, true,
+                       false,
+                       &lookup, NULL);
+  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,50), 'G').getSeqID() == 0);
+  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,50), 'T').getSeqID() == 1);
 
+  srcPos.setPos(150);
+  tgtPos.setPos(150);
+  snpHandler.createSNP("A", "G", 0, 1, halSeq,
+                       srcPos, tgtPos, false,
+                       true,
+                       &lookup, NULL);
+  // note: unlike above, our baseline is reversed because tgt value is
+  // reverse mapped to the side graph (sgReverseMap true).  this doesn't
+  // bear on the src value, as it's still reversed (tranMap true)
+  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,150), 'C').getSeqID() == 0);
+  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,150), 'T').getSeqID() == 2);
+
+
+  cout << "\n\n mult test \n";
   // multi SNP reverse map
   srcPos.setPos(60);
   tgtPos.setPos(60);
-  std::pair<SGSide, SGSide> ret2 = snpHandler.createSNP("AACTTC", "AAACGG", 2,
-                                                        3, halSeq,
-                                                        srcPos, tgtPos, true,
-                                                        &lookup, NULL);
-  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,60), 'C').getSeqID() == 2);
-  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,59), 'T').getSeqID() == 2);
-  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,58), 'T').getSeqID() == 2);
+  snpHandler.createSNP("AACTTC", "CCGTTT", 2,
+                       3, halSeq,
+                       srcPos, tgtPos, true,
+                       false,
+                       &lookup, NULL);
+  // check that we added a 3-length snp of rev(SRC) along the
+  // side graph
+  SGPosition s = snpHandler.findSNP(SGPosition(1,60), 'C');
+  CuAssertTrue(tc, s == SideGraph::NullPos);
+  s = snpHandler.findSNP(SGPosition(0, 60), 'G');
+  CuAssertTrue(tc, s.getPos() == 2);
+  CuAssertTrue(tc, s.getSeqID() == 3);
+  s = snpHandler.findSNP(SGPosition(0, 59), 'A');
+  CuAssertTrue(tc, s.getPos() == 1);
+  CuAssertTrue(tc, s.getSeqID() == 3);
+  s = snpHandler.findSNP(SGPosition(0, 58), 'A');
+  CuAssertTrue(tc, s.getPos() == 0);
+  CuAssertTrue(tc, s.getSeqID() == 3);
 
-  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,60), 'T').getSeqID() == 0);
-  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,59), 'G').getSeqID() == 0);
-  CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,58), 'C').getSeqID() == 0);  
-  CuAssertTrue(tc, ret2.first == SGSide(SGPosition(2, 0), false));
-  CuAssertTrue(tc, ret2.second == SGSide(SGPosition(2, 2), true));
+  cout << endl;
+  // check that we added the baseline snps of the side graph
+  s = snpHandler.findSNP(SGPosition(0, 58), 'C');
+  CuAssertTrue(tc, s.getPos() == 58);
+  CuAssertTrue(tc, s.getSeqID() == 0);
+  s = snpHandler.findSNP(SGPosition(0, 59), 'G');
+  CuAssertTrue(tc, s.getPos() == 59);
+  CuAssertTrue(tc, s.getSeqID() == 0);
+  s = snpHandler.findSNP(SGPosition(0, 60), 'T');
+  CuAssertTrue(tc, s.getPos() == 60);
+  CuAssertTrue(tc, s.getSeqID() == 0);
+
+  // case inspired by problem mapping ref:794727-8 to Anc0 in sma_star.hal
+  srcPos.setPos(1000);
+  tgtPos.setPos(1000);
+  snpHandler.createSNP("CCCAT", "AATGG",
+                       2, 2, halSeq, srcPos, tgtPos, true, false,
+                       &lookup, NULL);
+  s = snpHandler.findSNP(SGPosition(0,1000), 'G');
+  CuAssertTrue(tc, s.getPos() == 1);
+  CuAssertTrue(tc, s.getSeqID() == 4);
+  s = snpHandler.findSNP(SGPosition(0, 999), 'T');
+  CuAssertTrue(tc, s.getPos() == 0);
+  CuAssertTrue(tc, s.getSeqID() == 4);
+
+
+  // another case
+  srcPos.setPos(1500);
+  tgtPos.setPos(1500);
+  snpHandler.createSNP("T", "C", 0, 1, halSeq,
+                       SGPosition(srcPos.getSeqID(), 2500),
+                       SGPosition(tgtPos.getSeqID(), 1500),
+                       false, false, &lookup, NULL);
+
+  snpHandler.createSNP("AC", "AC", 0, 2, halSeq, srcPos, tgtPos, true, false,
+                       &lookup, NULL);
+                     
+  s = snpHandler.findSNP(SGPosition(0,1500), 'T');
+  CuAssertTrue(tc, s.getPos() == 0);
+  CuAssertTrue(tc, s.getSeqID() == 5);
+  s = snpHandler.findSNP(SGPosition(0, 1499), 'G');
+  CuAssertTrue(tc, s.getPos() == 0);
+  CuAssertTrue(tc, s.getSeqID() == 6);
+
+  // same as above, but with substrings case
+  srcPos.setPos(2000);
+  tgtPos.setPos(2000);
+  string sdna(53, '.');
+  string tdna(53, ',');
+  sdna[40] = 'A';
+  sdna[41] = 'C';
+  tdna[53 - 1 - 41] = 'A';
+  tdna[53 - 1 - 40] = 'C';
+  snpHandler.createSNP("T", "A", 0, 1, halSeq,
+                       SGPosition(srcPos.getSeqID(), 5),
+                       SGPosition(tgtPos.getSeqID(), 2000),
+                       false, false, &lookup, NULL);
+                     
+  snpHandler.createSNP(sdna, tdna, 40, 2, halSeq, srcPos, tgtPos, true, false,
+     &lookup, NULL);
+  s = snpHandler.findSNP(SGPosition(0,2000), 'T');
+  CuAssertTrue(tc, s.getPos() == 0);
+  CuAssertTrue(tc, s.getSeqID() == 7);
+  s = snpHandler.findSNP(SGPosition(0, 1999), 'G');
+  CuAssertTrue(tc, s.getPos() == 0);
+  CuAssertTrue(tc, s.getSeqID() == 8);
+
+  // similar deal but with multiple snps already added
+  srcPos.setPos(5000);
+  tgtPos.setPos(5000);
+
+  string dna1 = "GCAAATGGCGGTC";
+  string dna2 = "GAATAGTTAGTGC";
+
+  cout << "\n\n";
+  snpHandler.createSNP(dna1, dna2, 4, 2, halSeq,
+                       SGPosition(srcPos.getSeqID(), 3004),
+                       SGPosition(tgtPos.getSeqID(), 4996),
+                       true, false, &lookup, NULL);
+
+  snpHandler.createSNP(dna1, dna2, 8, 1, halSeq,
+                       SGPosition(srcPos.getSeqID(), 3008),
+                       SGPosition(tgtPos.getSeqID(), 4992),
+                       true, false, &lookup, NULL);
+
+  snpHandler.createSNP(dna1, dna2, 3, 8, halSeq,
+                       SGPosition(srcPos.getSeqID(), 5003),
+                       SGPosition(tgtPos.getSeqID(), 4997),
+                       true, false, &lookup, NULL);
+
 
   
-  // todo: add overlap cases
-  srcPos.setPos(62);
-  tgtPos.setPos(58);
-//  std::pair<SGSide, SGSide> ret2 = snpHandler.createSNP("AACTTC", "CCGTTT", 2,
-//                                                        3, halSeq,
-//                                                        srcPos, tgtPos, true,
- //                                                       &lookup, NULL);
+  s = snpHandler.findSNP(SGPosition(0,1500), 'T');
+  CuAssertTrue(tc, s.getPos() == 0);
+  CuAssertTrue(tc, s.getSeqID() == 5);
+  s = snpHandler.findSNP(SGPosition(0, 1499), 'G');
+  CuAssertTrue(tc, s.getPos() == 0);
+  CuAssertTrue(tc, s.getSeqID() == 6);
+  
+
 }
 
 CuSuite* snpHandlerTestSuite(void) 

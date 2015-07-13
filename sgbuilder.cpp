@@ -74,6 +74,7 @@ size_t SGBuilder::getSequenceString(const SGSequence* sgSequence,
 {
   outString.clear();
   hal_index_t len = length == -1 ? sgSequence->getLength() : length;
+  assert(pos >= 0 && pos + length <= sgSequence->getLength());
   vector<SGSegment> segPath;
   vector<const Sequence*> halSeqPath;
   _lookBack.getPath(SGPosition(sgSequence->getID(), pos),
@@ -557,8 +558,8 @@ void SGBuilder::visitBlock(Block* prevBlock,
   {
     srcPos = sequenceEnd + 1;
   }
-    //cout << endl << "PREV " << prevBlock << endl;
-    //cout << "CUR  " << block << endl;
+//    cout << endl << "PREV " << prevBlock << endl;
+//    cout << "CUR  " << block << endl;
 //  cout << "prevSrcPos " << prevSrcPos << " srcPos " << srcPos << endl;
   if (prevBlock == 0)
   {
@@ -683,27 +684,21 @@ pair<SGSide, SGSide> SGBuilder::mapBlockEnds(const Block* block)
 
 pair<SGSide, SGSide>
 SGBuilder::mapBlockBody(const Block* block,
-                        const pair<SGSide, SGSide>& blockEnds)
+                        const pair<SGSide, SGSide>& sgBlockEnds)
 {
   // note to self:  block is the pairwise HAL alignment
-  //                blockEnds are the endpoints in the Side Graph
+  //                sgBlockEnds are the endpoints in the Side Graph
   hal_index_t length = block->_srcEnd - block->_srcStart + 1;
   string srcDNA;
   string tgtDNA;
   block->_srcSeq->getSubString(srcDNA, block->_srcStart, length);
   block->_tgtSeq->getSubString(tgtDNA, block->_tgtStart, length);
-  if (block->_reversed == true)
-  {
-    reverseComplement(tgtDNA);
-  }
-  pair<SGSide, SGSide> outBlockEnds = blockEnds;
+  pair<SGSide, SGSide> outBlockEnds = sgBlockEnds;
 
-  SGSide prevHook(blockEnds.first);
-  bool sgForwardMap = blockEnds.first <= blockEnds.second; 
+  SGSide prevHook(sgBlockEnds.first);
   bool runningSnp = false;
 
   hal_index_t srcPos;
-  hal_index_t tgtPos;
   char srcVal;
   char tgtVal;
   hal_index_t bp = 0;
@@ -716,15 +711,15 @@ SGBuilder::mapBlockBody(const Block* block,
   {
     srcPos =  block->_srcStart + i;
     srcVal = srcDNA[i];
-    tgtVal = tgtDNA[i];
-    tgtPos = !block->_reversed ?  block->_tgtStart + i : block->_tgtEnd;
+    tgtVal = !block->_reversed ? tgtDNA[i] :
+       reverseComplement(tgtDNA[length - 1 - i]);
     bool snp = !_camelMode && _snpHandler->isSub(srcVal, tgtVal);
 
     if (i > 0 && snp != runningSnp)
     {
-      pair<SGSide, SGSide> sliceEnds = mapBlockSlice(block, blockEnds,
+      pair<SGSide, SGSide> sliceEnds = mapBlockSlice(block, sgBlockEnds,
                                                      bp, i - 1,
-                                                     runningSnp, sgForwardMap,
+                                                     runningSnp,
                                                      srcDNA, tgtDNA);
       if (bp == 0)
       {
@@ -735,9 +730,8 @@ SGBuilder::mapBlockBody(const Block* block,
     }
     if (i == length - 1)
     {
-      pair<SGSide, SGSide> sliceEnds = mapBlockSlice(block, blockEnds, bp, i,
-                                                     snp, sgForwardMap,
-                                                     srcDNA, tgtDNA);
+      pair<SGSide, SGSide> sliceEnds = mapBlockSlice(block, sgBlockEnds, bp, i,
+                                                     snp,srcDNA, tgtDNA);
       if (bp == 0)
       {
         outBlockEnds.first = sliceEnds.first;
@@ -754,11 +748,10 @@ SGBuilder::mapBlockBody(const Block* block,
 
 pair<SGSide, SGSide>
 SGBuilder::mapBlockSlice(const Block* block,
-                         const pair<SGSide, SGSide>& blockEnds,
+                         const pair<SGSide, SGSide>& sgBlockEnds,
                          hal_index_t srcStartOffset,
                          hal_index_t srcEndOffset,
                          bool snp, 
-                         bool sgForwardMap,
                          const string& srcDNA,
                          const string& tgtDNA)
 {
@@ -768,11 +761,12 @@ SGBuilder::mapBlockSlice(const Block* block,
                             block->_tgtStart + srcStartOffset);
   sg_int_t blockLength = srcEndOffset - srcStartOffset + 1;
 
-  pair<SGSide, SGSide> outEnds = blockEnds;
-  bool reversed = blockEnds.second < blockEnds.first;
+  pair<SGSide, SGSide> outEnds = sgBlockEnds;
+  bool reversed = sgBlockEnds.second < sgBlockEnds.first;
+  bool sgForwardMap = block->_reversed == reversed;
 
-  SGPosition startPos = blockEnds.first.getBase();
-  SGPosition endPos = blockEnds.second.getBase();
+  SGPosition startPos = sgBlockEnds.first.getBase();
+  SGPosition endPos = sgBlockEnds.second.getBase();
   if (reversed == false)
   {
     startPos.setPos(startPos.getPos() + srcStartOffset);
@@ -783,9 +777,11 @@ SGBuilder::mapBlockSlice(const Block* block,
     startPos.setPos(startPos.getPos() - srcStartOffset);
     endPos.setPos(startPos.getPos() - blockLength + 1);
   }
-  /*
+  if (block->_srcStart + srcStartOffset <= 794727 &&
+      block->_srcStart + srcEndOffset >= 794727)
+  {
    cout << "mapBlockSlice(" << block << "\n"
-        << blockEnds.first << ", " << blockEnds.second << "\n"
+        << sgBlockEnds.first << ", " << sgBlockEnds.second << "\n"
         << "srcRange " << srcStartOffset << "-" << srcEndOffset
         << " (" << (block->_srcStart + srcStartOffset)
         << "-" << (block->_srcStart + srcEndOffset) << ")\n"
@@ -794,8 +790,10 @@ SGBuilder::mapBlockSlice(const Block* block,
         << "endPos=" << endPos << endl
         << "tgtPos=" << (reversed ? endPos : startPos) << endl
         << snp << "\n"
-        << sgForwardMap << "\n" << endl;
-  */
+        << sgForwardMap << "\n" 
+        << reversed << endl;
+  }
+  
   if (snp == false)
   {
     outEnds.first.setBase(startPos);
@@ -812,7 +810,8 @@ SGBuilder::mapBlockSlice(const Block* block,
                                      block->_srcSeq,
                                      srcHalPosition,
                                      startPos,
-                                     reversed,
+                                     block->_reversed,
+                                     !sgForwardMap,
                                      _lookup,
                                      &_lookBack);
   }
@@ -999,6 +998,7 @@ void SGBuilder::addPathJoins(const Sequence* sequence,
     const SGSequence* seq = _sg->getSequence(
       seg.getSide().getBase().getSeqID());
     assert(seg.getMaxPos().getPos() < seq->getLength());
+    assert(seg.getMinPos().getPos() >= 0);
     getSequenceString(seq, buffer, seg.getMinPos().getPos(), seg.getLength());
     if (seg.getSide().getForward() == false)
     {
@@ -1030,7 +1030,7 @@ void SGBuilder::addPathJoins(const Sequence* sequence,
     cout << "BUF " << buffer.length()   << endl;
     cout << "PAT " << pathString.length()  << endl;
 
-    cout << "BUF " << buffer   << endl;
+/*    cout << "BUF " << buffer   << endl;
     cout << "PAT " << pathString  << endl;
     cout <<"    ";
     for (size_t x = 0; x < buffer.length() ; ++x)
@@ -1046,7 +1046,7 @@ void SGBuilder::addPathJoins(const Sequence* sequence,
       else cout <<" ";
     }
     cout << endl;
-
+*/
     size_t numDiffs = 0;
     for (size_t x = 0; x < buffer.length(); ++x)
     {

@@ -163,17 +163,16 @@ protected:
     * contained in the block.  Update the endpoints if needed (as result of 
     * snps) */
    std::pair<SGSide, SGSide>
-   mapBlockBody(const Block*, const std::pair<SGSide, SGSide>& blockEnds);
+   mapBlockBody(const Block*, const std::pair<SGSide, SGSide>& sgBlockEnds);
 
    /** Add a slice of a block.  Either every base is a snp (snp==true) or
     * no bases are a snp.  hook on the previous hook. */
    std::pair<SGSide, SGSide>
    mapBlockSlice(const Block* block,
-                 const std::pair<SGSide, SGSide>& blockEnds,
+                 const std::pair<SGSide, SGSide>& sgBlockEnds,
                  hal_index_t srcStartOffset,
                  hal_index_t srcEndOffset,
                  bool snp,
-                 bool sgForwardMap,
                  const std::string& srcDNA,
                  const std::string& tgtDNA);
    

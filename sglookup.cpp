@@ -61,6 +61,7 @@ void SGLookup::addInterval(const SGPosition& inPos,
 {
 //  cout << "Add interval " << inPos << "->" << outPos << ", "
 //       << length << " " << reversed << endl;
+  assert(inPos.getPos() >= 0 && outPos.getPos() >= 0);
   PosMap& pm = _mapVec.at(inPos.getSeqID());
 
   sg_int_t left = inPos.getPos();
@@ -216,6 +217,7 @@ void SGLookup::getPath(const SGPosition& startPos,
     pathLength += segLen;
     prevHalPos = halPos;
     prevSgSide = sgSide;
+    assert(outPath.back().getMinPos().getPos() >=0);
   }
 
   sg_int_t segLen = halEnd.getPos() - prevHalPos + 1;

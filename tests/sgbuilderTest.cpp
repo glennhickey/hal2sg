@@ -1084,6 +1084,179 @@ void sgBuilderTransInversionTest(CuTest *testCase)
   }
 }
 
+///////////////////////////////////////////////////////////////////////////
+//
+//           INVERSION TEST WITH 3 levels and SNPS
+//
+///////////////////////////////////////////////////////////////////////////
+
+struct TransSNPTest : public InversionTest
+{
+   void createCallBack(hal::AlignmentPtr alignment);
+   void checkCallBack(hal::AlignmentConstPtr alignment);
+};
+
+void TransSNPTest::createCallBack(AlignmentPtr alignment)
+{
+  Genome* ancGenome = alignment->addRootGenome("AncGenome", 0);
+  Genome* midGenome = alignment->addLeafGenome("Mid", "AncGenome", 0.1);
+  Genome* leaf1Genome = alignment->addLeafGenome("Leaf1", "Mid", 0.1);
+  Genome* leaf2Genome = alignment->addLeafGenome("Leaf2", "Mid", 0.1);
+
+  vector<Sequence::Info> seqVec(1);
+  seqVec[0] =Sequence::Info("AncSequence", 100, 0, 10);
+  ancGenome->setDimensions(seqVec);
+
+  seqVec[0] = Sequence::Info("MidSequence", 100, 10, 10);
+  midGenome->setDimensions(seqVec);
+
+  seqVec[0] =Sequence::Info("Leaf1Sequence", 100, 10, 0);
+  leaf1Genome->setDimensions(seqVec);
+  
+  seqVec[0] =Sequence::Info("Leaf2Sequence", 100, 10, 0);
+  leaf2Genome->setDimensions(seqVec);
+
+  // set up so that anc->mid has and inversion
+  // and mid->leaf2 has the same inversion
+  string dna = randDNA(ancGenome->getSequenceLength());
+  ancGenome->setString(dna);
+  string leafdna = dna.substr(0, 50);
+  string temp = dna.substr(50, 10);
+  reverseComplement(temp);
+  leafdna += temp;
+  leafdna += dna.substr(60, 40);
+  string middna = leafdna;
+  middna[2] = mutate(middna[2]);
+  middna[3] = mutate(middna[3]);
+  middna[51] = mutate(middna[51]);
+  middna[55] = mutate(middna[55]);
+  middna[56] = mutate(middna[56]);
+  middna[57] = mutate(middna[57]);
+  midGenome->setString(middna);
+  string leaf1dna = leafdna;
+  leaf1dna[4] = mutate(leaf1dna[4]);
+  leaf1dna[54] = mutate(leaf1dna[54]);
+  leaf1dna[55] = mutate(leaf1dna[55]);
+  leaf1dna[56] = mutate(leaf1dna[56]);
+  leaf1dna[59] = mutate(leaf1dna[59]);
+  leaf1Genome->setString(leaf1dna);
+  string leaf2dna = dna;
+  leaf2dna[4] = mutate(leaf2dna[4, 3]);
+  leaf2dna[54] = mutate(leaf2dna[54], 3);
+  leaf2dna[55] = mutate(leaf2dna[55], 1);
+  leaf2dna[56] = mutate(leaf2dna[56], 2);
+  leaf2dna[58] = mutate(leaf2dna[58], 3);
+  leaf2dna[10] = mutate(leaf2dna[10], 3);
+  leaf2Genome->setString(leaf2dna);
+
+  // align mid to anc
+  TopSegmentIteratorPtr top = midGenome->getTopSegmentIterator();
+  BottomSegmentIteratorPtr bottom = ancGenome->getBottomSegmentIterator();
+
+  for (size_t i = 0; i < ancGenome->getNumBottomSegments(); ++i)
+  {
+    bottom->setTopParseIndex(NULL_INDEX);
+    bottom->setChildIndex(0, i);
+    bottom->setChildReversed(0, false);
+    bottom->setCoordinates(i * 10, 10);
+    top->setBottomParseIndex(i);
+    top->setParentIndex(i);
+    top->setCoordinates(i * 10, 10);
+    top->setParentReversed(false);
+    top->setNextParalogyIndex(NULL_INDEX);
+    bottom->toRight();
+    top->toRight();
+  }
+
+  // single inversion at segment [50,59] between mid and anc
+  bottom = ancGenome->getBottomSegmentIterator(5);
+  top->toChild(bottom, 0);
+  bottom->setChildReversed(0, true);
+  top->setParentReversed(true);
+
+  // align mid and leaf1
+  top = leaf1Genome->getTopSegmentIterator();
+  bottom = midGenome->getBottomSegmentIterator();
+
+  for (size_t i = 0; i < ancGenome->getNumBottomSegments(); ++i)
+  {
+    bottom->setTopParseIndex(i);
+    bottom->setChildIndex(0, i);
+    bottom->setChildReversed(0, false);
+    bottom->setCoordinates(i * 10, 10);
+    top->setBottomParseIndex(NULL_INDEX);
+    top->setParentIndex(i);
+    top->setCoordinates(i * 10, 10);
+    top->setParentReversed(false);
+    top->setNextParalogyIndex(NULL_INDEX);
+    bottom->toRight();
+    top->toRight();
+  }
+
+  // align leaf2 and mid
+  top = leaf2Genome->getTopSegmentIterator();
+  bottom = midGenome->getBottomSegmentIterator();
+
+  for (size_t i = 0; i < ancGenome->getNumBottomSegments(); ++i)
+  {
+    bottom->setTopParseIndex(i);
+    bottom->setChildIndex(1, i);
+    bottom->setChildReversed(1, false);
+    bottom->setCoordinates(i * 10, 10);
+    top->setBottomParseIndex(NULL_INDEX);
+    top->setParentIndex(i);
+    top->setCoordinates(i * 10, 10);
+    top->setParentReversed(false);
+    top->setNextParalogyIndex(NULL_INDEX);
+    bottom->toRight();
+    top->toRight();
+  }
+
+  // single inversion at segment [50,59] between leaf2 and mid
+  bottom = midGenome->getBottomSegmentIterator(5);
+  top->toChild(bottom, 1);
+  bottom->setChildReversed(1, true);
+  top->setParentReversed(true);
+}
+
+void TransSNPTest::checkCallBack(AlignmentConstPtr alignment)
+{
+  validateAlignment(alignment);
+
+  const Genome* ancGenome = alignment->openGenome("AncGenome");
+  const Genome* midGenome = alignment->openGenome("Mid");
+  const Genome* leaf1Genome = alignment->openGenome("Leaf1");
+  const Genome* leaf2Genome = alignment->openGenome("Leaf2");
+  CuAssertTrue(_testCase, ancGenome && midGenome && leaf1Genome &&
+               leaf2Genome);
+
+  const Genome* genomes[] = {ancGenome, midGenome, leaf1Genome, leaf2Genome};
+
+   do
+   {
+     SGBuilder sgBuild;
+     sgBuild.init(alignment, ancGenome);
+     for (size_t i = 0; i < 4; ++i)
+     {
+       sgBuild.addGenome(genomes[i]);
+     }
+     sgBuild.computeJoins();
+   } while (next_permutation(genomes, genomes+4));
+}
+
+void sgBuilderTransSNPTest(CuTest *testCase)
+{
+  try
+  {
+    TransSNPTest tester;
+    tester.check(testCase);
+  }
+  catch (string s) 
+  {
+    CuAssertTrue(testCase, false);
+  }
+}
+
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -1099,5 +1272,6 @@ CuSuite* sgBuildTestSuite(void)
   SUITE_ADD_TEST(suite, sgBuilderHarderSNPTest);
   SUITE_ADD_TEST(suite, sgBuilderRefDupeTest);
   SUITE_ADD_TEST(suite, sgBuilderTransInversionTest);
+  SUITE_ADD_TEST(suite, sgBuilderTransSNPTest);
   return suite;
 }
