@@ -1141,7 +1141,7 @@ void TransSNPTest::createCallBack(AlignmentPtr alignment)
   leaf1dna[59] = mutate(leaf1dna[59]);
   leaf1Genome->setString(leaf1dna);
   string leaf2dna = dna;
-  leaf2dna[4] = mutate(leaf2dna[4, 3]);
+  leaf2dna[4] = mutate(leaf2dna[4], 3);
   leaf2dna[54] = mutate(leaf2dna[54], 3);
   leaf2dna[55] = mutate(leaf2dna[55], 1);
   leaf2dna[56] = mutate(leaf2dna[56], 2);

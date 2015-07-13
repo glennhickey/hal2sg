@@ -161,7 +161,6 @@ void snpHandlerOverlapSNPTest(CuTest *tc)
   string dna2 = "TC....AGGGGGA";
   string dnaTgt = "GGGGGGGTTTTAG";
 
-  cout << "\n ROW 1" << endl;
   SGPosition srcPos(1, 0);
   SGPosition tgtPos(0, 0);
   snpHandler.createSNP(dna0, dnaTgt, 0, 2, halSeq, srcPos, tgtPos, false,
@@ -175,7 +174,6 @@ void snpHandlerOverlapSNPTest(CuTest *tc)
   snpHandler.createSNP(dna0, dnaTgt, 9, 3, halSeq, srcPos, tgtPos, false,
                        false, &lookup, NULL);
 
-  cout << "\n ROW 2" << endl;
   srcPos = SGPosition(2, 0);
   tgtPos = SGPosition(0, 0);
   snpHandler.createSNP(dna1, dnaTgt, 0, 1, halSeq, srcPos, tgtPos, false,
@@ -189,7 +187,6 @@ void snpHandlerOverlapSNPTest(CuTest *tc)
   snpHandler.createSNP(dna1, dnaTgt, 11, 2, halSeq, srcPos, tgtPos, false,
                        false, &lookup, NULL);
 
-  cout << "\n ROW 3" << endl;
   srcPos = SGPosition(3, 0);
   tgtPos = SGPosition(0, 0);
   snpHandler.createSNP(dna2, dnaTgt, 0, 2, halSeq, srcPos, tgtPos, false,
@@ -280,7 +277,6 @@ void snpHandlerInversionSNPTest(CuTest *tc)
   CuAssertTrue(tc, snpHandler.findSNP(SGPosition(0,150), 'T').getSeqID() == 2);
 
 
-  cout << "\n\n mult test \n";
   // multi SNP reverse map
   srcPos.setPos(60);
   tgtPos.setPos(60);
@@ -303,7 +299,6 @@ void snpHandlerInversionSNPTest(CuTest *tc)
   CuAssertTrue(tc, s.getPos() == 0);
   CuAssertTrue(tc, s.getSeqID() == 3);
 
-  cout << endl;
   // check that we added the baseline snps of the side graph
   s = snpHandler.findSNP(SGPosition(0, 58), 'C');
   CuAssertTrue(tc, s.getPos() == 58);
@@ -377,7 +372,6 @@ void snpHandlerInversionSNPTest(CuTest *tc)
   string dna1 = "GCAAATGGCGGTC";
   string dna2 = "GAATAGTTAGTGC";
 
-  cout << "\n\n";
   snpHandler.createSNP(dna1, dna2, 4, 2, halSeq,
                        SGPosition(srcPos.getSeqID(), 3004),
                        SGPosition(tgtPos.getSeqID(), 4996),

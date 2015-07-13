@@ -49,27 +49,18 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& srcDNA,
                                            SGLookup* srcLookup,
                                            SGLookBack* seqMapBack)
 {
-  bool say = true;
-  if (srcPos.getPos() <= 794727 && srcPos.getPos() + dnaLength >= 794727)
-  {
-    say = true;
-  }
-  if (say)
-  {
-   
+/*   
   cout << "createSNP " << "srcDNA.length=" << srcDNA.length()
        << " dnaOff=" << dnaOffset << " dnaLength=" << dnaLength
        << " srcPos=" << srcPos << " sgPos=" << sgPos
        << " br=" << blockReverseMap << ", sgr=" << sgReverseMap << endl
        << " src = " << srcDNA.substr(dnaOffset, dnaLength) << endl;
-  if (blockReverseMap == false)
-     cout << " tgt = " << tgtDNA.substr(dnaOffset, dnaLength) << endl;
-  else
-     cout << " rgt = " << tgtDNA.substr(tgtDNA.length()-1 -(dnaOffset + dnaLength-1), dnaLength) << endl;
+       if (blockReverseMap == false)
+       cout << " tgt = " << tgtDNA.substr(dnaOffset, dnaLength) << endl;
+       else
+       cout << " rgt = " << tgtDNA.substr(tgtDNA.length()-1 -(dnaOffset + dnaLength-1), dnaLength) << endl;
+*/
    
-  }
-  /*
-  */
   assert(srcDNA.length() == tgtDNA.length() && dnaOffset + dnaLength <=
          srcDNA.length());
   // reversal between src and sidegraph (via tgt)
@@ -98,62 +89,43 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& srcDNA,
     // (when we reverse mapping, we're actually setting a position
     // in a backwards version that we'll eventually add as new sequence
     // -- very confusing).
-    hal_index_t srcIdx = !tranReverseMap ? dnaOffset + i :
-       dnaOffset + dnaLength - 1 - i;
+    hal_index_t srcIdx =  dnaOffset + i;
     char srcVal = !tranReverseMap ? srcDNA[srcIdx] :
        reverseComplement(srcDNA[srcIdx]);
-    // redo:
-    srcVal = srcDNA[dnaOffset + i];
-    if (tranReverseMap)
-       srcVal = reverseComplement(srcVal);
 
     // which maps to this position in the target (based on original
     // source position, not reversed srcVal)
     hal_index_t tgtIdx = !blockReverseMap ? dnaOffset + i :
        srcDNA.length() - 1 - dnaOffset - i;
     char tgtVal = tgtDNA[tgtIdx];
+    (void)tgtVal;
 
     // which maps to this position in the sidegraph
-    hal_index_t sgIdx = !sgReverseMap ? tgtIdx : srcDNA.length() - 1 - tgtIdx;
+    hal_index_t sgIdx = tgtIdx;
     char sgVal = !sgReverseMap ? tgtDNA[sgIdx] :
        reverseComplement(tgtDNA[sgIdx]);
-    // redo:
-    sgVal = tgtDNA[tgtIdx];
-    if (sgReverseMap)
-       sgVal = reverseComplement(sgVal);
-    if (say)
-    {
+/*
     cout << "  i=" << i <<" srcIDx=" << srcIdx << "," << srcVal
          << " tgtIdx=" << tgtIdx << "," << tgtVal
          << " sgIdx=" << sgIdx << "," << sgVal
          << endl;
-    }
+*/
+  
     // add a baseline snp for (forward) value in the side graph
     if (findSNP(sgCur, sgVal) == SideGraph::NullPos)
     {
-      if (say)
-      {
+      /*
        cout << "addbaseline -> " << sgCur << " = " << sgVal << " -> " << sgCur
          << endl;
-      }
+      */
       addSNP(sgCur, sgVal, sgCur);
     }
 
     sgPositions[i] = findSNP(sgCur, srcVal);
-    if (say)
-    {
+    /*
     cout << "sgPositions[" << i << "] = findSnp(" <<sgCur <<","
          <<srcVal <<") =" << sgPositions[i] << endl;
-    }
-  }
-  if (say)
-  {
-    cout << "sgPositions " ;
-    for (size_t xx = 0; xx < sgPositions.size(); ++xx)
-    {
-      cout << "xx:" << sgPositions[xx] << " ";
-    }
-    cout << endl << endl;
+    */
   }
 
   // now we have a position for all existing snps in the graph.  any
@@ -197,32 +169,24 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& srcDNA,
 
         
         hal_index_t srcIdx = !tranReverseMap ? dnaOffset + k :
-           //dnaOffset + dnaLength - 1 - k;
            dnaOffset + j - (k - i);
         char srcVal = !tranReverseMap ? srcDNA[srcIdx] :
            reverseComplement(srcDNA[srcIdx]);
 
-        // redo
-//        srcVal = srcDNA[dnaOffset + k];
-//        if (tranReverseMap)
-//           srcVal = reverseComplement(srcVal);
-
-        if (say)
-        {
+        /*
         cout << "k=" << k << " dnaOffset=" << dnaOffset << " i=" << i
              << " j=" << j
              << " dnalength=" << dnaLength << " srcIdx=" << srcIdx
              << " srcVal=" << srcVal << endl;
-        }
+        */
 
         // forward map sg to new sequence
         sgPositions[k].setSeqID(newSeq->getID());
         sgPositions[k].setPos(k - i);
-        if (say)
-        {
-        cout << "addnew -> " << sgCur << " = " << srcVal << " -> "
-             << sgPositions[k] << endl;
-        }
+        /*
+          cout << "addnew -> " << sgCur << " = " << srcVal << " -> "
+          << sgPositions[k] << endl;
+        */
         addSNP(sgCur, srcVal, sgPositions[k]);
       }
       
@@ -251,20 +215,9 @@ pair<SGSide, SGSide> SNPHandler::createSNP(const string& srcDNA,
     }
     SGPosition pos = srcPos;
     pos.setPos(srcPos.getPos() + i);
-    if (say)
-    {
-      cout << "addinterval " << pos << ", " << sgPositions[i] << ", "
-         << (j-i) << ", " << tranReverseMap << endl;
-    }
 
     srcLookup->addInterval(pos, sgPositions[i], j - i, tranReverseMap);
 
-/*
-    cout << "addback " << SGPosition(sgPositions[i].getSeqID(), 0)
-           << ", " << halSrcSequence << ", " << pos.getPos()  << " , "
-           << _sg->getSequence(sgPositions[i].getSeqID())->getLength()
-           << ", " << tranReverseMap << endl;
-*/
     if (seqMapBack != NULL &&
         newSnpSeqs.find(sgPositions[i].getSeqID()) != newSnpSeqs.end())
     {
