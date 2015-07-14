@@ -601,8 +601,6 @@ pair<SGSide, SGSide> SGBuilder::mapBlockEnds(const Block* block)
   // should refactor as we can get rid of some awkward logic...
   pair<SGSide, SGSide> outBlockEnds;
 
-
-
   GenomeLUMap::iterator lui = _luMap.find(
     block->_tgtSeq->getGenome()->getName());
   assert(lui != _luMap.end());
@@ -648,16 +646,16 @@ pair<SGSide, SGSide> SGBuilder::mapBlockEnds(const Block* block)
     {
       secondPos.setPos(secondPos.getPos() - blockLength + 1);
       blockEnds.second.setBase(secondPos);
-      blockEnds.first.setForward(true);
-      blockEnds.second.setForward(false);
+      blockEnds.first.setForward(false);
+      blockEnds.second.setForward(true);
       assert(blockEnds.second < blockEnds.first);
     }
     else
     {
       secondPos.setPos(secondPos.getPos() + blockLength - 1);
       blockEnds.second.setBase(secondPos);
-      blockEnds.first.setForward(false);
-      blockEnds.second.setForward(true);
+      blockEnds.first.setForward(true);
+      blockEnds.second.setForward(false);
     }
     
     // we've found how our block fits into the graph (blockEnds).  Now

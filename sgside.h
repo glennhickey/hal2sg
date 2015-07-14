@@ -11,6 +11,7 @@
 
 /**
  * Position of join endpoint
+ * The forward position is the *left* side of a base. 
  */ 
 class SGSide
 {
@@ -104,11 +105,11 @@ inline sg_int_t SGSide::lengthTo(const SGSide& side2) const
   else
   {
     len = s2->getBase().getPos() - s1->getBase().getPos() + 1;
-    if (s1->getForward() == true)
+    if (s1->getForward() == false)
     {
       --len;
     }
-    if (s2->getForward() == false)
+    if (s2->getForward() == true)
     {
       --len;
     }
@@ -119,7 +120,7 @@ inline sg_int_t SGSide::lengthTo(const SGSide& side2) const
 inline bool SGSide::operator<(const SGSide& s2) const
 {
   return _base < s2._base || (_base == s2._base &&
-                              _forward < s2._forward);
+                              !_forward < !s2._forward);
 }
 
 inline bool SGSide::operator<=(const SGSide& s2) const

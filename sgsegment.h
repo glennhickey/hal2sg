@@ -86,13 +86,15 @@ inline SGSegment::SGSegment(const SGSide& start, const SGSide& end) :
   // Segment definition is always [x,y) so we have to adjust our start
   // accordingly
   const SGPosition& startPos = start.getBase();
-  if (start.getForward() && end >= start)
+  if (!start.getForward() && end >= start)
   {
     _side.setBase(SGPosition(startPos.getSeqID(), startPos.getPos() + 1));
+    _side.setForward(true);
   }
-  else if (!start.getForward() && end <= start)
+  else if (start.getForward() && end <= start)
   {
     _side.setBase(SGPosition(startPos.getSeqID(), startPos.getPos() - 1));
+    _side.setForward(false);
   }
 }
 
@@ -153,10 +155,8 @@ inline SGPosition SGSegment::getMaxPos() const
 
 inline SGSide SGSegment::getInSide() const
 {
-  SGSide side = _side;
-  // if we're forward, want to join to reverse
-  side.setForward(!side.getForward());
-  return side;
+  // if we're forward, we join on the (left) forward
+  return _side;
 }
 
 inline SGSide SGSegment::getOutSide() const
@@ -169,6 +169,7 @@ inline SGSide SGSegment::getOutSide() const
                             _side.getBase().getPos() + delta));
   }
   // if we're forward, want to join to reverse
+  side.setForward(!_side.getForward());
   return side;
 }
 

@@ -17,12 +17,12 @@ void sideGraphTestSide(CuTest *testCase)
   SGPosition p2(0, 10);
   SGPosition p3(1, 1);
 
-  SGSide s1f(p1, true);
-  SGSide s1r(p1, false);
-  SGSide s2f(p2, true);
-  SGSide s2r(p2, false);
-  SGSide s3f(p3, true);
-  SGSide s3r(p3, false);
+  SGSide s1f(p1, false);
+  SGSide s1r(p1, true);
+  SGSide s2f(p2, false);
+  SGSide s2r(p2, true);
+  SGSide s3f(p3, false);
+  SGSide s3r(p3, true);
 
   CuAssertTrue(testCase, s1f.lengthTo(s1f) == 0);
   CuAssertTrue(testCase, s1f.lengthTo(s1r) == 1);
@@ -60,12 +60,12 @@ void sideGraphTestSegment(CuTest *testCase)
   SGPosition p2(0, 10);
   SGPosition p3(1, 1);
 
-  SGSide s1f(p1, true);
-  SGSide s1r(p1, false);
-  SGSide s2f(p2, true);
-  SGSide s2r(p2, false);
-  SGSide s3f(p3, true);
-  SGSide s3r(p3, false);
+  SGSide s1f(p1, false);
+  SGSide s1r(p1, true);
+  SGSide s2f(p2, false);
+  SGSide s2r(p2, true);
+  SGSide s3f(p3, false);
+  SGSide s3r(p3, true);
 
   SGSegment seg;
   SGPosition pos;
@@ -143,9 +143,9 @@ void sideGraphTestJoin(CuTest *testCase)
   CuAssertTrue(testCase, p1 < p2);
   CuAssertTrue(testCase, p3 < p1);
 
-  SGSide s1(p1, true);
-  SGSide s2(p2, false);
-  SGSide s3(p1, false);
+  SGSide s1(p1, false);
+  SGSide s2(p2, true);
+  SGSide s3(p1, true);
 
   CuAssertTrue(testCase, s1 == s1);
   CuAssertTrue(testCase, s1 < s2);
@@ -189,8 +189,8 @@ void sideGraphTest(CuTest *testCase)
   {
     for (size_t j = 0; j < 100; ++j)
     {
-      SGJoin* join = new SGJoin(SGSide(SGPosition(i, i), true),
-                                SGSide(SGPosition(j + 100, i), false));
+      SGJoin* join = new SGJoin(SGSide(SGPosition(i, i), false),
+                                SGSide(SGPosition(j + 100, i), true));
       CuAssertTrue(testCase, sg.addJoin(join) == join);      
     }
   }
@@ -198,8 +198,8 @@ void sideGraphTest(CuTest *testCase)
   {
     for (size_t j = 0; j < 100; ++j)
     {
-      SGJoin join(SGSide(SGPosition(i, i), true),
-                  SGSide(SGPosition(j + 100, i), false));
+      SGJoin join(SGSide(SGPosition(i, i), false),
+                  SGSide(SGPosition(j + 100, i), true));
       const SGJoin* join2 = sg.getJoin(&join);      
       CuAssertTrue(testCase, join == *join2);
     }

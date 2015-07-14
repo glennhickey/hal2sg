@@ -210,10 +210,10 @@ void SGSQL::writeJoinInserts()
                << count++ << ", "
                << side1.getBase().getSeqID() << ", "
                << side1.getBase().getPos() << ", "
-               << (!side1.getForward() ? "'TRUE'" : "'FALSE'") << ", "
+               << (side1.getForward() ? "'TRUE'" : "'FALSE'") << ", "
                << side2.getBase().getSeqID() << ", "
                << side2.getBase().getPos() << ", "
-               << (!side2.getForward() ? "'TRUE'" : "'FALSE'") << ");\n";
+               << (side2.getForward() ? "'TRUE'" : "'FALSE'") << ");\n";
   }
   _outStream << endl;
 }

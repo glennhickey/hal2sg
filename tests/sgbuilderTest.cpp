@@ -171,14 +171,14 @@ void InversionTest::checkCallBack(AlignmentConstPtr alignment)
   const SideGraph::JoinSet* joins = sg->getJoinSet();
   
   // single inversion at segment [50,59]
-  // we expect a join connecting 49-forward to 59-forward
-  SGJoin j = SGJoin(SGSide(SGPosition(0, 49), true),
-                    SGSide(SGPosition(0, 59), true));
+  // we expect a join connecting 49-rev to 59-rev
+  SGJoin j = SGJoin(SGSide(SGPosition(0, 49), false),
+                    SGSide(SGPosition(0, 59), false));
   const SGJoin* join1 = sg->getJoin(&j);
   CuAssertTrue(_testCase, join1 != NULL);
-  // and we expect a join connecting 50-rev to 60-rev
-  j = SGJoin(SGSide(SGPosition(0, 50), false),
-             SGSide(SGPosition(0, 60), false));
+  // and we expect a join connecting 50-forward to 60-forward
+  j = SGJoin(SGSide(SGPosition(0, 50), true),
+             SGSide(SGPosition(0, 60), true));
   const SGJoin* join2 = sg->getJoin(&j);
   CuAssertTrue(_testCase, join2 != NULL);
   // and nothing else
@@ -345,29 +345,29 @@ void Inversion2Test::checkCallBack(AlignmentConstPtr alignment)
 
   size_t joinCount = 0;
   // single inversion at segment [50,59]
-  // we expect a join connecting 49-forward to 59-forward
-  SGJoin j = SGJoin(SGSide(SGPosition(1, 49), true),
-                    SGSide(SGPosition(1, 59), true));
+  // we expect a join connecting 49-rev to 59-rev
+  SGJoin j = SGJoin(SGSide(SGPosition(1, 49), false),
+                    SGSide(SGPosition(1, 59), false));
   const SGJoin* join1 = sg->getJoin(&j);
   CuAssertTrue(_testCase, join1 != NULL);
   ++joinCount;
-  // and we expect a join connecting 50-rev to 60-rev
-  j = SGJoin(SGSide(SGPosition(1, 50), false),
-             SGSide(SGPosition(1, 60), false));
+  // and we expect a join connecting 50-forward to 60-forward
+  j = SGJoin(SGSide(SGPosition(1, 50), true),
+             SGSide(SGPosition(1, 60), true));
   const SGJoin* join2 = sg->getJoin(&j);
   CuAssertTrue(_testCase, join2 != NULL);
   ++joinCount;
   
   // inversion at segment[0, 9]
-  j = SGJoin(SGSide(SGPosition(1, 0), false),
-             SGSide(SGPosition(1, 10), false));
+  j = SGJoin(SGSide(SGPosition(1, 0), true),
+             SGSide(SGPosition(1, 10), true));
   join1 = sg->getJoin(&j);
   CuAssertTrue(_testCase, join1 != NULL);
   ++joinCount;
   
   // reverse dupe of first inverion
-  j = SGJoin(SGSide(SGPosition(1, 89), true),
-             SGSide(SGPosition(1, 50), false));
+  j = SGJoin(SGSide(SGPosition(1, 89), false),
+             SGSide(SGPosition(1, 50), true));
   const SGJoin* join = sg->getJoin(&j);
   CuAssertTrue(_testCase, join != NULL);
   ++joinCount;
@@ -638,12 +638,12 @@ void SNPTest::checkCallBack(AlignmentConstPtr alignment)
   CuAssertTrue(_testCase, sg->getNumSequences() == 2);
 
   SGJoin join;
-  join = SGJoin(SGSide(SGPosition(0, 4), true),
-                SGSide(SGPosition(1, 0), false));
+  join = SGJoin(SGSide(SGPosition(0, 4), false),
+                SGSide(SGPosition(1, 0), true));
   CuAssertTrue(_testCase, sg->getJoin(&join) != NULL);
 
-  join = SGJoin(SGSide(SGPosition(1, 0), true),
-                SGSide(SGPosition(0, 6), false));
+  join = SGJoin(SGSide(SGPosition(1, 0), false),
+                SGSide(SGPosition(0, 6), true));
   CuAssertTrue(_testCase, sg->getJoin(&join) != NULL);
 
   CuAssertTrue(_testCase, sg->getJoinSet()->size() == 2);
