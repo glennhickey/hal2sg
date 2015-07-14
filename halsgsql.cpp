@@ -4,20 +4,20 @@
  * Released under the MIT license, see LICENSE.txt
  */
 #include "md5.h"
-#include "sgsql.h"
+#include "halsgsql.h"
 
 using namespace std;
 using namespace hal;
 
-SGSQL::SGSQL() : _sgBuilder(0), _sg(0), _writeAncestralPaths(false)
+HALSGSQL::HALSGSQL() : _sgBuilder(0), _sg(0), _writeAncestralPaths(false)
 {
 }
 
-SGSQL::~SGSQL()
+HALSGSQL::~HALSGSQL()
 {
 }
 
-void SGSQL::writeDb(const SGBuilder* sgBuilder, const string& sqlInsertPath,
+void HALSGSQL::writeDb(const SGBuilder* sgBuilder, const string& sqlInsertPath,
                     const string& fastaPath, const string& halPath,
                     bool writeAncestralPaths)
 {
@@ -45,7 +45,7 @@ void SGSQL::writeDb(const SGBuilder* sgBuilder, const string& sqlInsertPath,
   _faStream.close();
 }
 
-void SGSQL::writeFasta()
+void HALSGSQL::writeFasta()
 {
   string dnaBuffer;
   for (sg_int_t i = 0; i < _sg->getNumSequences(); ++i)
@@ -70,7 +70,7 @@ void SGSQL::writeFasta()
   CREATE TABLE FASTA (ID INTEGER PRIMARY KEY,
   fastaURI TEXT NOT NULL);
 */
-void SGSQL::writeFastaInsert()
+void HALSGSQL::writeFastaInsert()
 {
   _outStream << "INSERT INTO FASTA VALUES ("
              << 0 << ", "
@@ -87,7 +87,7 @@ void SGSQL::writeFastaInsert()
   length INTEGER NOT NULL,
   FOREIGN KEY(fastaID) REFERENCES FASTA(ID));
 */
-void SGSQL::writeSequenceInserts()
+void HALSGSQL::writeSequenceInserts()
 {
   for (sg_int_t i = 0; i < _sg->getNumSequences(); ++i)
   {
@@ -143,7 +143,7 @@ CREATE TABLE Reference_ReferenceSet_Join (referenceID INTEGER NOT NULL,
 	FOREIGN KEY(referenceID) REFERENCES Reference(ID),
 	FOREIGN KEY(referenceSetID) REFERENCES ReferenceSet(ID));
 */
-void SGSQL::writeReferenceInserts()
+void HALSGSQL::writeReferenceInserts()
 {
   // make a single reference set
   _outStream << "INSERT INTO ReferenceSet VALUES "
@@ -196,7 +196,7 @@ void SGSQL::writeReferenceInserts()
   FOREIGN KEY(side1SequenceID) REFERENCES Sequence(ID),
   FOREIGN KEY(side2SequenceID) REFERENCES Sequence(ID)); 
 */
-void SGSQL::writeJoinInserts()
+void HALSGSQL::writeJoinInserts()
 {
   const SideGraph::JoinSet* joinSet = _sg->getJoinSet();
   SideGraph::JoinSet::const_iterator i;
@@ -235,7 +235,7 @@ CREATE TABLE AllelePathItem (alleleID INTEGER REFERENCES allele(ID),
 	strandIsForward BOOLEAN NOT NULL,
 	PRIMARY KEY(alleleID, pathItemIndex));
 */
-void SGSQL::writePathInserts()
+void HALSGSQL::writePathInserts()
 {
   // For every genome in the input HAL, we create one Variant Set.
   // For every sequence in a genome, we create one
@@ -314,7 +314,7 @@ void SGSQL::writePathInserts()
 
 }
 
-void SGSQL::getChecksum(const string& inputString, string& outputString)
+void HALSGSQL::getChecksum(const string& inputString, string& outputString)
 {
   outputString = md5(inputString);
 }

@@ -4,8 +4,8 @@
  * Released under the MIT license, see LICENSE.cactus
  */
 
-#ifndef _SGSQL_H
-#define _SGSQL_H
+#ifndef _HALSGSQL_H
+#define _HALSGSQL_H
 
 #include <cstdlib>
 #include <set>
@@ -26,11 +26,11 @@
  * commands to a text file. 
  */
 
-class SGSQL
+class HALSGSQL
 {
 public:
-   SGSQL();
-   virtual ~SGSQL();
+   HALSGSQL();
+   virtual ~HALSGSQL();
 
    /** write out the graph as a database 
     */

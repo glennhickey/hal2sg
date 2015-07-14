@@ -11,7 +11,7 @@
 #include <deque>
 
 #include "sgbuilder.h"
-#include "sgsql.h"
+#include "halsgsql.h"
 
 using namespace std;
 using namespace hal;
@@ -226,7 +226,7 @@ int main(int argc, char** argv)
     
     //cout << *sgbuild.getSideGraph() << endl;
 
-    SGSQL sqlWriter;
+    HALSGSQL sqlWriter;
     sqlWriter.writeDb(&sgbuild, sqlPath, fastaPath, halPath,
                       !noAncestors);
 

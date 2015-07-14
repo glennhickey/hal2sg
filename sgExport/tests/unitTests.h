@@ -11,7 +11,7 @@ extern "C" {
 #include "CuTest.h"
 }
 
-CuSuite* sgBuildTestSuite();
-CuSuite* snpHandlerTestSuite();
+CuSuite* sideGraphTestSuite();
+CuSuite* sgLookupTestSuite();
 
 #endif
