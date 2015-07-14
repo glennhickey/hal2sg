@@ -227,8 +227,8 @@ int main(int argc, char** argv)
     //cout << *sgbuild.getSideGraph() << endl;
 
     HALSGSQL sqlWriter;
-    sqlWriter.writeDb(&sgbuild, sqlPath, fastaPath, halPath,
-                      !noAncestors);
+    sqlWriter.exportGraph(&sgbuild, sqlPath, fastaPath, halPath,
+                          !noAncestors);
 
   }
 /*  catch(hal_exception& e)

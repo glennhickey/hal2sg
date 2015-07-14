@@ -15,18 +15,18 @@
 #include <fstream>
 #include <cassert>
 
-#include "sidegraph.h"
+#include "sgsql.h"
 #include "sgbuilder.h"
 
-//#include <mysql.h>
-//#include <mysqld_error.h>
 
 /*
- * write a SideGraph to an SQL server. or, for now, as some insert 
- * commands to a text file. 
+ * write a SideGraph to GA4GH SQL format.  This will be a fasta file with
+ * the sequence information and a .sql file with a bunch of INSERT statements
+ * that can be loaded into a db.  This class has the HAL conversion 
+ * specific logic coming from SGBuilder...
  */
 
-class HALSGSQL
+class HALSGSQL : public SGSQL
 {
 public:
    HALSGSQL();
@@ -34,54 +34,39 @@ public:
 
    /** write out the graph as a database 
     */
-   void writeDb(const SGBuilder* sgBuilder, const std::string& sqlInsertPath,
-                const std::string& fastaPath, const std::string& halPath,
-                bool writeAncestralPaths = true);
+   void exportGraph(const SGBuilder* sgBuilder,
+                    const std::string& sqlInsertPath,
+                    const std::string& fastaPath, const std::string& halPath,
+                    bool writeAncestralPaths = true);
 protected:
 
-   /** write out the FASTA file by using the back map in sgBuilder
-    * to convert sideGraph sequences back into their hal coordinates, then
-    * pulling the DNA string out of HAL.  also fill in the checksum map
-    * as we go.
-    */
-   void writeFasta();
-
-   /** write an INSERT for the fasta file.  We only make one so its 
-    * ID is always 0
-    */
-   void writeFastaInsert();
-   
-   /** write an INSERT for each join the graph
-    */
-   void writeJoinInserts();
-
-   /** write an INSERT for each sequence in the graph
-    */
-   void writeSequenceInserts();
-
-   /** write a "Reference" INSERT for each sequence in the graph into
-    * one Reference set. 
-    */
-   void writeReferenceInserts();
 
    /** write path INSERTs (makes a VariantSet for each Genome and 
     * an Allele for each sequence
     */
    void writePathInserts();
 
-   static void getChecksum(const std::string& inputString,
-                           std::string& outputString);
+   /** get DNA string corresponding to a sequence 
+    */
+   void getSequenceString(const SGSequence* seq,
+                          std::string& outString) const;
 
+   /** determine name of input sequence from which this sequence was
+    * derived.  
+    */
+   std::string getOriginName(const SGSequence* seq) const;
+
+   /** Which origin name do we consider primary? Used to name ReferenceSet
+    */
+   std::string getPrimaryOriginName() const;
+
+   /** Get description for reference set 
+    */
+   std::string getDescription() const;
+   
 protected:
 
    const SGBuilder* _sgBuilder;
-   const SideGraph* _sg;
-   std::string _outPath;
-   std::string _faPath;
-   std::string _halPath;
-   std::ofstream _outStream;
-   std::ofstream _faStream;
-   std::map<sg_seqid_t, std::string> _checksumMap;
    bool _writeAncestralPaths;
 };
 
