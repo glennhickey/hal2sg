@@ -29,7 +29,7 @@ sgbuilder.o : sgbuilder.cpp sgbuilder.h ${sgExportPath}/sglookup.h sglookback.h 
 halsgsql.o : halsgsql.cpp halsgsql.h ${sgExportPath}/sglookup.h ${sgExportPath}/sgsql.h ${sidegraphInc} ${basicLibsDependencies}
 	${cpp} ${cppflags} -I . halsgsql.cpp -c
 
-${sgExportPath}/sgExport.a :
+${sgExportPath}/sgExport.a : ${sgExportPath}/*.cpp ${sgExportPath}/*.h
 	cd ${sgExportPath} && make
 
 hal2sg :  hal2sg.o sglookback.o snphandler.o sgbuilder.o halsgsql.o ${basicLibsDependencies}
