@@ -3,6 +3,10 @@ Prototype code for converting [HAL](https://github.com/glennhickey/hal) to [Side
 
 (c) 2015 Glenn Hickey. See [LICENSE](https://github.com/glennhickey/hal2sg/blob/development/LICENSE) for details.
 
+See also:
+* [vg2sg](https://github.com/glennhickey/vg2sg): Convert  [VG](https://github.com/ekg/vg) to [Side Graph SQL](https://github.com/ga4gh/schemas/wiki/Human-Genome-Variation-Reference-(HGVR)-Pilot-Project#graph-format)
+* [sg2vg](https://github.com/glennhickey/sg2vg): Convert [Global Alliance (Side Graph) Server](https://github.com/ga4gh/schemas/wiki/Human-Genome-Variation-Reference-(HGVR)-Pilot-Project#graph-format) to [VG](https://github.com/ekg/vg)
+
 ## Algorithm
 
 Iteratatively add genomes to side graph.   The HAL alignment is used to thread each successive genome onto the nearest genome already in the graph.   Genomes are added in breadth-first search order starting from the reference (specifiable by option, root by default).
