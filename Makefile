@@ -36,5 +36,5 @@ hal2sg :  hal2sg.o sglookback.o snphandler.o sgbuilder.o halsgsql.o ${basicLibsD
 	${cpp} ${cppflags} ${basicLibs} hal2sg.o sglookback.o snphandler.o sgbuilder.o halsgsql.o -o hal2sg 
 
 test : unitTests
-	pushd .  && cd ${sgExportPath} && make test && popd && tests/unitTests
+	cd ${sgExportPath} && make test && cd .. && tests/unitTests
 

@@ -78,7 +78,8 @@ size_t SGBuilder::getSequenceString(const SGSequence* sgSequence,
   vector<SGSegment> segPath;
   vector<const Sequence*> halSeqPath;
   _lookBack.getPath(SGPosition(sgSequence->getID(), pos),
-                    SGPosition(sgSequence->getID(), pos + len - 1),
+                    len,
+                    true,
                     segPath, halSeqPath);
   for (size_t i = 0; i < segPath.size(); ++i)
   {
@@ -126,9 +127,8 @@ void SGBuilder::getHalSequencePath(const Sequence* halSeq,
   GenomeLUMap::const_iterator lui = _luMap.find(halSeq->getGenome()->getName());
   assert(lui != _luMap.end());
   SGPosition start(halSeq->getArrayIndex(), 0);
-  SGPosition end(halSeq->getArrayIndex(),
-                 max((hal_size_t)0, halSeq->getSequenceLength() - 1));
-  lui->second->getPath(start, end, outPath);
+  int len = max((hal_size_t)1, halSeq->getSequenceLength());
+  lui->second->getPath(start, len, true, outPath);
 }
 
 void SGBuilder::addGenome(const Genome* genome,

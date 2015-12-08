@@ -65,11 +65,12 @@ SGLookBack::mapPosition(const SGPosition& inPos) const
 }
 
 void SGLookBack::getPath(const SGPosition& startPos,
-                         const SGPosition& endPos,
+                         int length,
+                         bool forward,
                          vector<SGSegment>& outPath,
                          vector<const Sequence*>& outHalSeqs) const
 {
-  _lookup.getPath(startPos, endPos, outPath);
+  _lookup.getPath(startPos, length, forward, outPath);
   outHalSeqs.resize(outPath.size(), NULL);
   for (size_t i = 0; i < outPath.size(); ++i)
   {

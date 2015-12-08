@@ -40,7 +40,8 @@ public:
     * through the HAL graph.   
     */
    void getPath(const SGPosition& startPos,
-                const SGPosition& endPos,
+                int length,
+                bool forward,
                 std::vector<SGSegment>& outPath,
                 std::vector<const hal::Sequence*>& outHalSeqs) const;
 
