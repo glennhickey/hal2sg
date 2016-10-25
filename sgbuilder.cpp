@@ -207,7 +207,7 @@ void SGBuilder::addGenome(const Genome* genome,
   _mapRoot = target != NULL ? getLowestCommonAncestor(_mapPath) : _root;
 
   ///// DEBUG
-  cout << "Mapping " << genome->getName() << " to "
+  cerr << "Mapping " << genome->getName() << " to "
        << (target ? target->getName() : genome->getName())
        << "; MRCA = " << (target ? _mapMrca->getName() : genome->getName())
        << "; ROOT = " << _root->getName()
@@ -215,9 +215,9 @@ void SGBuilder::addGenome(const Genome* genome,
   for (set<const Genome*>::iterator i = _mapPath.begin();
        i != _mapPath.end(); ++i)
   {
-    cout << (*i)->getName() << ", ";
+    cerr << (*i)->getName() << ", ";
   }
-  cout << endl;
+  cerr << endl;
   /////
   
   // Convert sequence by sequence
@@ -558,9 +558,9 @@ void SGBuilder::visitBlock(Block* prevBlock,
   {
     srcPos = sequenceEnd + 1;
   }
-//    cout << endl << "PREV " << prevBlock << endl;
-//    cout << "CUR  " << block << endl;
-//  cout << "prevSrcPos " << prevSrcPos << " srcPos " << srcPos << endl;
+//    cerr << endl << "PREV " << prevBlock << endl;
+//    cerr << "CUR  " << block << endl;
+//  cerr << "prevSrcPos " << prevSrcPos << " srcPos " << srcPos << endl;
   if (prevBlock == 0)
   {
     _pathLength = 0;
@@ -669,8 +669,8 @@ pair<SGSide, SGSide> SGBuilder::mapBlockEnds(const Block* block)
     }
     outBlockEnds.second = mappedBlockEnds.second;
  
-//    cout << "BE " << blockEnds.first << ", " << blockEnds.second << endl;
-    // cout << "TC " << mappedBlockEnds.first << ", " << mappedBlockEnds.second
+//    cerr << "BE " << blockEnds.first << ", " << blockEnds.second << endl;
+    // cerr << "TC " << mappedBlockEnds.first << ", " << mappedBlockEnds.second
     //      << endl;
 
     _pathLength += blockLength;
@@ -776,7 +776,7 @@ SGBuilder::mapBlockSlice(const Block* block,
     endPos.setPos(startPos.getPos() - blockLength + 1);
   }
   /*
-   cout << "mapBlockSlice(" << block << "\n"
+   cerr << "mapBlockSlice(" << block << "\n"
         << sgBlockEnds.first << ", " << sgBlockEnds.second << "\n"
         << "srcRange " << srcStartOffset << "-" << srcEndOffset
         << " (" << (block->_srcStart + srcStartOffset)
@@ -970,7 +970,7 @@ void SGBuilder::cutBlocks(vector<Block*>& blocks, bool leaveExactOverlaps)
       {
         if (overlap != exactOverlap)
         {
-          cout << "blocki " << blocks[i] << endl
+          cerr << "blocki " << blocks[i] << endl
                << "blockj " <<blocks[j] << endl;
         }
         assert (overlap == exactOverlap);
@@ -1022,26 +1022,26 @@ void SGBuilder::addPathJoins(const Sequence* sequence,
 
   if (buffer != pathString)
   {
-    cout << getHalSeqName(sequence) << endl;
-    cout << "BUF " << buffer.length()   << endl;
-    cout << "PAT " << pathString.length()  << endl;
+    cerr << getHalSeqName(sequence) << endl;
+    cerr << "BUF " << buffer.length()   << endl;
+    cerr << "PAT " << pathString.length()  << endl;
 
-/*    cout << "BUF " << buffer   << endl;
-    cout << "PAT " << pathString  << endl;
-    cout <<"    ";
+/*    cerr << "BUF " << buffer   << endl;
+    cerr << "PAT " << pathString  << endl;
+    cerr <<"    ";
     for (size_t x = 0; x < buffer.length() ; ++x)
     {
-      if (buffer[x] != pathString[x]) cout << "^";
-      else cout <<" ";
+      if (buffer[x] != pathString[x]) cerr << "^";
+      else cerr <<" ";
     }
-    cout << endl;
-    cout <<"    ";
+    cerr << endl;
+    cerr <<"    ";
     for (size_t x = 0; x < buffer.length() ; ++x)
     {
-      if (buffer[x] != pathString[x]) {cout << x;break;}
-      else cout <<" ";
+      if (buffer[x] != pathString[x]) {cerr << x;break;}
+      else cerr <<" ";
     }
-    cout << endl;
+    cerr << endl;
 */
     size_t numDiffs = 0;
     for (size_t x = 0; x < buffer.length(); ++x)
@@ -1050,11 +1050,11 @@ void SGBuilder::addPathJoins(const Sequence* sequence,
       {
         ++numDiffs;
         if (numDiffs < 5)
-        cout << x << " " << buffer[x] << "->" << pathString[x] << endl;
+        cerr << x << " " << buffer[x] << "->" << pathString[x] << endl;
       }
     }
-    cout << "total diffs " << numDiffs << " / " << buffer.length() << endl;
-    cout << endl;
+    cerr << "total diffs " << numDiffs << " / " << buffer.length() << endl;
+    cerr << endl;
     stringstream ss;
     ss << "Consistency check failed: Output path for sequence \""
        << sequence->getFullName() << "\" does not match input"
