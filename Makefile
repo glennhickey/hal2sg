@@ -7,7 +7,7 @@ sidegraphInc = ${sgExportPath}/sidegraph.h ${sgExportPath}/sgcommon.h ${sgExport
 all : hal2sg 
 
 clean : 
-	rm -f  hal2sg.o sglookback.o snphandler.o sgbuilder.o halsgsql.o hal2sg
+	rm -f  hal2sg.o sglookback.o snphandler.o sgbuilder.o halsgsql.o libhal2sg.a hal2sg
 	cd sgExport && make clean
 	cd tests && make clean
 
@@ -32,8 +32,11 @@ halsgsql.o : halsgsql.cpp halsgsql.h ${sgExportPath}/sglookup.h ${sgExportPath}/
 ${sgExportPath}/sgExport.a : ${sgExportPath}/*.cpp ${sgExportPath}/*.h
 	cd ${sgExportPath} && make
 
-hal2sg :  hal2sg.o sglookback.o snphandler.o sgbuilder.o halsgsql.o ${basicLibsDependencies}
-	${cpp} ${cppflags} ${basicLibs} hal2sg.o sglookback.o snphandler.o sgbuilder.o halsgsql.o -o hal2sg 
+libhal2sg.a : sglookback.o snphandler.o sgbuilder.o halsgsql.o
+	ar rc libhal2sg.a sglookback.o snphandler.o sgbuilder.o halsgsql.o 
+
+hal2sg :  hal2sg.o libhal2sg.a ${basicLibsDependencies}
+	${cpp} ${cppflags} hal2sg.o libhal2sg.a ${basicLibs}  -o hal2sg 
 
 test : unitTests
 	cd ${sgExportPath} && make test && cd .. && tests/unitTests
