@@ -358,7 +358,7 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
   // also keep tracks of hooks at the edges of the sequence (outhooks)
   // which get returned.
   pair<SGSide, SGSide> outHooks;
-  sg_seqid_t halSequenceID = (sg_seqid_t)sequence->getArrayIndex();
+  sg_int_t halSequenceID = (sg_int_t)sequence->getArrayIndex();
   outHooks.first =  _lookup->mapPosition(SGPosition(halSequenceID,
                                                     startOffset));
   outHooks.second = _lookup->mapPosition(SGPosition(halSequenceID,
@@ -621,7 +621,7 @@ pair<SGSide, SGSide> SGBuilder::mapBlockEnds(const Block* block)
   {
  // map from src to target (first mapping);
     SGPosition halTgtFirst(
-      (sg_seqid_t)block->_tgtSeq->getArrayIndex(),
+      (sg_int_t)block->_tgtSeq->getArrayIndex(),
       block->_reversed ? block->_tgtEnd - covered : block->_tgtStart + covered);
     
     sg_int_t ludist = -1;
@@ -761,9 +761,9 @@ SGBuilder::mapBlockSlice(const Block* block,
                          const string& srcDNA,
                          const string& tgtDNA)
 {
-  SGPosition srcHalPosition((sg_seqid_t)block->_srcSeq->getArrayIndex(),
+  SGPosition srcHalPosition((sg_int_t)block->_srcSeq->getArrayIndex(),
                             block->_srcStart + srcStartOffset);
-  SGPosition tgtHalPosition((sg_seqid_t)block->_tgtSeq->getArrayIndex(),
+  SGPosition tgtHalPosition((sg_int_t)block->_tgtSeq->getArrayIndex(),
                             block->_tgtStart + srcStartOffset);
   sg_int_t blockLength = srcEndOffset - srcStartOffset + 1;
 
@@ -1119,7 +1119,7 @@ void SGBuilder::getCollapsedFlags(const vector<Block*>& blocks,
   {
     Block* block = blocks[i];
     hal_index_t blockLength = block->_srcEnd - block->_srcStart + 1;
-    SGPosition tgtHalPosition((sg_seqid_t)block->_tgtSeq->getArrayIndex(),
+    SGPosition tgtHalPosition((sg_int_t)block->_tgtSeq->getArrayIndex(),
                               block->_tgtStart);
     // check if it's a duplication in a *different* side graph sequence
     SGSide mapResult = _lookup->mapPosition(tgtHalPosition);
@@ -1154,7 +1154,7 @@ void SGBuilder::updateDupeBlockLookups(const Sequence* sequence,
                                        const SGSequence* sgSeq)
 {
   // 1 pass just to update map structures for uncollapsed
-  sg_seqid_t halSequenceID = (sg_seqid_t)sequence->getArrayIndex();
+  sg_int_t halSequenceID = (sg_int_t)sequence->getArrayIndex();
   assert(halSequenceID >= 0);
   hal_index_t prev = -1;
   hal_index_t newSeqLen = 0;
