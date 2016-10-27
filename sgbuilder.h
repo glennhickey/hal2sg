@@ -38,6 +38,12 @@ public:
    void clear();
 
    /**
+    * Erase everything, except the sidegraph pointer is returned but not 
+    * deleted (which is responsability of client)
+    */
+   SideGraph* clear_except_sg();
+
+   /**
     * Add Genome to the Side Graph. sequence, start and length parameters
     * should always be their defaults for now. 
     */

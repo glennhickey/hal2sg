@@ -62,6 +62,14 @@ void SGBuilder::clear()
   _snpHandler = NULL;
 }
 
+SideGraph* SGBuilder::clear_except_sg()
+{
+  SideGraph* ret = _sg;
+  _sg = NULL;
+  clear();
+  return ret;
+}
+
 const SideGraph* SGBuilder::getSideGraph() const
 {
   return _sg;
