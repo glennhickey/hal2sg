@@ -17,7 +17,8 @@ using namespace hal;
 SGBuilder::SGBuilder() : _sg(0), _root(0), _mapRoot(0), _lookup(0), _mapMrca(0),
                          _referenceDupes(true), _camelMode(false),
                          _snpHandler(0),
-                         _onlySequenceNames(false)
+                         _onlySequenceNames(false),
+                         _stripSequenceNames(false)
 {
 
 }
@@ -29,7 +30,7 @@ SGBuilder::~SGBuilder()
 
 void SGBuilder::init(AlignmentConstPtr alignment, const Genome* root,
                      bool referenceDupes, bool camelMode,
-                     bool onlySequenceNames)
+                     bool onlySequenceNames, bool stripSequenceNames)
 {
   clear();
   _alignment = alignment;
@@ -40,6 +41,7 @@ void SGBuilder::init(AlignmentConstPtr alignment, const Genome* root,
   _camelMode = camelMode;
   _snpHandler = new SNPHandler(_sg, false, onlySequenceNames);
   _onlySequenceNames = onlySequenceNames;
+  _stripSequenceNames = stripSequenceNames;
 }
 
 void SGBuilder::clear()
@@ -333,13 +335,18 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
   assert(newSeqLen <= length);
 
   // make a new Side Graph Sequence
-  stringstream name;
-  name << getHalSeqName(sequence);
-  if (length < (hal_index_t)sequence->getSequenceLength())
+  string name;
+  if (!_stripSequenceNames)
   {
-    name << "_" << startOffset << "_" << newSeqLen;
-  }  
-  SGSequence* sgSeq = new SGSequence(-1, newSeqLen, name.str());
+    stringstream ss;
+    ss << getHalSeqName(sequence);
+    if (length < (hal_index_t)sequence->getSequenceLength())
+    {
+      ss << "_" << startOffset << "_" << newSeqLen;
+    }
+    name = ss.str();
+  }
+  SGSequence* sgSeq = new SGSequence(-1, newSeqLen, name);
 
   // add to the Side Graph
   _sg->addSequence(sgSeq);

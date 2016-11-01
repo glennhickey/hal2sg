@@ -30,7 +30,8 @@ public:
     */
    void init(hal::AlignmentConstPtr alignment, const hal::Genome* root = NULL,
              bool referenceDupes = true, bool camelMode = false,
-             bool onlySequenceNames = false);
+             bool onlySequenceNames = false,
+             bool stripSeqNames = false);
 
    /**
     * Erase everything
@@ -255,7 +256,8 @@ protected:
    std::string _firstGenomeName;
    std::vector<const hal::Sequence*> _halSequences;
    SNPHandler* _snpHandler;
-   bool _onlySequenceNames;
+   bool _onlySequenceNames; // dont add genome to path names
+   bool _stripSequenceNames; // dont write name field of sgsequences
 
    friend std::ostream& operator<<(std::ostream& os, const Block* block);
 
