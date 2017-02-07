@@ -1185,6 +1185,7 @@ void SGBuilder::getCollapsedFlags(const vector<Block*>& blocks,
       // so we loop through all targets for the given source,
       // to check if any are in the side graph.
       SGSide extMap(SideGraph::NullPos, true);
+      bool extCollapsed = false;
       for (size_t k = i; !collapsed && k <= j; ++k)
       {
         extMap = _lookup->mapPosition(
@@ -1204,26 +1205,37 @@ void SGBuilder::getCollapsedFlags(const vector<Block*>& blocks,
       {
         collapseBlock[k] = k != i || collapsed;
         cerr << "collapse array " << k << " = " << collapseBlock[k] << endl;
-        SGPosition pos((sg_int_t)blocks[k]->_tgtSeq->getArrayIndex(),
-                       blocks[k]->_tgtStart);
-        // Note: we're not going to put intervals in other seuqneces
-        // in the collapse map (from elements).  They will be treated within those
-        // sequences.  External sequences can be added as to elements (ie tgt
-        // can be external, but not pos)
-        if (blocks[k]->_tgtSeq == srcSequence &&
-            collapseMap.mapPosition(pos).getBase() == SideGraph::NullPos)
+
+        // If not external, we map the tgt to the src
+        // Otherwise, map src -> ext        
+        SGPosition pos;
+        bool rev = blocks[k]->_reversed;
+        if (blocks[k]->_tgtSeq == srcSequence)
         {
+          pos = SGPosition((sg_int_t)blocks[k]->_tgtSeq->getArrayIndex(),
+                           blocks[k]->_tgtStart);
+        }
+        else if (collapsed == true)
+        {
+          pos = SGPosition((sg_int_t)blocks[k]->_srcSeq->getArrayIndex(),
+                           blocks[k]->_srcStart);
           // we have a transitive mapping tgt -> src -> extMap
           // where tgt -> src reversal is defined by the block reversed flag
           // but must also flip again if src->extMap is reversed. 
-          bool rev = blocks[k]->_reversed;
           if (extReverse)
           {
             rev = !rev;
           }
-          cerr << "col add " << pos << " -> " << tgt << " len " << (blocks[k]->_srcEnd - blocks[k]->_srcStart + 1) << endl;
-          collapseMap.addInterval(
-            pos, tgt, blocks[k]->_tgtEnd - blocks[k]->_tgtStart + 1, rev);
+        }
+        
+        if (pos != SideGraph::NullPos &&
+            collapseMap.mapPosition(pos).getBase() == SideGraph::NullPos)
+        {
+            cerr << "col add " << pos << " -> " << tgt << " len "
+                 << (blocks[k]->_srcEnd - blocks[k]->_srcStart + 1) << endl;            
+            collapseMap.addInterval(
+              pos, tgt, blocks[k]->_tgtEnd - blocks[k]->_tgtStart + 1,
+              rev);
         }
       }
     }
@@ -1311,6 +1323,7 @@ void SGBuilder::filterRedundantDupeBlocks(vector<Block*>& blocks,
     if (srcVisited.find(srcPos) == srcVisited.end())
     {
       SGSide mapSide = collapseMap.mapPosition(srcPos);
+      cerr << "checking col map " << srcPos << endl;
       if (mapSide.getBase() != SideGraph::NullPos)
       {
         cerr << "mapped " << srcPos << " -- > " << mapSide << endl;
