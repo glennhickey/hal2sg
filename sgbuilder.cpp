@@ -292,6 +292,7 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
                                                  hal_index_t startOffset,
                                                  hal_index_t length)
 {
+  cerr << "CREATE SG " << sequence->getName() << endl << endl;
   assert(sequence != NULL);
   assert(startOffset >= 0);
   assert(length > 0);
@@ -303,11 +304,21 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
     computeBlocks(sequence, sequence->getStartPosition() + startOffset,
                   sequence->getStartPosition() + startOffset + length - 1,
                   NULL, blocks);
+
+    cerr << "map seqeunce " << sequence->getName() << endl;
+
+    for (int i = 0; i < blocks.size(); ++i) {
+      cerr << " block " << i << " " << blocks[i] << endl;
+    }
+
   }
 
   // for each block, a flag if it's collapsed or not
   vector<bool> collapsed(blocks.size(), false);
-  getCollapsedFlags(blocks, collapsed);  
+  // for collapsed blocks, map the tgt interval to an uncollapsed src interval.
+  SGLookup collapseMap;
+  collapseMap.init(vector<string>(sequence->getGenome()->getNumSequences()));
+  getCollapsedFlags(blocks, sequence, collapsed, collapseMap);  
 
   // We can optimize this out probably but one pass just to compute
   // the length of the new sequence
@@ -357,8 +368,16 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
                          sgSeq);
   // we have all pairwise alignment blocks in our list.  we only
   // need blocks where the target range is uncollapsed.  filter
-  // everything else out here.
-  filterRedundantDupeBlocks(blocks, sgSeq);
+  // everything else out here.  Also, modify the blocks so that
+  // collapsed targets point to uncollapsed srces, meaning that
+  // they can be resolved downstream as any old blocks.  
+  filterRedundantDupeBlocks(blocks, sequence->getGenome(), collapseMap);
+
+  cerr << "FILTER BLOCKS" << endl;
+  for (int i = 0; i < blocks.size(); ++i)
+  {
+    cerr << blocks[i] << endl;
+  }
 
   // add all the snps resulting from the duplication blocks
   // (will update lookups for blocks too, which weren't done above)
@@ -385,6 +404,8 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
     {
       outHooks.second = blockHooks.second;
     }
+
+    delete blocks[i];
   }
     
   assert(outHooks.first.getBase() != SideGraph::NullPos);
@@ -525,8 +546,8 @@ void SGBuilder::computeBlocks(const Sequence* sequence,
     fragmentsToBlock(fragments, *block);
     // filter trivial self alignments while at it
     if (block->_srcSeq == block->_tgtSeq &&
-         block->_srcStart == block->_tgtStart &&
-         block->_srcEnd == block->_tgtEnd)
+        block->_srcStart == block->_tgtStart &&
+        block->_srcEnd == block->_tgtEnd)
     {
       delete block;
       block = NULL;
@@ -1115,40 +1136,96 @@ void SGBuilder::getRootSubString(string& outDNA, const Sequence* sequence,
 }
 
 void SGBuilder::getCollapsedFlags(const vector<Block*>& blocks,
-                                  vector<bool>& collapseBlock)
+                                  const Sequence* srcSequence,
+                                  vector<bool>& collapseBlock,
+                                  SGLookup& collapseMap)
 {
-  // a temporary interval map, where we ignore sequence id.  
-  SGLookup locLook;
-  locLook.init(vector<string>(1, ""));
-  
-  // for each block, a flag if it's collapsed or not
-  for (size_t i = 0; i < blocks.size(); ++i)
-  {
-    Block* block = blocks[i];
-    hal_index_t blockLength = block->_srcEnd - block->_srcStart + 1;
-    SGPosition tgtHalPosition((sg_int_t)block->_tgtSeq->getArrayIndex(),
-                              block->_tgtStart);
-    // check if it's a duplication in a *different* side graph sequence
-    SGSide mapResult = _lookup->mapPosition(tgtHalPosition);
-    bool visited = mapResult.getBase() != SideGraph::NullPos;
-    // check if it's a duplication in the same side graph sequence
-    mapResult = locLook.mapPosition(SGPosition(0, block->_tgtStart));
-    bool tgtVis = mapResult.getBase() != SideGraph::NullPos;
-    mapResult = locLook.mapPosition(SGPosition(0, block->_srcStart));
-    bool srcVis = mapResult.getBase() != SideGraph::NullPos;
+  // a block is uncollapsed if its src interval needs to be
+  // added to the new sequence.  A block is collapsed if
+  // there is some kind of orthology relation to an uncollapsed
+  // block
 
-    collapseBlock[i] = visited || tgtVis || srcVis;
-    if (!tgtVis)
+  // if a block is collapsed, it will have a true in the collapseBlock
+  // vector.  Otherwise, it will map to an uncollapsed interval
+  // in the collapseMap
+    
+  // for each block, a flag if it's collapsed or not
+  size_t j;
+  for (size_t i = 0; i < blocks.size(); i = j + 1)
+  {
+    // [i,j] is range of blocks with same src interval (equivalence class)
+    SGPosition srcHalPosition((sg_int_t)blocks[i]->_srcSeq->getArrayIndex(),
+                              blocks[i]->_srcStart);
+    j = i;
+    while (j < blocks.size() - 1 && SGPosition(
+             (sg_int_t)blocks[j+1]->_srcSeq->getArrayIndex(),
+             blocks[j+1]->_srcStart) == srcHalPosition)
     {
-      locLook.addInterval(SGPosition(0, block->_tgtStart),
-                          SGPosition(0, block->_tgtStart),
-                          blockLength, false);
+      ++j;
     }
-    if (!srcVis)
+
+    cerr << "Equivalance class " << i << " -- " << j << ": ";
+    // if we haven't seen the src interval anywhere in our lookup yet,
+    // then it's not going to be collapsed
+    bool collapsed = collapseMap.mapPosition(srcHalPosition).getBase() !=
+       SideGraph::NullPos;
+
+    cerr << " col=" << collapsed << endl;
+    if (collapsed)
     {
-      locLook.addInterval(SGPosition(0, block->_srcStart),
-                          SGPosition(0, block->_srcStart),
-                          blockLength, false);      
+      for (size_t k = i; k <= j; ++k)
+      {
+        collapseBlock[k] = true;
+      }
+    }
+    else
+    {
+      // unless: its target it outside the sequence, and that target
+      // has already been assigned a location in the side graph.
+      // so we loop through all targets for the given source,
+      // to check if any are in the side graph.
+      SGSide extMap(SideGraph::NullPos, true);
+      for (size_t k = i; !collapsed && k <= j; ++k)
+      {
+        extMap = _lookup->mapPosition(
+          SGPosition((sg_int_t)blocks[k]->_tgtSeq->getArrayIndex(),
+                     blocks[k]->_tgtStart));
+        if (extMap.getBase() != SideGraph::NullPos)
+        {
+          collapsed = true;
+        }
+      }
+
+      // update all targets to either point to src (if uncollapsed)
+      // or the external map (if collapsed)
+      SGPosition tgt = collapsed ? extMap.getBase() : srcHalPosition;
+      bool extReverse = collapsed && !extMap.getForward();
+      for (size_t k = i; k <= j; ++k)
+      {
+        collapseBlock[k] = k != i || collapsed;
+        cerr << "collapse array " << k << " = " << collapseBlock[k] << endl;
+        SGPosition pos((sg_int_t)blocks[k]->_tgtSeq->getArrayIndex(),
+                       blocks[k]->_tgtStart);
+        // Note: we're not going to put intervals in other seuqneces
+        // in the collapse map (from elements).  They will be treated within those
+        // sequences.  External sequences can be added as to elements (ie tgt
+        // can be external, but not pos)
+        if (blocks[k]->_tgtSeq == srcSequence &&
+            collapseMap.mapPosition(pos).getBase() == SideGraph::NullPos)
+        {
+          // we have a transitive mapping tgt -> src -> extMap
+          // where tgt -> src reversal is defined by the block reversed flag
+          // but must also flip again if src->extMap is reversed. 
+          bool rev = blocks[k]->_reversed;
+          if (extReverse)
+          {
+            rev = !rev;
+          }
+          cerr << "col add " << pos << " -> " << tgt << " len " << (blocks[k]->_srcEnd - blocks[k]->_srcStart + 1) << endl;
+          collapseMap.addInterval(
+            pos, tgt, blocks[k]->_tgtEnd - blocks[k]->_tgtStart + 1, rev);
+        }
+      }
     }
   }
 }
@@ -1208,15 +1285,67 @@ void SGBuilder::updateDupeBlockLookups(const Sequence* sequence,
 }
 
 void SGBuilder::filterRedundantDupeBlocks(vector<Block*>& blocks,
-                                          const SGSequence* sgSeq)
+                                          const Genome* genome,
+                                          const SGLookup& collapseMap)
 {
+  // we only want src intervals that are collapsed (ie not added to the sequence)
+  // these will be in the collapse map.
+  // for each such src interval, we only want one block for it, where the
+  // target of that block is taken from the collpase map.
+
+  // use this set to make sure we only have one instance of each appropriate
+  // source. 
+  set<SGPosition> srcVisited;
+
+  // this will be our output block list
   vector<Block*> filteredBlocks;
+  
   for (size_t i = 0; i < blocks.size(); ++i)
   {
-    if (_lookup->mapPosition(SGPosition(0, blocks[i]->_tgtStart)).getBase() !=
-        SideGraph::NullPos)
+    Block* block = blocks[i];
+
+    SGPosition srcPos((sg_int_t)blocks[i]->_srcSeq->getArrayIndex(),
+                      blocks[i]->_srcStart);
+
+    bool reused = false;
+    if (srcVisited.find(srcPos) == srcVisited.end())
     {
-      filteredBlocks.push_back(blocks[i]);
+      SGSide mapSide = collapseMap.mapPosition(srcPos);
+      if (mapSide.getBase() != SideGraph::NullPos)
+      {
+        cerr << "mapped " << srcPos << " -- > " << mapSide << endl;
+        sg_int_t len = block->_srcEnd - block->_srcStart + 1;
+        // repurpose the block to map to the uncollapsed target
+        block->_reversed = !mapSide.getForward();
+        block->_tgtStart = mapSide.getBase().getPos();
+        if (block->_reversed == true)
+        {
+          // block coordinates always forward, but mapside will take
+          // into account reversal.  need to flip here to be consistent
+          block->_tgtStart -= len - 1;
+        }
+        block->_tgtEnd = block->_tgtStart + len - 1;
+
+        // it's possible we've got this far but the target is
+        // outside the sequence and hasn't been processed yet.
+        // ie we're a collapsed block because the src has been
+        // seen before, but the target is unseen
+        // we want to skip these blocks here (they will be
+        // dealt with from the other sequence)
+        SGPosition tgtPos((sg_int_t)block->_tgtSeq->getArrayIndex(),
+                          block->_tgtStart);
+        SGSide luSide = _lookup->mapPosition(tgtPos);
+        if (luSide.getBase() != SideGraph::NullPos)
+        {
+          filteredBlocks.push_back(block);
+          reused = true;
+          srcVisited.insert(srcPos);
+        }
+      }
+    }
+    if (!reused)
+    {
+      delete block;
     }
   }
   swap(filteredBlocks, blocks);

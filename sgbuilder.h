@@ -219,7 +219,10 @@ protected:
     * pick out blocks that do not get collapsed out due to alignment,
     * as they will be present in the new sequence */
    void getCollapsedFlags(const std::vector<Block*>& blocks,
-                          std::vector<bool>& collapseBlock);
+                          const hal::Sequence* srcSequence,
+                          std::vector<bool>& collapseBlock,
+                          SGLookup& collapseMap);
+
 
    /** Add gaps and uncollapsed blocks to the lookup structure to 
     * make sure the entire new sequence is covered */
@@ -235,7 +238,8 @@ protected:
     * by some other block.  Logic used is that blocks with targets
     * not in the lookup are filtered */
    void filterRedundantDupeBlocks(std::vector<Block*>& blocks,
-                                  const SGSequence* sgSeq);
+                                  const hal::Genome* genome,
+                                  const SGLookup& collapseMap);
    
 protected:
 
