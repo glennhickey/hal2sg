@@ -13,7 +13,7 @@ sgExportPath=${rootPath}/sgExport
 include  ${sonLibRootPath}/include.mk
 
 cflags += -I ${sonLibPath}  -I ${halPath} -I ${sgExportPath}
-cppflags += -I ${sonLibPath}  -I ${halPath} -I ${sgExportPath}
+cppflags += -I ${sonLibPath}  -I ${halPath} -I ${sgExportPath} -UNDEBUG
 basicLibs = ${halPath}/halLiftover.a ${halPath}/halLib.a ${sonLibPath}/sonLib.a ${sonLibPath}/cuTest.a ${sgExportPath}/sgExport.a 
 basicLibsDependencies = ${basicLibs}
 
