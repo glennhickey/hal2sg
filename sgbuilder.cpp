@@ -241,8 +241,11 @@ void SGBuilder::addGenome(const Genome* genome,
     // note all coordinates global
     if (curStart <= curEnd)
     {
+//      if ((seqNames[i].length() > 5 && seqNames[i].substr(0,5) == "chr1_") || seqNames[i] == "chr1")
+      {
       mapSequence(curSequence, curStart, curEnd, target);
       _halSequences.push_back(curSequence);
+      }
     }
   }
 }
@@ -1185,6 +1188,7 @@ void SGBuilder::getCollapsedFlags(const vector<Block*>& blocks,
       // so we loop through all targets for the given source,
       // to check if any are in the side graph.
       SGSide extMap(SideGraph::NullPos, true);
+      SGPosition tgtHalPosition;
       bool extCollapsed = false;
       for (size_t k = i; !collapsed && k <= j; ++k)
       {
@@ -1193,13 +1197,17 @@ void SGBuilder::getCollapsedFlags(const vector<Block*>& blocks,
                      blocks[k]->_tgtStart));
         if (extMap.getBase() != SideGraph::NullPos)
         {
+          tgtHalPosition = SGPosition(
+            (sg_int_t)blocks[k]->_tgtSeq->getArrayIndex(),
+            blocks[k]->_tgtStart);
           collapsed = true;
         }
       }
 
       // update all targets to either point to src (if uncollapsed)
       // or the external map (if collapsed)
-      SGPosition tgt = collapsed ? extMap.getBase() : srcHalPosition;
+      // todo: can we just add tgt->src for both cases?
+      SGPosition tgt = collapsed ? tgtHalPosition : srcHalPosition;
       bool extReverse = collapsed && !extMap.getForward();
       for (size_t k = i; k <= j; ++k)
       {
@@ -1219,13 +1227,6 @@ void SGBuilder::getCollapsedFlags(const vector<Block*>& blocks,
         {
           pos = SGPosition((sg_int_t)blocks[k]->_srcSeq->getArrayIndex(),
                            blocks[k]->_srcStart);
-          // we have a transitive mapping tgt -> src -> extMap
-          // where tgt -> src reversal is defined by the block reversed flag
-          // but must also flip again if src->extMap is reversed. 
-          if (extReverse)
-          {
-            rev = !rev;
-          }
         }
         
         if (pos != SideGraph::NullPos &&
@@ -1338,6 +1339,8 @@ void SGBuilder::filterRedundantDupeBlocks(vector<Block*>& blocks,
           block->_tgtStart -= len - 1;
         }
         block->_tgtEnd = block->_tgtStart + len - 1;
+        block->_tgtSeq = genome->getSequenceIterator(
+          mapSide.getBase().getSeqID())->getSequence();
 
         // it's possible we've got this far but the target is
         // outside the sequence and hasn't been processed yet.
