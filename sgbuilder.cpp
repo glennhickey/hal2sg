@@ -295,7 +295,6 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
                                                  hal_index_t startOffset,
                                                  hal_index_t length)
 {
-  cerr << "CREATE SG " << sequence->getName() << endl << endl;
   assert(sequence != NULL);
   assert(startOffset >= 0);
   assert(length > 0);
@@ -308,12 +307,13 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
                   sequence->getStartPosition() + startOffset + length - 1,
                   NULL, blocks);
 
+/*
     cerr << "map seqeunce " << sequence->getName() << endl;
 
     for (int i = 0; i < blocks.size(); ++i) {
       cerr << " block " << i << " " << blocks[i] << endl;
     }
-
+*/
   }
 
   // for each block, a flag if it's collapsed or not
@@ -376,11 +376,13 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
   // they can be resolved downstream as any old blocks.  
   filterRedundantDupeBlocks(blocks, sequence->getGenome(), collapseMap);
 
+  /*
   cerr << "FILTER BLOCKS" << endl;
   for (int i = 0; i < blocks.size(); ++i)
   {
     cerr << blocks[i] << endl;
   }
+  */
 
   // add all the snps resulting from the duplication blocks
   // (will update lookups for blocks too, which weren't done above)
@@ -1167,13 +1169,11 @@ void SGBuilder::getCollapsedFlags(const vector<Block*>& blocks,
       ++j;
     }
 
-    cerr << "Equivalance class " << i << " -- " << j << ": ";
     // if we haven't seen the src interval anywhere in our lookup yet,
     // then it's not going to be collapsed
     bool collapsed = collapseMap.mapPosition(srcHalPosition).getBase() !=
        SideGraph::NullPos;
 
-    cerr << " col=" << collapsed << endl;
     if (collapsed)
     {
       for (size_t k = i; k <= j; ++k)
@@ -1212,7 +1212,6 @@ void SGBuilder::getCollapsedFlags(const vector<Block*>& blocks,
       for (size_t k = i; k <= j; ++k)
       {
         collapseBlock[k] = k != i || collapsed;
-        cerr << "collapse array " << k << " = " << collapseBlock[k] << endl;
 
         // If not external, we map the tgt to the src
         // Otherwise, map src -> ext        
@@ -1232,8 +1231,6 @@ void SGBuilder::getCollapsedFlags(const vector<Block*>& blocks,
         if (pos != SideGraph::NullPos &&
             collapseMap.mapPosition(pos).getBase() == SideGraph::NullPos)
         {
-            cerr << "col add " << pos << " -> " << tgt << " len "
-                 << (blocks[k]->_srcEnd - blocks[k]->_srcStart + 1) << endl;            
             collapseMap.addInterval(
               pos, tgt, blocks[k]->_tgtEnd - blocks[k]->_tgtStart + 1,
               rev);
@@ -1324,10 +1321,8 @@ void SGBuilder::filterRedundantDupeBlocks(vector<Block*>& blocks,
     if (srcVisited.find(srcPos) == srcVisited.end())
     {
       SGSide mapSide = collapseMap.mapPosition(srcPos);
-      cerr << "checking col map " << srcPos << endl;
       if (mapSide.getBase() != SideGraph::NullPos)
       {
-        cerr << "mapped " << srcPos << " -- > " << mapSide << endl;
         sg_int_t len = block->_srcEnd - block->_srcStart + 1;
         // repurpose the block to map to the uncollapsed target
         block->_reversed = !mapSide.getForward();
