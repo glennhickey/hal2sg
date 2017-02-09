@@ -301,7 +301,9 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
 
   // compute Dupes
   vector<Block*> blocks;
-  if (sequence->getGenome() != _mapRoot)
+  if (sequence->getGenome() != _mapRoot && (
+        _referenceDupes == true ||
+        sequence->getGenome()->getName() != _firstGenomeName))
   {
     computeBlocks(sequence, sequence->getStartPosition() + startOffset,
                   sequence->getStartPosition() + startOffset + length - 1,
