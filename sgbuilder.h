@@ -47,9 +47,13 @@ public:
    /**
     * Add Genome to the Side Graph. sequence, start and length parameters
     * should always be their defaults for now. 
+    *
+    * refPathSequences.  No paralogies will be computed between pairs of
+    * segements in refPathSequences.  
     */
    void addGenome(const hal::Genome* genome,
                   const hal::Sequence* sequence = NULL,
+                  const std::set<const hal::Sequence*>* refPathSequences = NULL,
                   hal_index_t start = 0,
                   hal_index_t length = 0);
 
@@ -262,6 +266,8 @@ protected:
    SNPHandler* _snpHandler;
    bool _onlySequenceNames; // dont add genome to path names
    bool _stripSequenceNames; // dont write name field of sgsequences
+   // list of sequences to not self-align
+   std::set<const hal::Sequence*> _refPathSequences;
 
    friend std::ostream& operator<<(std::ostream& os, const Block* block);
 

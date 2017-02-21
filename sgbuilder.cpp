@@ -42,6 +42,7 @@ void SGBuilder::init(AlignmentConstPtr alignment, const Genome* root,
   _snpHandler = new SNPHandler(_sg, false, onlySequenceNames);
   _onlySequenceNames = onlySequenceNames;
   _stripSequenceNames = stripSequenceNames;
+  _refPathSequences.clear();
 }
 
 void SGBuilder::clear()
@@ -62,6 +63,7 @@ void SGBuilder::clear()
   _halSequences.clear();
   delete _snpHandler;
   _snpHandler = NULL;
+  _refPathSequences.clear();
 }
 
 SideGraph* SGBuilder::clear_except_sg()
@@ -142,11 +144,22 @@ void SGBuilder::getHalSequencePath(const Sequence* halSeq,
 }
 
 void SGBuilder::addGenome(const Genome* genome,
-                          const Sequence* sequence, 
+                          const Sequence* sequence,
+                          const set<const Sequence*>* refPathSequences,
                           hal_index_t start,
                           hal_index_t length)
 {
   assert(_luMap.find(genome->getName()) == _luMap.end());
+
+  if (refPathSequences != NULL)
+  {
+    _refPathSequences = *refPathSequences;
+  }
+  else
+  {
+    _refPathSequences.clear();
+  }
+  
   if (_firstGenomeName.empty())
   {
     // make note of reference genome to tell if sequences are
@@ -175,12 +188,25 @@ void SGBuilder::addGenome(const Genome* genome,
   }
   else
   {
+    // put reference sequences first
+    for (set<const Sequence*>::const_iterator ri = _refPathSequences.begin();
+         ri != _refPathSequences.end(); ++ri)
+    {
+      const Sequence* curSequence = *ri;
+      if (start <= curSequence->getEndPosition() &&
+          (start + length-1) >= curSequence->getStartPosition())
+      {
+        seqNames.push_back(curSequence->getName());
+      }      
+    }
+    
     SequenceIteratorConstPtr si = genome->getSequenceIterator();
     SequenceIteratorConstPtr sie = genome->getSequenceEndIterator();
     for (; si != sie; si->toNext())
     {
       const Sequence* curSequence = si->getSequence();
-      if (start <= curSequence->getEndPosition() &&
+      if (_refPathSequences.find(curSequence) == _refPathSequences.end() &&
+          start <= curSequence->getEndPosition() &&
           (start + length-1) >= curSequence->getStartPosition())
       {
         seqNames.push_back(curSequence->getName());
@@ -303,7 +329,8 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
   vector<Block*> blocks;
   if (sequence->getGenome() != _mapRoot && (
         _referenceDupes == true ||
-        sequence->getGenome()->getName() != _firstGenomeName))
+        sequence->getGenome()->getName() != _firstGenomeName) &&
+      _refPathSequences.find(sequence) == _refPathSequences.end())
   {
     computeBlocks(sequence, sequence->getStartPosition() + startOffset,
                   sequence->getStartPosition() + startOffset + length - 1,
@@ -311,7 +338,7 @@ pair<SGSide, SGSide> SGBuilder::createSGSequence(const Sequence* sequence,
 
 /*
     cerr << "map seqeunce " << sequence->getName() << endl;
-
+        
     for (int i = 0; i < blocks.size(); ++i) {
       cerr << " block " << i << " " << blocks[i] << endl;
     }
