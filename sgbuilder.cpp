@@ -199,7 +199,7 @@ void SGBuilder::addGenome(const Genome* genome,
       }      
     }
     
-    SequenceIteratorConstPtr si = genome->getSequenceIterator();
+    SequenceIteratorPtr si = genome->getSequenceIterator();
     hal_size_t num_sequences = genome->getNumSequences();
     for (size_t i = 0; i < num_sequences; ++i, si->toNext())
     {
