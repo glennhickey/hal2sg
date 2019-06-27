@@ -21,9 +21,9 @@ static void breadthFirstGenomeSearch(const Genome* reference,
                                      const vector<const Genome*>& targets,
                                      vector<const Genome*>& outTraversal);
 
-static CLParserPtr initParser()
+
+static void initParser(CLParser* optionsParser)
 {
-  CLParserPtr optionsParser = hdf5CLParserInstance();
   optionsParser->addArgument("halFile", "input hal file");
   optionsParser->addArgument("fastaFile", "Output FASTA sequences");
   optionsParser->addArgument("sqlFile", "SQL inserts written here");
@@ -55,12 +55,12 @@ static CLParserPtr initParser()
 
   optionsParser->setDescription("Convert HAL alignment to GA4GH Side "
                                 "Graph SQL format");
-  return optionsParser;
 }
 
 int main(int argc, char** argv)
 {
-  CLParserPtr optionsParser = initParser();
+  CLParser optionsParser;
+  initParser(&optionsParser);
   string halPath;
   string fastaPath;
   string sqlPath;
@@ -71,15 +71,15 @@ int main(int argc, char** argv)
   bool onlySequenceNames;
   try
   {
-    optionsParser->parseOptions(argc, argv);
-    halPath = optionsParser->getArgument<string>("halFile");
-    fastaPath = optionsParser->getArgument<string>("fastaFile");
-    sqlPath = optionsParser->getArgument<string>("sqlFile");
-    refGenomeName = optionsParser->getOption<string>("refGenome");
-    rootGenomeName = optionsParser->getOption<string>("rootGenome");
-    targetGenomes = optionsParser->getOption<string>("targetGenomes");
-    noAncestors = optionsParser->getFlag("noAncestors");
-    onlySequenceNames = optionsParser->getFlag("onlySequenceNames");
+    optionsParser.parseOptions(argc, argv);
+    halPath = optionsParser.getArgument<string>("halFile");
+    fastaPath = optionsParser.getArgument<string>("fastaFile");
+    sqlPath = optionsParser.getArgument<string>("sqlFile");
+    refGenomeName = optionsParser.getOption<string>("refGenome");
+    rootGenomeName = optionsParser.getOption<string>("rootGenome");
+    targetGenomes = optionsParser.getOption<string>("targetGenomes");
+    noAncestors = optionsParser.getFlag("noAncestors");
+    onlySequenceNames = optionsParser.getFlag("onlySequenceNames");
     if (rootGenomeName != "\"\"" && targetGenomes != "\"\"")
     {
       throw hal_exception("--rootGenome and --targetGenomes options are "
@@ -89,7 +89,7 @@ int main(int argc, char** argv)
   catch(exception& e)
   {
     cerr << e.what() << endl;
-    optionsParser->printUsage(cerr);
+    optionsParser.printUsage(cerr);
     exit(1);
   }
   try
@@ -108,8 +108,9 @@ int main(int argc, char** argv)
     }
     sqlStream.close();
     
-    AlignmentConstPtr alignment = openHalAlignmentReadOnly(halPath, 
-                                                           optionsParser);
+    AlignmentConstPtr alignment(openHalAlignment(halPath, 
+                                                 &optionsParser,
+                                                 hal::READ_ACCESS));
     if (alignment->getNumGenomes() == 0)
     {
       throw hal_exception("hal alignmenet is empty");
@@ -258,11 +259,11 @@ bool isCamelHal(AlignmentConstPtr alignment)
   {
     return false;
   }
-  DNAIteratorConstPtr dnaIt = rootGenome->getDNAIterator();
-  DNAIteratorConstPtr end = rootGenome->getDNAEndIterator();
-  for (; !dnaIt->equals(end); dnaIt->toRight())
+  DnaIteratorPtr dnaIt = rootGenome->getDnaIterator();
+  size_t length = rootGenome->getSequenceLength();
+  for (hal_size_t i = 0; i < length; ++i, dnaIt->toRight())
   {
-    if (toupper(dnaIt->getChar()) != 'N')
+    if (toupper(dnaIt->getBase()) != 'N')
     {
       return false;
     }

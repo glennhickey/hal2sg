@@ -7,14 +7,16 @@ sonLibPath=${sonLibRootPath}/lib
 
 halRootPath=${rootPath}/../hal
 halPath=${halRootPath}/lib
+halIncPath=${halRootPath}/api/inc
+halLIIncPath=${halRootPath}/liftover/inc
 
 sgExportPath=${rootPath}/sgExport
 
 include  ${sonLibRootPath}/include.mk
 
-cflags += -I ${sonLibPath}  -I ${halPath} -I ${sgExportPath}
-cppflags += -I ${sonLibPath}  -I ${halPath} -I ${sgExportPath} -UNDEBUG
-basicLibs = ${halPath}/halLiftover.a ${halPath}/halLib.a ${sonLibPath}/sonLib.a ${sonLibPath}/cuTest.a ${sgExportPath}/sgExport.a 
+cflags += -I ${sonLibPath}  -I ${halIncPath} -I ${halLIIncPath} -I ${sgExportPath}
+cppflags += -I ${sonLibPath}  -I ${halIncPath} -I ${halLIIncPath} -I ${sgExportPath} -UNDEBUG
+basicLibs = ${halPath}/libHalLiftover.a ${halPath}/libHal.a ${sonLibPath}/sonLib.a ${sonLibPath}/cuTest.a ${sgExportPath}/sgExport.a 
 basicLibsDependencies = ${basicLibs}
 
 # hdf5 compilation is done through its wrappers.

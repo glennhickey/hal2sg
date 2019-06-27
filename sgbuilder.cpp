@@ -10,7 +10,6 @@
 #include "snphandler.h"
 #include "halBlockMapper.h"
 
-
 using namespace std;
 using namespace hal;
 
@@ -200,9 +199,9 @@ void SGBuilder::addGenome(const Genome* genome,
       }      
     }
     
-    SequenceIteratorConstPtr si = genome->getSequenceIterator();
-    SequenceIteratorConstPtr sie = genome->getSequenceEndIterator();
-    for (; si != sie; si->toNext())
+    SequenceIteratorPtr si = genome->getSequenceIterator();
+    hal_size_t num_sequences = genome->getNumSequences();
+    for (size_t i = 0; i < num_sequences; ++i, si->toNext())
     {
       const Sequence* curSequence = si->getSequence();
       if (_refPathSequences.find(curSequence) == _refPathSequences.end() &&
@@ -529,7 +528,7 @@ void SGBuilder::computeBlocks(const Sequence* sequence,
   }
 
   // block mapping logic below largely taken from halBlockLiftover.cpp
-  SegmentIteratorConstPtr refSeg;
+  SegmentIteratorPtr refSeg;
   hal_index_t lastIndex;
   if (genome->getNumTopSegments() > 0)
   {
@@ -554,24 +553,24 @@ void SGBuilder::computeBlocks(const Sequence* sequence,
   assert(refSeg->getStartPosition() ==  globalStart);
   assert(refSeg->getEndPosition() <= globalEnd);
     
-  set<MappedSegmentConstPtr> mappedSegments;
+  MappedSegmentSet mappedSegments;
     
   while (refSeg->getArrayIndex() < lastIndex &&
          refSeg->getStartPosition() <= globalEnd)  
   {
-    refSeg->getMappedSegments(mappedSegments, target, &_mapPath,
-                            true, 0, _mapRoot, _mapMrca);
+    halMapSegment(refSeg.get(), mappedSegments, target, &_mapPath, true, 0, _mapRoot, _mapMrca);
+    
     refSeg->toRight(globalEnd);
   }
 
   blocks.clear();
   blocks.reserve(mappedSegments.size());
 
-  vector<MappedSegmentConstPtr> fragments;
-  BlockMapper::MSSet emptySet;
+  vector<MappedSegmentPtr> fragments;
+  MappedSegmentSet emptySet;
   set<hal_index_t> queryCutSet;
   set<hal_index_t> targetCutSet;
-  for (set<MappedSegmentConstPtr>::iterator i = mappedSegments.begin();
+  for (set<MappedSegmentPtr>::iterator i = mappedSegments.begin();
        i != mappedSegments.end(); ++i)
   {
     BlockMapper::extractSegment(i, emptySet, fragments, &mappedSegments, 
@@ -888,7 +887,7 @@ SGBuilder::mapBlockSlice(const Block* block,
 
 
 
-void SGBuilder::fragmentsToBlock(const vector<MappedSegmentConstPtr>& fragments,
+void SGBuilder::fragmentsToBlock(const vector<MappedSegmentPtr>& fragments,
                                  Block& block) const
 {
   block._tgtStart = min(min(fragments.front()->getStartPosition(), 
@@ -902,8 +901,8 @@ void SGBuilder::fragmentsToBlock(const vector<MappedSegmentConstPtr>& fragments,
   block._tgtSeq = fragments.front()->getSequence();
   assert(block._tgtStart <= block._tgtEnd);
 
-  SlicedSegmentConstPtr srcFront = fragments.front()->getSource();
-  SlicedSegmentConstPtr srcBack = fragments.back()->getSource();
+  const SlicedSegment* srcFront = fragments.front()->getSource();
+  const SlicedSegment* srcBack = fragments.back()->getSource();
 
   block._srcStart =  min(min(srcFront->getStartPosition(), 
                              srcFront->getEndPosition()),
@@ -1145,13 +1144,13 @@ void SGBuilder::getRootSubString(string& outDNA, const Sequence* sequence,
   {
     const Genome* root = sequence->getGenome();
     assert (root->getParent() == NULL);
-    BottomSegmentIteratorConstPtr bottom = root->getBottomSegmentIterator();
-    TopSegmentIteratorConstPtr top = root->getChild(0)->getTopSegmentIterator();
+    BottomSegmentIteratorPtr bottom = root->getBottomSegmentIterator();
+    TopSegmentIteratorPtr top = root->getChild(0)->getTopSegmentIterator();
     for (size_t i = 0 ; i < root->getNumBottomSegments(); ++i)
     {
       for (size_t j = 0; j < root->getNumChildren(); ++j)
       {
-        if (bottom->hasChild(j))
+        if (bottom->getBottomSegment()->hasChild(j))
         {
           top->toChild(bottom, j);
           top->getString(buffer);

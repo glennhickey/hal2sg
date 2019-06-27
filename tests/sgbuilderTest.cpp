@@ -125,15 +125,15 @@ void InversionTest::createCallBack(AlignmentPtr alignment)
 
   for (size_t i = 0; i < ancGenome->getNumBottomSegments(); ++i)
   {
-    bottom->setTopParseIndex(NULL_INDEX);
-    bottom->setChildIndex(0, i);
-    bottom->setChildReversed(0, false);
-    bottom->setCoordinates(i * 10, 10);
-    top->setBottomParseIndex(NULL_INDEX);
-    top->setParentIndex(i);
-    top->setCoordinates(i * 10, 10);
-    top->setParentReversed(false);
-    top->setNextParalogyIndex(NULL_INDEX);
+    bottom->bseg()->setTopParseIndex(NULL_INDEX);
+    bottom->bseg()->setChildIndex(0, i);
+    bottom->bseg()->setChildReversed(0, false);
+    bottom->bseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setBottomParseIndex(NULL_INDEX);
+    top->tseg()->setParentIndex(i);
+    top->tseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setParentReversed(false);
+    top->tseg()->setNextParalogyIndex(NULL_INDEX);
     bottom->toRight();
     top->toRight();
   }
@@ -141,13 +141,13 @@ void InversionTest::createCallBack(AlignmentPtr alignment)
   // single inversion at segment [50,59]
   bottom = ancGenome->getBottomSegmentIterator(5);
   top->toChild(bottom, 0);
-  bottom->setChildReversed(0, true);
-  top->setParentReversed(true);
+  bottom->bseg()->setChildReversed(0, true);
+  top->tseg()->setParentReversed(true);
 }
 
 void InversionTest::checkCallBack(AlignmentConstPtr alignment)
 {
-  validateAlignment(alignment);
+  validateAlignment(alignment.get());
 
   const Genome* ancGenome = alignment->openGenome("AncGenome");
 
@@ -273,22 +273,22 @@ void Inversion2Test::createCallBack(AlignmentPtr alignment)
 
   for (size_t i = 0; i < ancGenome->getNumBottomSegments(); ++i)
   {
-    bottom->setTopParseIndex(NULL_INDEX);
-    bottom->setChildIndex(0, downMap[i]);
-    bottom->setChildReversed(0, false);
-    bottom->setChildIndex(1, i);
-    bottom->setChildReversed(1, false);
-    bottom->setCoordinates(i * 10, 10);
-    top->setBottomParseIndex(NULL_INDEX);
-    top->setParentIndex(upMap[i]);
-    top->setCoordinates(i * 10, 10);
-    top->setParentReversed(false);
-    top->setNextParalogyIndex(NULL_INDEX);
-    top2->setBottomParseIndex(NULL_INDEX);
-    top2->setParentIndex(i);
-    top2->setCoordinates(i * 10, 10);
-    top2->setParentReversed(false);
-    top2->setNextParalogyIndex(NULL_INDEX);
+    bottom->bseg()->setTopParseIndex(NULL_INDEX);
+    bottom->bseg()->setChildIndex(0, downMap[i]);
+    bottom->bseg()->setChildReversed(0, false);
+    bottom->bseg()->setChildIndex(1, i);
+    bottom->bseg()->setChildReversed(1, false);
+    bottom->bseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setBottomParseIndex(NULL_INDEX);
+    top->tseg()->setParentIndex(upMap[i]);
+    top->tseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setParentReversed(false);
+    top->tseg()->setNextParalogyIndex(NULL_INDEX);
+    top2->tseg()->setBottomParseIndex(NULL_INDEX);
+    top2->tseg()->setParentIndex(i);
+    top2->tseg()->setCoordinates(i * 10, 10);
+    top2->tseg()->setParentReversed(false);
+    top2->tseg()->setNextParalogyIndex(NULL_INDEX);
     bottom->toRight();
     top->toRight();
     top2->toRight();
@@ -297,30 +297,30 @@ void Inversion2Test::createCallBack(AlignmentPtr alignment)
   // single inversion at segment [50,59] (in ancRefSequence)
   bottom = ancGenome->getBottomSegmentIterator(5 + 3);
   top->toChild(bottom, 0);
-  bottom->setChildReversed(0, true);
-  top->setParentReversed(true);
+  bottom->bseg()->setChildReversed(0, true);
+  top->tseg()->setParentReversed(true);
 
   // throw in a dupe / deletion
   hal_index_t topIdx = top->getArrayIndex();
-  top->setNextParalogyIndex(top->getArrayIndex() + 4);
+  top->tseg()->setNextParalogyIndex(top->getArrayIndex() + 4);
   top = leaf1Genome->getTopSegmentIterator(top->getArrayIndex() + 4);
-  top->setNextParalogyIndex(topIdx);
+  top->tseg()->setNextParalogyIndex(topIdx);
   bottom->toParent(top);
-  bottom->setChildIndex(0, NULL_INDEX);
-  bottom->setChildReversed(0, false);
-  top->setParentIndex(5 + 3);
-  top->setParentReversed(false);
+  bottom->bseg()->setChildIndex(0, NULL_INDEX);
+  bottom->bseg()->setChildReversed(0, false);
+  top->tseg()->setParentIndex(5 + 3);
+  top->tseg()->setParentReversed(false);
   
   // inversion at first segment
   bottom = ancGenome->getBottomSegmentIterator(0 + 3);
   top->toChild(bottom, 0);
-  bottom->setChildReversed(0, true);
-  top->setParentReversed(true);
+  bottom->bseg()->setChildReversed(0, true);
+  top->tseg()->setParentReversed(true);
 }
 
 void Inversion2Test::checkCallBack(AlignmentConstPtr alignment)
 {
-  validateAlignment(alignment);
+  validateAlignment(alignment.get());
   const Genome* ancGenome = alignment->openGenome("AncGenome");
 
   SGBuilder sgBuild;
@@ -415,32 +415,32 @@ void InsertionTest::createCallBack(AlignmentPtr alignment)
   //spike in insertion at beginning
   top = leaf1Genome->getTopSegmentIterator(0);
   bottom->toParent(top);
-  top->setParentIndex(NULL_INDEX);
-  bottom->setChildIndex(0, NULL_INDEX);
+  top->tseg()->setParentIndex(NULL_INDEX);
+  bottom->bseg()->setChildIndex(0, NULL_INDEX);
 
   //spike in insertion at beginning of second sequence
   top = leaf1Genome->getTopSegmentIterator(1);
   bottom->toParent(top);
-  top->setParentIndex(NULL_INDEX);
-  bottom->setChildIndex(0, NULL_INDEX);
+  top->tseg()->setParentIndex(NULL_INDEX);
+  bottom->bseg()->setChildIndex(0, NULL_INDEX);
 
   //spike in insertion at middle of second sequence
   top = leaf1Genome->getTopSegmentIterator(3);
   bottom->toParent(top);
-  top->setParentIndex(NULL_INDEX);
-  bottom->setChildIndex(0, NULL_INDEX);
+  top->tseg()->setParentIndex(NULL_INDEX);
+  bottom->bseg()->setChildIndex(0, NULL_INDEX);
 
   //spike in insertion at end
   top = leaf1Genome->getTopSegmentIterator(9);
   bottom->toParent(top);
-  top->setParentIndex(NULL_INDEX);
-  bottom->setChildIndex(0, NULL_INDEX);
+  top->tseg()->setParentIndex(NULL_INDEX);
+  bottom->bseg()->setChildIndex(0, NULL_INDEX);
 
 }
 
 void InsertionTest::checkCallBack(AlignmentConstPtr alignment)
 {
-  validateAlignment(alignment);
+  validateAlignment(alignment.get());
   const Genome* ancGenome = alignment->openGenome("AncGenome");
 
   SGBuilder sgBuild;
@@ -511,15 +511,15 @@ void EmptySequenceTest::createCallBack(AlignmentPtr alignment)
 
   for (size_t i = 0; i < ancGenome->getNumBottomSegments(); ++i)
   {
-    bottom->setTopParseIndex(NULL_INDEX);
-    bottom->setChildIndex(0, i);
-    bottom->setChildReversed(0, false);
-    bottom->setCoordinates(i * 10, 10);
-    top->setBottomParseIndex(NULL_INDEX);
-    top->setParentIndex(i);
-    top->setCoordinates(i * 10, 10);
-    top->setParentReversed(false);
-    top->setNextParalogyIndex(NULL_INDEX);
+    bottom->bseg()->setTopParseIndex(NULL_INDEX);
+    bottom->bseg()->setChildIndex(0, i);
+    bottom->bseg()->setChildReversed(0, false);
+    bottom->bseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setBottomParseIndex(NULL_INDEX);
+    top->tseg()->setParentIndex(i);
+    top->tseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setParentReversed(false);
+    top->tseg()->setNextParalogyIndex(NULL_INDEX);
     bottom->toRight();
     top->toRight();
   }
@@ -528,7 +528,7 @@ void EmptySequenceTest::createCallBack(AlignmentPtr alignment)
 
 void EmptySequenceTest::checkCallBack(AlignmentConstPtr alignment)
 {
-  validateAlignment(alignment);
+  validateAlignment(alignment.get());
   const Genome* ancGenome = alignment->openGenome("AncGenome");
 
   SGBuilder sgBuild;
@@ -605,15 +605,15 @@ void SNPTest::createCallBack(AlignmentPtr alignment)
 
   for (size_t i = 0; i < ancGenome->getNumBottomSegments(); ++i)
   {
-    bottom->setTopParseIndex(NULL_INDEX);
-    bottom->setChildIndex(0, i);
-    bottom->setChildReversed(0, false);
-    bottom->setCoordinates(i * 10, 10);
-    top->setBottomParseIndex(NULL_INDEX);
-    top->setParentIndex(i);
-    top->setCoordinates(i * 10, 10);
-    top->setParentReversed(false);
-    top->setNextParalogyIndex(NULL_INDEX);
+    bottom->bseg()->setTopParseIndex(NULL_INDEX);
+    bottom->bseg()->setChildIndex(0, i);
+    bottom->bseg()->setChildReversed(0, false);
+    bottom->bseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setBottomParseIndex(NULL_INDEX);
+    top->tseg()->setParentIndex(i);
+    top->tseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setParentReversed(false);
+    top->tseg()->setNextParalogyIndex(NULL_INDEX);
     bottom->toRight();
     top->toRight();
   }
@@ -621,7 +621,7 @@ void SNPTest::createCallBack(AlignmentPtr alignment)
 
 void SNPTest::checkCallBack(AlignmentConstPtr alignment)
 {
-  validateAlignment(alignment);
+  validateAlignment(alignment.get());
 
   const Genome* ancGenome = alignment->openGenome("AncGenome");
 
@@ -751,7 +751,7 @@ void HarderSNPTest::createCallBack(AlignmentPtr alignment)
 
 void HarderSNPTest::checkCallBack(AlignmentConstPtr alignment)
 {
-  validateAlignment(alignment);
+  validateAlignment(alignment.get());
 
   const Genome* ancGenome = alignment->openGenome("AncGenome");
   const Genome* leaf1Genome = alignment->openGenome("Leaf1");
@@ -851,12 +851,12 @@ void RefDupeTest::createCallBack(AlignmentPtr alignment)
   TopSegmentIteratorPtr top = leaf1Genome->getTopSegmentIterator(2);
   BottomSegmentIteratorPtr bottom = ancGenome->getBottomSegmentIterator();
   bottom->toParent(top);
-  bottom->setChildIndex(0, NULL_INDEX);
-  top->setParentIndex(0);
-  top->setParentReversed(0);
-  top->setNextParalogyIndex(0);
+  bottom->bseg()->setChildIndex(0, NULL_INDEX);
+  top->tseg()->setParentIndex(0);
+  top->tseg()->setParentReversed(0);
+  top->tseg()->setNextParalogyIndex(0);
   top = leaf1Genome->getTopSegmentIterator(0);
-  top->setNextParalogyIndex(2);
+  top->tseg()->setNextParalogyIndex(2);
   for (size_t i = 0; i < 10; ++i)
   {
     leafdna[20 + i] = leafdna[i];
@@ -864,19 +864,19 @@ void RefDupeTest::createCallBack(AlignmentPtr alignment)
  
   // 50,59, 60,69 90,99 : triple dupe where first is inverted
   top = leaf1Genome->getTopSegmentIterator(5);
-  top->setNextParalogyIndex(6);
+  top->tseg()->setNextParalogyIndex(6);
   top = leaf1Genome->getTopSegmentIterator(6);
-  top->setParentIndex(5);
-  top->setParentReversed(false);
-  top->setNextParalogyIndex(9);
+  top->tseg()->setParentIndex(5);
+  top->tseg()->setParentReversed(false);
+  top->tseg()->setNextParalogyIndex(9);
   top = leaf1Genome->getTopSegmentIterator(9);
-  top->setParentIndex(5);
-  top->setParentReversed(false);
-  top->setNextParalogyIndex(5);
+  top->tseg()->setParentIndex(5);
+  top->tseg()->setParentReversed(false);
+  top->tseg()->setNextParalogyIndex(5);
   bottom = ancGenome->getBottomSegmentIterator(6);
-  bottom->setChildIndex(0, NULL_INDEX);
+  bottom->bseg()->setChildIndex(0, NULL_INDEX);
   bottom = ancGenome->getBottomSegmentIterator(9);
-  bottom->setChildIndex(0, NULL_INDEX);
+  bottom->bseg()->setChildIndex(0, NULL_INDEX);
   for (size_t i = 0; i < 10; ++i)
   {
     leafdna[60 + i] = dna[50 + i];
@@ -892,7 +892,7 @@ void RefDupeTest::createCallBack(AlignmentPtr alignment)
 
 void RefDupeTest::checkCallBack(AlignmentConstPtr alignment)
 {
-  validateAlignment(alignment);
+  validateAlignment(alignment.get());
 
   const Genome* ancGenome = alignment->openGenome("AncGenome");
   const Genome* leaf1Genome = alignment->openGenome("Leaf1");
@@ -982,15 +982,15 @@ void TransInversionTest::createCallBack(AlignmentPtr alignment)
 
   for (size_t i = 0; i < ancGenome->getNumBottomSegments(); ++i)
   {
-    bottom->setTopParseIndex(NULL_INDEX);
-    bottom->setChildIndex(0, i);
-    bottom->setChildReversed(0, false);
-    bottom->setCoordinates(i * 10, 10);
-    top->setBottomParseIndex(i);
-    top->setParentIndex(i);
-    top->setCoordinates(i * 10, 10);
-    top->setParentReversed(false);
-    top->setNextParalogyIndex(NULL_INDEX);
+    bottom->bseg()->setTopParseIndex(NULL_INDEX);
+    bottom->bseg()->setChildIndex(0, i);
+    bottom->bseg()->setChildReversed(0, false);
+    bottom->bseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setBottomParseIndex(i);
+    top->tseg()->setParentIndex(i);
+    top->tseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setParentReversed(false);
+    top->tseg()->setNextParalogyIndex(NULL_INDEX);
     bottom->toRight();
     top->toRight();
   }
@@ -998,8 +998,8 @@ void TransInversionTest::createCallBack(AlignmentPtr alignment)
   // single inversion at segment [50,59] between mid and anc
   bottom = ancGenome->getBottomSegmentIterator(5);
   top->toChild(bottom, 0);
-  bottom->setChildReversed(0, true);
-  top->setParentReversed(true);
+  bottom->bseg()->setChildReversed(0, true);
+  top->tseg()->setParentReversed(true);
 
   // align mid and leaf1
   top = leaf1Genome->getTopSegmentIterator();
@@ -1007,15 +1007,15 @@ void TransInversionTest::createCallBack(AlignmentPtr alignment)
 
   for (size_t i = 0; i < ancGenome->getNumBottomSegments(); ++i)
   {
-    bottom->setTopParseIndex(i);
-    bottom->setChildIndex(0, i);
-    bottom->setChildReversed(0, false);
-    bottom->setCoordinates(i * 10, 10);
-    top->setBottomParseIndex(NULL_INDEX);
-    top->setParentIndex(i);
-    top->setCoordinates(i * 10, 10);
-    top->setParentReversed(false);
-    top->setNextParalogyIndex(NULL_INDEX);
+    bottom->bseg()->setTopParseIndex(i);
+    bottom->bseg()->setChildIndex(0, i);
+    bottom->bseg()->setChildReversed(0, false);
+    bottom->bseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setBottomParseIndex(NULL_INDEX);
+    top->tseg()->setParentIndex(i);
+    top->tseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setParentReversed(false);
+    top->tseg()->setNextParalogyIndex(NULL_INDEX);
     bottom->toRight();
     top->toRight();
   }
@@ -1026,15 +1026,15 @@ void TransInversionTest::createCallBack(AlignmentPtr alignment)
 
   for (size_t i = 0; i < ancGenome->getNumBottomSegments(); ++i)
   {
-    bottom->setTopParseIndex(i);
-    bottom->setChildIndex(1, i);
-    bottom->setChildReversed(1, false);
-    bottom->setCoordinates(i * 10, 10);
-    top->setBottomParseIndex(NULL_INDEX);
-    top->setParentIndex(i);
-    top->setCoordinates(i * 10, 10);
-    top->setParentReversed(false);
-    top->setNextParalogyIndex(NULL_INDEX);
+    bottom->bseg()->setTopParseIndex(i);
+    bottom->bseg()->setChildIndex(1, i);
+    bottom->bseg()->setChildReversed(1, false);
+    bottom->bseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setBottomParseIndex(NULL_INDEX);
+    top->tseg()->setParentIndex(i);
+    top->tseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setParentReversed(false);
+    top->tseg()->setNextParalogyIndex(NULL_INDEX);
     bottom->toRight();
     top->toRight();
   }
@@ -1042,13 +1042,13 @@ void TransInversionTest::createCallBack(AlignmentPtr alignment)
   // single inversion at segment [50,59] between leaf2 and mid
   bottom = midGenome->getBottomSegmentIterator(5);
   top->toChild(bottom, 1);
-  bottom->setChildReversed(1, true);
-  top->setParentReversed(true);
+  bottom->bseg()->setChildReversed(1, true);
+  top->tseg()->setParentReversed(true);
 }
 
 void TransInversionTest::checkCallBack(AlignmentConstPtr alignment)
 {
-  validateAlignment(alignment);
+  validateAlignment(alignment.get());
 
   const Genome* ancGenome = alignment->openGenome("AncGenome");
   const Genome* midGenome = alignment->openGenome("Mid");
@@ -1155,15 +1155,15 @@ void TransSNPTest::createCallBack(AlignmentPtr alignment)
 
   for (size_t i = 0; i < ancGenome->getNumBottomSegments(); ++i)
   {
-    bottom->setTopParseIndex(NULL_INDEX);
-    bottom->setChildIndex(0, i);
-    bottom->setChildReversed(0, false);
-    bottom->setCoordinates(i * 10, 10);
-    top->setBottomParseIndex(i);
-    top->setParentIndex(i);
-    top->setCoordinates(i * 10, 10);
-    top->setParentReversed(false);
-    top->setNextParalogyIndex(NULL_INDEX);
+    bottom->bseg()->setTopParseIndex(NULL_INDEX);
+    bottom->bseg()->setChildIndex(0, i);
+    bottom->bseg()->setChildReversed(0, false);
+    bottom->bseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setBottomParseIndex(i);
+    top->tseg()->setParentIndex(i);
+    top->tseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setParentReversed(false);
+    top->tseg()->setNextParalogyIndex(NULL_INDEX);
     bottom->toRight();
     top->toRight();
   }
@@ -1171,8 +1171,8 @@ void TransSNPTest::createCallBack(AlignmentPtr alignment)
   // single inversion at segment [50,59] between mid and anc
   bottom = ancGenome->getBottomSegmentIterator(5);
   top->toChild(bottom, 0);
-  bottom->setChildReversed(0, true);
-  top->setParentReversed(true);
+  bottom->bseg()->setChildReversed(0, true);
+  top->tseg()->setParentReversed(true);
 
   // align mid and leaf1
   top = leaf1Genome->getTopSegmentIterator();
@@ -1180,15 +1180,15 @@ void TransSNPTest::createCallBack(AlignmentPtr alignment)
 
   for (size_t i = 0; i < ancGenome->getNumBottomSegments(); ++i)
   {
-    bottom->setTopParseIndex(i);
-    bottom->setChildIndex(0, i);
-    bottom->setChildReversed(0, false);
-    bottom->setCoordinates(i * 10, 10);
-    top->setBottomParseIndex(NULL_INDEX);
-    top->setParentIndex(i);
-    top->setCoordinates(i * 10, 10);
-    top->setParentReversed(false);
-    top->setNextParalogyIndex(NULL_INDEX);
+    bottom->bseg()->setTopParseIndex(i);
+    bottom->bseg()->setChildIndex(0, i);
+    bottom->bseg()->setChildReversed(0, false);
+    bottom->bseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setBottomParseIndex(NULL_INDEX);
+    top->tseg()->setParentIndex(i);
+    top->tseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setParentReversed(false);
+    top->tseg()->setNextParalogyIndex(NULL_INDEX);
     bottom->toRight();
     top->toRight();
   }
@@ -1199,15 +1199,15 @@ void TransSNPTest::createCallBack(AlignmentPtr alignment)
 
   for (size_t i = 0; i < ancGenome->getNumBottomSegments(); ++i)
   {
-    bottom->setTopParseIndex(i);
-    bottom->setChildIndex(1, i);
-    bottom->setChildReversed(1, false);
-    bottom->setCoordinates(i * 10, 10);
-    top->setBottomParseIndex(NULL_INDEX);
-    top->setParentIndex(i);
-    top->setCoordinates(i * 10, 10);
-    top->setParentReversed(false);
-    top->setNextParalogyIndex(NULL_INDEX);
+    bottom->bseg()->setTopParseIndex(i);
+    bottom->bseg()->setChildIndex(1, i);
+    bottom->bseg()->setChildReversed(1, false);
+    bottom->bseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setBottomParseIndex(NULL_INDEX);
+    top->tseg()->setParentIndex(i);
+    top->tseg()->setCoordinates(i * 10, 10);
+    top->tseg()->setParentReversed(false);
+    top->tseg()->setNextParalogyIndex(NULL_INDEX);
     bottom->toRight();
     top->toRight();
   }
@@ -1215,13 +1215,13 @@ void TransSNPTest::createCallBack(AlignmentPtr alignment)
   // single inversion at segment [50,59] between leaf2 and mid
   bottom = midGenome->getBottomSegmentIterator(5);
   top->toChild(bottom, 1);
-  bottom->setChildReversed(1, true);
-  top->setParentReversed(true);
+  bottom->bseg()->setChildReversed(1, true);
+  top->tseg()->setParentReversed(true);
 }
 
 void TransSNPTest::checkCallBack(AlignmentConstPtr alignment)
 {
-  validateAlignment(alignment);
+  validateAlignment(alignment.get());
 
   const Genome* ancGenome = alignment->openGenome("AncGenome");
   const Genome* midGenome = alignment->openGenome("Mid");
