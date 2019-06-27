@@ -192,7 +192,7 @@ protected:
     * code to read into struct here. 
     */
    void fragmentsToBlock(
-     const std::vector<hal::MappedSegmentConstPtr>& fragments,
+     const std::vector<hal::MappedSegmentPtr>& fragments,
      Block& block) const;
 
    /** check if block aligns something to itself */

@@ -5,6 +5,8 @@
  */
 #include <cstdio>
 #include "unitTests.h"
+#include "halAlignmentTest.h"
+#include "halAlignmentInstance.h"
 
 int runAllTests(void) {
   CuString *output = CuStringNew();
@@ -19,6 +21,7 @@ int runAllTests(void) {
 }
 
 int main(int argc, char *argv[]) {
-   
+
+  storageDriverToTest = hal::STORAGE_FORMAT_HDF5;
   return runAllTests();
 }
